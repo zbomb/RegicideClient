@@ -63,7 +63,7 @@ bool FSockWinTCP::SetRemoteAddress( std::string Address, unsigned int Port, bool
 		// We need an io context to perform this action
 		if( LinkedContext )
 		{
-			printf( "[Warning] Failed to perform host name lookup with TCP socket because there was no io context linked to the socket!" );
+			printf( "[Warning] Failed to perform host name lookup with TCP socket because there was no io context linked to the socket!\n" );
 			return false;
 		}
 
@@ -80,7 +80,7 @@ bool FSockWinTCP::SetRemoteAddress( std::string Address, unsigned int Port, bool
 		// Check for error
 		if( resErr )
 		{
-			printf( "[Warning] Failed to resolve provided hostname for tcp socket! Hostname: %s  Error: %s", Address.c_str(), resErr.message().c_str() );
+			printf( "[Warning] Failed to resolve provided hostname for tcp socket! Hostname: %s  Error: %s\n", Address.c_str(), resErr.message().c_str() );
 			return false;
 		}
 
@@ -95,7 +95,7 @@ bool FSockWinTCP::SetRemoteAddress( std::string Address, unsigned int Port, bool
 
 		if( ipError )
 		{
-			printf( "[Warning] IP Address supplied to TCP socket was invalid! %s", ipError.message().c_str() );
+			printf( "[Warning] IP Address supplied to TCP socket was invalid! %s\n", ipError.message().c_str() );
 			return false;
 		}
 
@@ -113,7 +113,7 @@ bool FSockWinTCP::Connect()
 	if( AddressMode == AddressType::NotSet || LinkedContext == nullptr ||
 		( RemoteEndpoint.address().is_unspecified() && AddressType::Endpoint ) )
 	{
-		printf( "[Warning] Connect failed because the endpoint has not been properly set!" );
+		printf( "[Warning] Connect failed because the endpoint has not been properly set!\n" );
 		return false;
 	}
 
@@ -130,7 +130,7 @@ bool FSockWinTCP::Connect()
 
 		if( ConnectError )
 		{
-			printf( "[Warning] TCP socket failed to connect to the remote address at %s! Error: %s", RemoteEndpoint.address().to_string().c_str(), ConnectError.message().c_str() );
+			printf( "[Warning] TCP socket failed to connect to the remote address at %s! Error: %s\n", RemoteEndpoint.address().to_string().c_str(), ConnectError.message().c_str() );
 			return false;
 		}
 	}
@@ -141,7 +141,7 @@ bool FSockWinTCP::Connect()
 
 		if( ConnectError )
 		{
-			printf( "[Warning] TCP socket failed to connect to the hostname %s! Error: %s", EndpointIterator->host_name().c_str(), ConnectError.message().c_str() );
+			printf( "[Warning] TCP socket failed to connect to the hostname %s! Error: %s\n", EndpointIterator->host_name().c_str(), ConnectError.message().c_str() );
 			return false;
 		}
 	}
@@ -193,13 +193,13 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 {
 	if( Callback == nullptr )
 	{
-		printf( "[Warning] Failed to asynchronously connect to tcp socket because the provided callback was null!" );
+		printf( "[Warning] Failed to asynchronously connect to tcp socket because the provided callback was null!\n" );
 		return;
 	}
 	else if( AddressMode == AddressType::NotSet || LinkedContext == nullptr ||
 		( RemoteEndpoint.address().is_unspecified() && AddressType::Endpoint ) )
 	{
-		printf( "[Warning] Failed to asynchronously connect to tcp socket because the remote host was not properly set!" );
+		printf( "[Warning] Failed to asynchronously connect to tcp socket because the remote host was not properly set!\n" );
 		Callback( FSockWinError( asio::error_code( asio::error::host_not_found ) ) );
 		return;
 	}
@@ -227,7 +227,7 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 			// Check if callback is still valid
 			if( Callback == nullptr )
 			{
-				printf( "[Warning] Async Connect callback failed (TCP)! The bound function is null. The connection %s with code %d", Error ? "Failed" : "Succeeded", Error.value() );
+				printf( "[Warning] Async Connect callback failed (TCP)! The bound function is null. The connection %s with code %d\n", Error ? "Failed" : "Succeeded", Error.value() );
 			}
 			else
 			{
@@ -252,7 +252,7 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 			// Check if callback is still valid
 			if( Callback == nullptr )
 			{
-				printf( "[Warning] Async Connect callback failed (TCP)! The bound function is null. The connection %s with code %d", Error ? "Failed" : "Succeeded", Error.value() );
+				printf( "[Warning] Async Connect callback failed (TCP)! The bound function is null. The connection %s with code %d\n", Error ? "Failed" : "Succeeded", Error.value() );
 			}
 			else
 			{
@@ -275,12 +275,12 @@ void FSockWinTCP::SendAsync( std::vector<uint8> Buffer, std::function< void( FSo
 	// Check for invalid callback
 	if( Callback == nullptr )
 	{
-		printf( "[Warning] Send Async call to TCP socket failed! The provided callback was null!" );
+		printf( "[Warning] Send Async call to TCP socket failed! The provided callback was null!\n" );
 		return;
 	}
 	else if( !InternalSock )
 	{
-		printf( "[Warning] Async Async call to TCP socket failed! The socket was null, probably not connected!" );
+		printf( "[Warning] Async Async call to TCP socket failed! The socket was null, probably not connected!\n" );
 		if( Callback != nullptr )
 		{
 			Callback( FSockWinError( asio::error::not_connected ), 0 );
@@ -293,7 +293,7 @@ void FSockWinTCP::SendAsync( std::vector<uint8> Buffer, std::function< void( FSo
 		// Check if callback is valid
 		if( Callback == nullptr )
 		{
-			printf( "[Warning] Async send (TCP) failed to run callback, it was null! The call %s", Error ? "Failed" : "Succeeded" );
+			printf( "[Warning] Async send (TCP) failed to run callback, it was null! The call %s\n", Error ? "Failed" : "Succeeded" );
 		}
 		else
 		{
@@ -306,12 +306,12 @@ void FSockWinTCP::ReceiveAsync( std::vector<uint8>& Buffer, std::function< void(
 {
 	if( Callback == nullptr )
 	{
-		printf( "[Warning] Async receive on a TCP socket failed! The provided callback was null!" );
+		printf( "[Warning] Async receive on a TCP socket failed! The provided callback was null!\n" );
 		return;
 	}
 	else if( !InternalSock )
 	{
-		printf( "[Warning Async receive on a TCP socket failed! The connection is not open!" );
+		printf( "[Warning Async receive on a TCP socket failed! The connection is not open!\n" );
 
 		if( Callback != nullptr )
 		{
@@ -324,7 +324,7 @@ void FSockWinTCP::ReceiveAsync( std::vector<uint8>& Buffer, std::function< void(
 	{
 		if( Callback == nullptr )
 		{
-			printf( "[Warning] Async read call on a TCP socket completed but the callback is null! The operation %s", Error ? "failed!" : "succeeded." );
+			printf( "[Warning] Async read call on a TCP socket completed but the callback is null! The operation %s\n", Error ? "failed!" : "succeeded." );
 		}
 		else
 		{
@@ -357,12 +357,12 @@ void FSockWinTCP::Shutdown( ShutdownDir Direction )
 
 		if( ShutdownError )
 		{
-			printf( "[Warning] There was an error while shutting down a tcp socket! %s", ShutdownError.message().c_str() );
+			printf( "[Warning] There was an error while shutting down a tcp socket! %s\n", ShutdownError.message().c_str() );
 		}
 	}
 	else
 	{
-		printf( "[Warning] Attempt to shutdown a TCP socket that isnt connected!" );
+		printf( "[Warning] Attempt to shutdown a TCP socket that isnt connected!\n" );
 	}
 }
 
@@ -383,7 +383,7 @@ void FSockWinTCP::Close()
 
 		if( CloseError )
 		{
-			printf( "[Warning] An error occurred while closing a TCP socket! %s", CloseError.message().c_str() );
+			printf( "[Warning] An error occurred while closing a TCP socket! %s\n", CloseError.message().c_str() );
 		}
 
 		InternalSock.reset();

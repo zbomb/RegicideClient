@@ -31,6 +31,7 @@ private:
 	std::vector< uint8 > ReceiveBuffer;
 	std::vector< uint8 > ParseBuffer;
 	std::map< std::string, FNetCallback > CallbackList;
+	FPublicHeader CurrentHeader;
 	
 
 	void OnConnect( FSockError ErrorCode );
@@ -41,6 +42,9 @@ private:
 	bool ConsumeBuffer( FIncomingPacket& OutPacket );
 	bool DecryptPacket( FIncomingPacket& OutPacket );
 	bool ReadHeader( FIncomingPacket& OutPacket );
+
+	enum EndianOrder { BigEndian, LittleEndian };
+	EndianOrder ByteOrder;
 
 public:
 

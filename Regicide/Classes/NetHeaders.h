@@ -30,12 +30,12 @@ enum class ELoginResponse
 
 enum class ENetworkCommand
 {
-	Ping = 0,
-	Login = 1,
-	InvalidPacket = 2,
-	KeyExchange = 3,
-	Logout = 4,
-	Register = 5
+	Ping = 1,
+	Login = 2,
+	InvalidPacket = 3,
+	KeyExchange = 4,
+	Logout = 5,
+	Register = 6
 };
 
 enum class EInvalidPacketArgument
@@ -176,8 +176,8 @@ enum class EDisconnectReason
 struct FPublicHeader
 {
 	int64 PacketSize = 0;	// 0
-	int EncryptionMethod = 0;	// 8
-	int _reserved_ = 0;	// 12
+	int32 EncryptionMethod = 0;	// 8
+	uint32 EndianOrder = 1;
 };									// 16
 
 /*--------------------------------------------------------------------------------------
@@ -187,8 +187,8 @@ struct FPublicHeader
 --------------------------------------------------------------------------------------*/
 struct FPrivateHeader
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
 };									// 8
 
 /*--------------------------------------------------------------------------------------
@@ -197,8 +197,8 @@ struct FPrivateHeader
 --------------------------------------------------------------------------------------*/
 struct FGenericPacket
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
 };									// 8
 
 /*--------------------------------------------------------------------------------------
@@ -208,8 +208,8 @@ struct FGenericPacket
 --------------------------------------------------------------------------------------*/
 struct FSmallPayloadPacket
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
 	uint8 Payload[ 128 ];			// 8
 };									// 132
 
@@ -219,9 +219,9 @@ struct FSmallPayloadPacket
 --------------------------------------------------------------------------------------*/
 struct FPingPacket
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
-	long TimeStamp = 0;	// 8
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
+	uint64 TimeStamp = 0;	// 8
 };									// 16
 
 /*--------------------------------------------------------------------------------------
@@ -230,8 +230,8 @@ struct FPingPacket
 --------------------------------------------------------------------------------------*/
 struct FKeyExchangePacket
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
 	uint8 Key[ 512 ];				// 8
 };									// 520
 
@@ -241,16 +241,16 @@ struct FKeyExchangePacket
 --------------------------------------------------------------------------------------*/
 struct FLoginPacket
 {
-	int NetworkCommand = 0;	// 0
-	int NetworkArgument = 0;	// 4
+	uint32 NetworkCommand = 0;	// 0
+	uint32 NetworkArgument = 0;	// 4
 	uint8 Username[ 128 ];
 	uint8 Password[ 32 ];
 };
 
 struct FRegisterPacket
 {
-	int NetworkCommand = 0;
-	int NetworkArgument = 0;
+	uint32 NetworkCommand = 0;
+	uint32 NetworkArgument = 0;
 	uint8 DisplayName[ 256 ];
 	uint8 EmailAddress[ 1024 ];
 	uint8 Username[ 128 ];
@@ -264,14 +264,12 @@ struct FRegisterPacket
 struct FIncomingPacket
 {
 	FPublicHeader PacketHeader;
-	uint8* Buffer;
-	size_t BufferSize;
+	std::vector< uint8 > Buffer;
 	ENetworkCommand CommandCode;
 };
 
 struct FOutgoingPacket
 {
-	uint8* PacketBody = nullptr;
-	size_t PacketSize = 0;
+	std::vector< uint8 > Buffer;
 	ENetworkEncryption EncryptionMethod = ENetworkEncryption::Full;
 };

@@ -96,6 +96,9 @@
     <ClCompile Include="..\Classes\RegCloudConnection.cpp">
       <Filter>src\network</Filter>
     </ClCompile>
+    <ClCompile Include="..\Classes\CryptoLibrary.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -181,6 +184,9 @@
     </ClInclude>
     <ClInclude Include="..\Classes\NetHeaders.h">
       <Filter>src\network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\CryptoLibrary.h">
+      <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
