@@ -1,0 +1,5 @@
+
+==================== Build Notes ==================================
+Check to ensure all setup is done for plugins within iOS
+
+IAP Plugin: http://docs.sdkbox.com/en/plugins/iap/v3-cpp/

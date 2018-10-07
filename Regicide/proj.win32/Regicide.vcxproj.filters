@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="win32">
+      <UniqueIdentifier>{84a8ebd7-7cf0-47f6-b75e-d441df67da40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="resource">
+      <UniqueIdentifier>{715254bc-d70b-4ec5-bf29-467dd3ace079}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{bb6c862e-70e9-49d9-81b7-3829a6f50471}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\crypto">
+      <UniqueIdentifier>{d6ed667b-0b45-4d01-96e5-9207f0369d4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\network">
+      <UniqueIdentifier>{9cd1528d-59fa-4f8e-be4d-57d5b23ff7f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\AppDelegate.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\HelloWorldScene.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\FSockWin.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\aes.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\aes_platform_uil.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\asn1parse.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\asn1write.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\bignum.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\cipher.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\cipher_wrap.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\ctr_drbg.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\entropy.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\entropy_poll.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\md.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\md_wrap.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\oid.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\pk.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\pk_wrap.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\rsa.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\rsa_internal.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cryptolib\sha256.c">
+      <Filter>src\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\FSock.cpp">
+      <Filter>src\network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\ISockSystem.cpp">
+      <Filter>src\network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\RegCloud.cpp">
+      <Filter>src\network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\RegCloudConnection.cpp">
+      <Filter>src\network</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="main.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\AppDelegate.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\HelloWorldScene.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\FSockWin.h">
+      <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\aes.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\asn1.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\bignum.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\bn_mul.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\cipher.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\cipher_internal.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\crypto_config.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\crypto_platform_util.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\ctr_drbg.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\entropy.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\entropy_poll.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\md.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\md_internal.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\oid.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\pk.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\pk_internal.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\rsa.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\rsa_internal.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cryptolib\sha256.h">
+      <Filter>src\crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\FSock.h">
+      <Filter>src\network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\ISockSystem.h">
+      <Filter>src\network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\RegCloud.h">
+      <Filter>src\network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\RegCloudConnection.h">
+      <Filter>src\network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\NetHeaders.h">
+      <Filter>src\network</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="game.rc">
+      <Filter>resource</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
