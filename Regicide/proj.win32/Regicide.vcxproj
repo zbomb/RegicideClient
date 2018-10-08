@@ -150,7 +150,6 @@ xcopy "$(ProjectDir)..\Resources" "$(OutDir)" /D /E /I /F /Y
   <ItemGroup>
     <ClCompile Include="..\Classes\AppDelegate.cpp" />
     <ClCompile Include="..\Classes\CryptoLibrary.cpp" />
-    <ClCompile Include="..\Classes\FSock.cpp" />
     <ClCompile Include="..\Classes\ISockSystem.cpp" />
     <ClCompile Include="..\Classes\FSockWin.cpp" />
     <ClCompile Include="..\Classes\HelloWorldScene.cpp" />

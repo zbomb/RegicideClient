@@ -77,7 +77,7 @@ bool CryptoLibrary::AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 3
 
 bool CryptoLibrary::AesError( std::string FailurePoint )
 {
-	printf( "[ERROR] AES operation failed! An error has occurred while %s\n", FailurePoint );
+	printf( "[ERROR] AES operation failed! An error has occurred while %s\n", FailurePoint.c_str() );
 	return false;
 }
 
@@ -136,7 +136,7 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 void CryptoLibrary::PrintVector( std::vector< uint8 >& Data, std::string Name )
 {
 	printf( "\n======================= Debug Vector Print =============================\n" );
-	printf( "-----> %s   Size: %d \n", Name, Data.size() );
+	printf( "-----> %s   Size: %d \n", Name.c_str(), Data.size() );
 
 	uint32 Index = 0;
 	for( auto It = Data.begin(); It != Data.end(); It++, Index++ )

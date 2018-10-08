@@ -24,6 +24,8 @@
 
 #include "AppDelegate.h"
 #include "HelloWorldScene.h"
+#include "RegCloudConnection.h"
+
 #ifdef SDKBOX_ENABLED
 #ifndef WIN32
 #include "PluginIAP/PluginIAP.h"
@@ -101,7 +103,8 @@ bool AppDelegate::applicationDidFinishLaunching() {
     }
 
 	// Begin Connecting To RegSys
-
+	RegCloudConnection* Connection = RegCloudConnection::Get();
+	Connection->BeginConnect();
 
     // turn on display FPS
     director->setDisplayStats(true);

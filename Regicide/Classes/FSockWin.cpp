@@ -208,6 +208,7 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 	if( !InternalSock )
 	{
 		InternalSock = std::make_shared<tcp::socket>( *LinkedContext );
+		InternalSock->get_io_context();
 	}
 
 	if( AddressMode == AddressType::Endpoint )
@@ -265,7 +266,19 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 	// Start running a new thread to handle the async methods on this socket if needed
 	if( !AsyncThread )
 	{
-		AsyncThread = std::make_shared<std::thread>( [ this ]() { LinkedContext->run(); } );
+		
+		AsyncThread = std::make_shared<std::thread>( [ this ]() 
+		{ 
+			try
+			{
+				LinkedContext->run();
+			}
+			catch( std::exception& Exception )
+			{
+				printf( "[ERROR] An exception was thrown while starting socket io service! %s", Exception.what() );
+			}
+			 
+		} );
 	}
 
 }

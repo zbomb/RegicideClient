@@ -26,6 +26,7 @@
 #define  _APP_DELEGATE_H_
 
 #define SDKBOX_ENABLED
+#define USE_AUDIO_ENGINE true
 
 #include "cocos2d.h"
 
@@ -60,6 +61,10 @@ public:
     @param  the pointer of the application
     */
     virtual void applicationWillEnterForeground();
+
+private:
+	
+
 };
 
 #endif // _APP_DELEGATE_H_

@@ -84,9 +84,6 @@
     <ClCompile Include="..\cryptolib\sha256.c">
       <Filter>src\crypto</Filter>
     </ClCompile>
-    <ClCompile Include="..\Classes\FSock.cpp">
-      <Filter>src\network</Filter>
-    </ClCompile>
     <ClCompile Include="..\Classes\ISockSystem.cpp">
       <Filter>src\network</Filter>
     </ClCompile>
