@@ -31,7 +31,7 @@ public:
 
 	static std::vector< uint8 > SHA256( std::vector< uint8 >& Data );
 
-	static void PrintVector( std::vector< uint8 >& Data, std::string Name );
+	static void PrintVector( const std::vector< uint8 >& Data, std::string Name );
 	
 };
 

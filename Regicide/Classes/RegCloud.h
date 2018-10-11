@@ -64,4 +64,7 @@ private:
 	std::mutex TimeoutMutex;
 	std::condition_variable TimeoutVar;
 
+	bool HandleLoginResponse( FIncomingPacket& Packet );
+	bool HandleAccountInfo( std::vector< uint8 >& RawAccountInfo );
+
 };

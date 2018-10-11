@@ -432,7 +432,7 @@ void MainMenu::OnConnect( CloudEvent inEvent, int Parameter )
 		}
 
 		// Begin login logic
-		//StartLoginProcess();
+		StartLoginProcess();
 	}
 
 }
@@ -553,7 +553,6 @@ void MainMenu::OnOptionsCallback( Ref* Caller )
 
 void MainMenu::StartLoginProcess()
 {
-	log( "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVV" );
 	auto RegSys = RegCloud::Get();
 
 	if( !RegSys || !RegSys->IsSecure() )
@@ -569,15 +568,13 @@ void MainMenu::StartLoginProcess()
 	}
 	else
 	{
-		//log( "ASDASDASDASDASDASDASDADSASDASD" );
-	
-		//if( !_bLoginOpen )
-		//{	
-			//_bLoginOpen = true;
+		if( !_bLoginOpen )
+		{	
+			_bLoginOpen = true;
 
 			// Force user login
 			LoginPanel = LoginLayer::create();
 			addChild( LoginPanel, 15, "LoginPanel" );
-		//}
+		}
 	}
 }

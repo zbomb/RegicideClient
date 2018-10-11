@@ -34,4 +34,6 @@ private:
 	void OnCancelClick( Ref* Sender );
 	void OnRegisterClick( Ref* Sender );
 
+	void ShowError( std::string ErrorMessage );
+
 };

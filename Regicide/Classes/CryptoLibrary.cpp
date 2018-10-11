@@ -138,7 +138,7 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 }
 
 
-void CryptoLibrary::PrintVector( std::vector< uint8 >& Data, std::string Name )
+void CryptoLibrary::PrintVector( const std::vector< uint8 >& Data, std::string Name )
 {
 	log( "\n======================= Debug Vector Print =============================" );
 	log( "-----> %s   Size: %d", Name.c_str(), Data.size() );

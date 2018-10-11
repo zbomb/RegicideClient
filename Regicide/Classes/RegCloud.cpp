@@ -8,6 +8,7 @@
 #include "cipher.h"
 #include "entropy.h"
 #include "ctr_drbg.h"
+#include "CryptoLibrary.h"
 
 
 #define REGCLOUD_EXCHANGE_KEYSIZE 2048
@@ -48,6 +49,7 @@ RegCloud::RegCloud()
 	// Bind Events
 	BindEvent( CloudEvent::_Internal_Connect, std::bind( &RegCloud::OnSocketConnection, this, _1, _2 ) );
 	Connection.RegisterCallback( ENetworkCommand::KeyExchange, "regcloud_exchange", std::bind( &RegCloud::OnSessionResponse, this, _1 ) );
+	Connection.RegisterCallback( ENetworkCommand::Login, "regcloud_login", std::bind( &RegCloud::HandleLoginResponse, this, _1 ) );
 
 }
 
@@ -391,7 +393,7 @@ bool RegCloud::OnInvalidPacket( FIncomingPacket& Packet )
 	}
 }
 
-void RegCloud::Login( std::string Username, std::string PasswordHash, std::function<void( RegCloud::LoginResult )> Callback )
+void RegCloud::Login( std::string Username, std::string Password, std::function<void( RegCloud::LoginResult )> Callback )
 {
 	// Update Callback
 	if( Callback )
@@ -418,15 +420,56 @@ void RegCloud::Login( std::string Username, std::string PasswordHash, std::funct
 		return;
 	}
 
-	// The input string should already be UTF-8
-	// DEBUG, Print out bytes
-	for( char Byte : Username )
+	// Copy password into a buffer, and salt
+	std::vector< uint8 > PasswordData( Password.size() + 5 );
+	std::copy( Password.begin(), Password.end(), PasswordData.begin() );
+	std::copy( Username.rbegin(), Username.rbegin() + 5, PasswordData.end() - 5 );
+
+	// Triple hash the salted password
+	for( int i = 0; i < 3; i++ )
 	{
-		log( "Byte Value: 0x%02X", Byte );
+		PasswordData = CryptoLibrary::SHA256( PasswordData );
+		if( PasswordData.size() == 0 )
+		{
+			log( "[RegSys Login] An error occurred while hashing! Please re-open login menu and try again!" );
+			LoginCallback( RegCloud::LoginResult::InvalidInput );
+			return;
+		}
 	}
+
+	// Ensure data is the correct size
+	if( PasswordData.size() != 32 || Username.size() > 128 )
+	{
+		log( "[RegSys Login] Check inputs. Username must be between 5 and 32 characters." );
+		LoginCallback( RegCloud::LoginResult::InvalidInput );
+		return;
+	}
+
+	// Copy everything into the packet
 	FLoginPacket Packet;
 
-	/*
+	std::copy( Username.begin(), Username.end(), std::addressof( Packet.Username ) );
+	std::copy( PasswordData.begin(), PasswordData.end(), std::addressof( Packet.Password ) );
+
+	Packet.NetworkCommand = (uint32) ENetworkCommand::Login;
+	Packet.NetworkArgument = 0;
+
+	// Attempt to send packet to service
+	if( !Connection.SendPacket< FLoginPacket >( Packet, [ = ]( asio::error_code SendErr, unsigned int NumBytes )
+	{
+		if( SendErr )
+		{
+			log( "[RegSys Login] Failed to send login packet to service! Error: %s", SendErr.message() );
+			LoginCallback( RegCloud::LoginResult::ConnectionError );
+		}
+	} ) )
+	{
+		log( "[RegSys Login] Failed to send login packet to service! Unknown error.." );
+		LoginCallback( RegCloud::LoginResult::ConnectionError );
+		return;
+	}
+
+	// Update state
 	LoginState = ENodeProcessState::InProgress;
 
 	// Begin Timeout timer
@@ -440,9 +483,77 @@ void RegCloud::Login( std::string Username, std::string PasswordHash, std::funct
 		{
 			// Operation timed out
 			LoginState = ENodeProcessState::Reset;
-			log( "[ERROR] Login operation timed-out!" );
+			log( "[RegSys Login] Error! Login operation timed-out!" );
 			LoginCallback( RegCloud::LoginResult::Timeout );
 		}
 	} );
-	*/
+	
+}
+
+
+bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
+{
+	FGenericPacket ResponsePacket;
+
+	if( !FStructHelper::Deserialize< FGenericPacket >( ResponsePacket, Packet.Buffer.begin(), Packet.Buffer.size() ) )
+	{
+		log( "[RegSys Login] Error! Received invalid login response from the server!" );
+		if( LoginCallback )
+		{
+			LoginCallback( RegCloud::LoginResult::ConnectionError );
+		}
+		else
+		{
+			log( "[RegSys Login] ERROR! No login callback is bound!" );
+		}
+
+		// TODO: Clear local account info
+		LoginState = ENodeProcessState::Reset;
+		return true;
+	}
+
+	if( ResponsePacket.NetworkArgument == (uint32) ELoginResponse::Error )
+	{
+		log( "[RegSys Login] Warning! An error occurred on the server while processing login request!" );
+		if( LoginCallback )
+			LoginCallback( RegCloud::LoginResult::ConnectionError );
+		
+		// TODO: Clear local account info
+		LoginState = ENodeProcessState::Reset;
+		return true;
+	}
+	else if( ResponsePacket.NetworkArgument == (uint32) ELoginResponse::InvalidCredentials )
+	{
+		log( "[RegSys Login] Warning! Login attempt failed because the credentials were not correct!" );
+		if( LoginCallback )
+			LoginCallback( RegCloud::LoginResult::InvalidCredentials );
+
+		// TODO: Clear local account info
+		LoginState = ENodeProcessState::Reset;
+		return true;
+	}
+	else
+	{
+		// Success! We need to deseraialize the full packet now, and handle the parsing of this data
+		if( HandleAccountInfo( Packet.Buffer ) )
+		{
+			log( "[RegSys] Login was successful!" );
+			LoginState = ENodeProcessState::Complete;
+		}
+		else
+		{
+			log( "[RegSys Login] Failed to process account info!" );
+
+			// TODO: Clear local account info
+			LoginState = ENodeProcessState::Reset;
+		}
+
+		return true;
+	}
+}
+
+
+bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
+{
+	
 }

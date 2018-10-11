@@ -1,6 +1,18 @@
 
 #include "LoginLayer.h"
+#include "CryptoLibrary.h"
 
+
+namespace Regicide
+{
+constexpr auto REG_USERNAME_MINLEN =	5;
+constexpr auto REG_USERNAME_MAXLEN =	32;
+constexpr auto REG_PASSWORD_MINLEN =	5;
+constexpr auto REG_EMAIL_MINLEN	= 		5;
+constexpr auto REG_EMAIL_MAXLEN	= 		255;
+constexpr auto REG_DISPNAME_MINLEN =	5;
+constexpr auto REG_DISPNAME_MAXLEN =	48;
+};
 
 
 bool LoginLayer::init()
@@ -56,8 +68,24 @@ bool LoginLayer::init()
 	{
 		Username->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
 		Username->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.6f ) );
+		//Username->setPlaceHolder( "Username" );
+		Username->setFontColor( Color4B( 10, 10, 10, 255 ) );
+		Username->setTextHorizontalAlignment( TextHAlignment::CENTER );
 		Username->setInputMode( ui::EditBox::InputMode::SINGLE_LINE );
-		Username->setReturnType( ui::EditBox::KeyboardReturnType::NEXT );
+		Username->setReturnType( ui::EditBox::KeyboardReturnType::DONE );
+		Username->onNextFocusedWidget = [ = ]( ui::Widget::FocusDirection dir )
+		{
+			if( dir == ui::Widget::FocusDirection::DOWN ||
+				dir == ui::Widget::FocusDirection::RIGHT )
+			{
+				return (Widget*) Password;
+			}
+			else
+			{
+				return (Widget*) Username;
+			}
+		};
+
 		addChild( Username, 17, "Username" );
 	}
 
@@ -74,9 +102,25 @@ bool LoginLayer::init()
 	{
 		Password->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
 		Password->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.35f ) );
+		//Password->setPlaceHolder( "Password" );
+		Password->setFontColor( Color4B( 10, 10, 10, 255 ) );
+		Password->setTextHorizontalAlignment( TextHAlignment::CENTER );
 		Password->setInputFlag( ui::EditBox::InputFlag::PASSWORD );
 		Password->setInputMode( ui::EditBox::InputMode::SINGLE_LINE );
 		Password->setReturnType( ui::EditBox::KeyboardReturnType::DONE );
+		Password->onNextFocusedWidget = [ = ]( ui::Widget::FocusDirection dir )
+		{
+			if( dir == ui::Widget::FocusDirection::UP ||
+				dir == ui::Widget::FocusDirection::LEFT )
+			{
+				return (Widget*) Username;
+			}
+			else
+			{
+				return (Widget*) LoginButton;
+			}
+		};
+
 		addChild( Password, 17, "Password" );
 	}
 
@@ -147,10 +191,66 @@ bool LoginLayer::init()
 }
 
 
+void LoginLayer::ShowError( std::string ErrorMessage )
+{
+
+}
+
+
 void LoginLayer::OnLoginClick( Ref* Caller )
 {
 	// Get text and attempt login
-	// Problem is the stupid callbacks, so we will have to use an update look to check for result
+	if( !Password || !Username )
+	{
+		ShowError( "UI Error. Please re-open login menu and try again!" );
+		return;
+	}
+
+	std::string UserStr = Username->getText();
+	std::string PassStr = Password->getText();
+
+	// We can do some simple checks to ensure the data is proper before sending it off to the server
+	auto UserLen = UserStr.length();
+	auto PassLen = PassStr.length();
+
+	// TODO: Handle UTF characters better! (at all really)
+	if( UserLen < Regicide::REG_USERNAME_MINLEN || UserLen > 128 )
+	{
+		ShowError( "Username must be between " + std::to_string( Regicide::REG_USERNAME_MINLEN ) + " and " +
+					std::to_string( Regicide::REG_USERNAME_MAXLEN ) + " characters!" );
+		return;
+	}
+	else if( PassLen < Regicide::REG_PASSWORD_MINLEN )
+	{
+		ShowError( "Password must be at least " + std::to_string( Regicide::REG_PASSWORD_MINLEN ) + " characters!" );
+		return;
+	}
+
+	
+
+	
+	// Ensure function completed successfully
+
+
+	std::vector< uint8 > HashedPassword = CryptoLibrary::SHA256( PasswordData );
+	if( HashedPassword.size() == 0 )
+	{
+		ShowError( "An error occurred while hashing password! Please re-open login menu and try again!" );
+		return;
+	}
+
+
+
+	CryptoLibrary::SHA256( PasswordChars );
+
+
+	// Besides this, we cant really do much else, as were not really able to handle UTF text
+	// So, we will just ship it off to the server to be handled properly
+	FLoginPacket Packet;
+	
+	std::copy( UserStr.begin(), UserStr.end(), std::addressof( Packet.Username ) );
+
+
 
 }
 
