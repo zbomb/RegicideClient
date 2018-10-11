@@ -29,6 +29,7 @@
 #define USE_AUDIO_ENGINE true
 
 #include "cocos2d.h"
+#include <asio.hpp>
 
 /**
 @brief    The cocos2d Application.
@@ -63,7 +64,8 @@ public:
     virtual void applicationWillEnterForeground();
 
 private:
-	
+
+	void FinishIntro( float Delay );
 
 };
 

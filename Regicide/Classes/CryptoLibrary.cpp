@@ -1,8 +1,12 @@
 #include "CryptoLibrary.h"
 #include "cryptolib/cipher.h"
 #include "cryptolib/sha256.h"
+#include "cocos/base/CCConsole.h"
+#include <string>
+#include <sstream>
+#include <iomanip>
 
-
+using namespace cocos2d;
 
 bool CryptoLibrary::AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 32 ], const uint8 IV[ 16 ], AES_OPERATION Operation )
 {
@@ -19,19 +23,20 @@ bool CryptoLibrary::AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 3
 			return AesError( "getting cipher info" );
 		}
 
-		if( !mbedtls_cipher_setup( &CipherContext, CipherInfo ) )
+		if( mbedtls_cipher_setup( &CipherContext, CipherInfo ) != 0 )
 		{
 			return AesError( "setting up cipher" );
 		}
 
-		if( !mbedtls_cipher_set_padding_mode( &CipherContext, MBEDTLS_PADDING_PKCS7 ) )
+		if( mbedtls_cipher_set_padding_mode( &CipherContext, MBEDTLS_PADDING_PKCS7 ) != 0 )
 		{
 			return AesError( "setting the padding mode" );
 		}
 
-		if( !mbedtls_cipher_setkey( &CipherContext, Key, 32,
-			Operation == AES_OPERATION::ENCRYPT ? mbedtls_operation_t::MBEDTLS_ENCRYPT : mbedtls_operation_t::MBEDTLS_DECRYPT ) )
+		if( int Result = mbedtls_cipher_setkey( &CipherContext, Key, 256,
+			Operation == AES_OPERATION::ENCRYPT ? mbedtls_operation_t::MBEDTLS_ENCRYPT : mbedtls_operation_t::MBEDTLS_DECRYPT ) != 0 )
 		{
+			log( "[DEBUG] ERROR SETTING KEY! ERROR CODE: %d", (int) Result );
 			return AesError( "setting the key" );
 		}
 
@@ -69,7 +74,7 @@ bool CryptoLibrary::AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 3
 	}
 	catch( ... )
 	{
-		printf( "[ERROR] An exception was thrown while performing an AES operation! (%s)\n", Operation == AES_OPERATION::DECRYPT ? "Decrypt" : "Encrypt" );
+		log( "[ERROR] An exception was thrown while performing an AES operation! (%s)", Operation == AES_OPERATION::DECRYPT ? "Decrypt" : "Encrypt" );
 		return false;
 	}
 }
@@ -77,7 +82,7 @@ bool CryptoLibrary::AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 3
 
 bool CryptoLibrary::AesError( std::string FailurePoint )
 {
-	printf( "[ERROR] AES operation failed! An error has occurred while %s\n", FailurePoint.c_str() );
+	log( "[ERROR] AES operation failed! An error has occurred while %s", FailurePoint.c_str() );
 	return false;
 }
 
@@ -101,23 +106,23 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 		mbedtls_sha256_context Context;
 		mbedtls_sha256_init( &Context );
 
-		if( int Result = mbedtls_sha256_starts_ret( &Context, 0 ) )
+		if( int Result = mbedtls_sha256_starts_ret( &Context, 0 ) != 0 )
 		{
-			printf( "[Cryptography] SHA256 algorithm threw error on start (Code: %d)\n", Result );
+			log( "[Cryptography] SHA256 algorithm threw error on start (Code: %d)", Result );
 			return std::vector< uint8 >( 0 );
 		}
 
-		if( int Result = mbedtls_sha256_update_ret( &Context, Data.data(), Data.size() ) )
+		if( int Result = mbedtls_sha256_update_ret( &Context, Data.data(), Data.size() ) != 0 )
 		{
-			printf( "[Cryptography] SHA256 algorithm threw an error while feeding data (Code: %d)\n", Result );
+			log( "[Cryptography] SHA256 algorithm threw an error while feeding data (Code: %d)", Result );
 			return std::vector< uint8 >( 0 );
 		}
 
 		std::vector< uint8 > Output( 32 );
 
-		if( int Result = mbedtls_sha256_finish_ret( &Context, Output.data() ) )
+		if( int Result = mbedtls_sha256_finish_ret( &Context, Output.data() ) != 0 )
 		{
-			printf( "[Cryptography SHA256 algorithm threw an error while completing function (Code %d)\n", Result );
+			log( "[Cryptography SHA256 algorithm threw an error while completing function (Code %d)", Result );
 			return std::vector< uint8 >( 0 );
 		}
 
@@ -127,7 +132,7 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 	}
 	catch( ... )
 	{
-		printf( "[ERROR] An error has occurred while computing SHA-256 hash!\n" );
+		log( "[ERROR] An error has occurred while computing SHA-256 hash!" );
 		return std::vector< uint8 >( 0 );
 	}
 }
@@ -135,8 +140,10 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 
 void CryptoLibrary::PrintVector( std::vector< uint8 >& Data, std::string Name )
 {
-	printf( "\n======================= Debug Vector Print =============================\n" );
-	printf( "-----> %s   Size: %d \n", Name.c_str(), Data.size() );
+	log( "\n======================= Debug Vector Print =============================" );
+	log( "-----> %s   Size: %d", Name.c_str(), Data.size() );
+
+	std::ostringstream Output;
 
 	uint32 Index = 0;
 	for( auto It = Data.begin(); It != Data.end(); It++, Index++ )
@@ -144,11 +151,14 @@ void CryptoLibrary::PrintVector( std::vector< uint8 >& Data, std::string Name )
 		if( Index >= 16 )
 		{
 			Index = 0;
-			printf( "\n" );
+			Output << "\n";
 		}
 
-		printf( "%02x   ", Data[ Index ] );
+		Output << std::hex << Data[ Index ] << "   ";
 	}
-	printf( "\n" );
-	printf( "============================== End Vector ================================\n" );
+
+	Output << "\n";
+	Output << "============================== End Vector ================================";
+
+	log( Output.str().c_str() );
 }

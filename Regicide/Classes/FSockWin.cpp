@@ -9,6 +9,7 @@ using namespace std::placeholders;
 
 /*================================= FSockSystemWin =================================*/
 FSockSystemWin::FSockSystemWin()
+	: Context()
 {
 	
 	// Init system
@@ -61,7 +62,7 @@ bool FSockWinTCP::SetRemoteAddress( std::string Address, unsigned int Port, bool
 	if( bIsHostName )
 	{
 		// We need an io context to perform this action
-		if( LinkedContext )
+		if( !LinkedContext )
 		{
 			printf( "[Warning] Failed to perform host name lookup with TCP socket because there was no io context linked to the socket!\n" );
 			return false;
@@ -196,7 +197,7 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 		printf( "[Warning] Failed to asynchronously connect to tcp socket because the provided callback was null!\n" );
 		return;
 	}
-	else if( AddressMode == AddressType::NotSet || LinkedContext == nullptr ||
+	else if( AddressMode == AddressType::NotSet || !LinkedContext ||
 		( RemoteEndpoint.address().is_unspecified() && AddressType::Endpoint ) )
 	{
 		printf( "[Warning] Failed to asynchronously connect to tcp socket because the remote host was not properly set!\n" );
@@ -208,7 +209,6 @@ void FSockWinTCP::ConnectAsync( std::function< void( FSockError ) > Callback )
 	if( !InternalSock )
 	{
 		InternalSock = std::make_shared<tcp::socket>( *LinkedContext );
-		InternalSock->get_io_context();
 	}
 
 	if( AddressMode == AddressType::Endpoint )

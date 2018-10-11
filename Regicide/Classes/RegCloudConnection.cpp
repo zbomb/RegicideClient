@@ -2,80 +2,109 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include "ISockSystem.h"
+#include <deque>
 #include "RegCloudConnection.h"
+#include "RegCloud.h"
 #include "CryptoLibrary.h"
+#include "cocos/base/CCConsole.h"
 
 
 using namespace std::placeholders;
-
-RegCloudConnection* SingletonInstance = nullptr;
+using namespace cocos2d;
 
 RegCloudConnection::RegCloudConnection()
-	: ReceiveBuffer( REGCLOUD_BUFFERLEN ), ParseBuffer()
+	: ReceiveBuffer( REGCLOUD_BUFFERLEN ), ParseBuffer(), LinkedContext()
 {
-	// Create Socket
-	ISockSystem* SocketSystem = ISockSystem::Get();
+	Socket = std::make_shared< tcp::socket >( LinkedContext );
 
-	if( SocketSystem == nullptr )
+	// Default encryption keys for low security packets
+	DefaultKey = new uint8[ 32 ] {	0x81, 0xe5, 0x20, 0x5e, 0x97, 0xf9, 0x37, 0x64, 0x1a, 0xf8, 0x7d, 0x47, 0x79, 0x31, 0x12, 0x92,
+									0xb8, 0xb5, 0xa5, 0x6c, 0x9e, 0xa8, 0x48, 0x17, 0x65, 0xee, 0xa7, 0xfc, 0xbe, 0xdf, 0xb6, 0xe9 };
+	DefaultIV = new uint8[ 16 ] {	0xc5, 0xa5, 0xb1, 0x1d, 0xe7, 0x72, 0x88, 0x30, 0xab, 0xc1, 0x49, 0x35, 0x3d, 0xee, 0x42, 0x00 };
+
+	// Determine local endianess
+	int Value = 1;
+	if( *(char *) &Value == 1 )
 	{
-		printf( "[CRITICAL] Invalid socket system! Online features will not function!\n" );
+		cocos2d::log( "[RegSys] Detected local system is using little endian byte order." );
+		LocalByteOrder = EndianOrder::LittleEndian;
 	}
 	else
 	{
-		Connection = std::shared_ptr< FSock >( SocketSystem->CreateSocket( ISOCK_TYPE::ISOCK_TCP ) );
-
-		if( !Connection )
-		{
-			printf( "[CRITICAL] Socket system failed to create a new socket for RegCloud!\n" );
-		}
-		else
-		{
-			printf( "[RegCloud] Socket created successfully!\n" );
-		}
+		cocos2d::log( "[RegSys] Detected local system is using big endian byte order." );
+		LocalByteOrder = EndianOrder::BigEndian;
 	}
-
 }
+
 
 RegCloudConnection::~RegCloudConnection()
 {
-	if( Connection )
+	bKill = true;
+
+	if( Socket )
 	{
-		Connection->Close();
-		Connection.reset();
+		if( Socket->is_open() )
+		{
+			LinkedContext.post( [ this ]()
+			{
+				asio::error_code ShutdownError;
+				Socket->shutdown( asio::socket_base::shutdown_both, ShutdownError );
+				if( ShutdownError )
+				{
+					cocos2d::log( "[ERROR] An error occurred while shutting the socket down! %s\n", ShutdownError.message() );
+				}
+
+				asio::error_code CloseError;
+				Socket->close( CloseError );
+
+				if( CloseError )
+				{
+					cocos2d::log( "[ERROR] An error occurred while closing the connection with RegSys! %s", CloseError.message() );
+				}
+				else
+				{
+					cocos2d::log( "[RegSys] Connection with NetNode was closed!" );
+				}
+			} );
+		}
 	}
 
+	if( IOThread )
+	{
+		IOThread->join();
+	}
+
+	Socket.reset();
 	ReceiveBuffer.clear();
 	ParseBuffer.clear();
 
-	ISockSystem::Close();
-}
+	if( SessionKey )
+		delete[] SessionKey;
 
-RegCloudConnection* RegCloudConnection::Get()
-{
-	if( SingletonInstance == nullptr )
-	{
-		SingletonInstance = new (std::nothrow) RegCloudConnection;
-	}
+	if( DefaultKey )
+		delete[] DefaultKey;
 
-	return SingletonInstance;
-}
+	if( DefaultIV )
+		delete[] DefaultIV;
 
-void RegCloudConnection::Shutdown()
-{
-	if( SingletonInstance )
-	{
-		delete SingletonInstance;
-	}
 }
 
 void RegCloudConnection::BeginConnect()
 {
-	if( !Connection )
+	if( !Socket )
 	{
-		printf( "[CRITICAL] Failed to connect to RegCloud because the socket is null!\n" );
+		cocos2d::log( "[CRITICAL] Failed to connect to RegCloud because the socket/context is null!" );
 		return;
 	}
+
+	// Check if were already connected
+	if( Socket && Socket->is_open() )
+	{
+		cocos2d::log( "[Warning] Attempt to connect to RegSys, but a connection is already established!" );
+		return;
+	}
+
+	CurrentState = ConnectionState::InProgress;
 
 #ifndef REGCLOUD_DEBUG
 	bool bUsingHostname = true;
@@ -85,150 +114,351 @@ void RegCloudConnection::BeginConnect()
 	std::string Address = REGCLOUD_DEBUGADDRESS;
 #endif
 	
-	// Set address/hostname
-	if( !Connection->SetRemoteAddress( Address, REGCLOUD_PORT, bUsingHostname ) )
+	if( bUsingHostname )
 	{
-		printf( "[CRITICAL] RegCloud failed to resolve hostname.. please check supplied address.\n" );
-		return;
+		tcp::resolver HostnameResolver( LinkedContext );
+		tcp::resolver::query HostnameQuery( Address, std::to_string( REGCLOUD_PORT ) );
+
+		asio::error_code ResolveError;
+		tcp::resolver::iterator EndpointIter = HostnameResolver.resolve( HostnameQuery, ResolveError );
+
+		if( ResolveError )
+		{
+			cocos2d::log( "[Warning] An error has occurred while resolving the RegSys hostname! %s", ResolveError.message().c_str() );
+			CurrentState = ConnectionState::Failed;
+			return;
+		}
+
+		asio::async_connect( *Socket, EndpointIter, [ this ]( const asio::error_code& ErrorCode, tcp::resolver::iterator Iter )
+		{
+			if( !this )
+			{
+				cocos2d::log( "[ERROR] Failed to finalize connection with a RegSysNetNode because the connection object is null!" );
+				CurrentState = ConnectionState::Failed;
+				return;
+			}
+
+			this->OnConnect( ErrorCode );
+		} );
+	}
+	else
+	{
+		asio::error_code IpError;
+		asio::ip::address IpAddress = asio::ip::address::from_string( Address, IpError );
+
+		if( IpError )
+		{
+			cocos2d::log( "[Warning] An error has occurred while converting Ip from string! %s", IpError.message().c_str() );
+			CurrentState = ConnectionState::Failed;
+			return;
+		}
+
+		tcp::endpoint Endpoint = tcp::endpoint( IpAddress, REGCLOUD_PORT );
+
+		Socket->async_connect( Endpoint, [ this ]( asio::error_code ErrorCode )
+		{
+			if( !this )
+			{
+				cocos2d::log( "[ERROR] Failed to finalize connection with a RegSysNetNode because the connection object is null!" );
+				CurrentState = ConnectionState::Failed;
+				return;
+			}
+
+			this->OnConnect( ErrorCode );
+		} );
 	}
 
-	// Bind a callback, and start the async connect
-	auto Callback = std::bind( &RegCloudConnection::OnConnect, *this, _1 );
-	Connection->ConnectAsync( Callback );
+	FireEvent( CloudEvent::ConnectBegin, 0 );
 
-	printf( "[RegCloud] Connecting...\n" );
+	if( !LinkedContext.stopped() )
+	{
+		IOThread = std::make_shared<std::thread>( [ this ]()
+		{
+			try
+			{
+				LinkedContext.run();
+			}
+			catch( ... )
+			{
+				cocos2d::log( "[ERROR] An exception was thrown from the RegSys connection!" );
+				if( Socket && Socket->is_open() )
+				{
+					Socket->close();
+				}
+			}
+		} );
+	}
+
+	cocos2d::log( "[RegSys] Connecting to NetNode..." );
 }
 
-void RegCloudConnection::OnConnect( FSockError ErrorCode )
+void RegCloudConnection::OnConnect( asio::error_code ErrorCode )
 {
 	if( ErrorCode )
 	{
-		printf( "[ERROR] Failed to connect to RegSys! %s\n", ErrorCode.GetErrorMessage().c_str() );
+		cocos2d::log( "[ERROR] Failed to connect to RegSys! %s", ErrorCode.message().c_str() );
+		FireEvent( CloudEvent::ConnectResult, (unsigned int) ConnectResult::ConnectionError );
+		CurrentState = ConnectionState::Failed;
 		return;
 	}
-	else if( !Connection )
+	else if( !Socket )
 	{
-		printf( "[ERROR] Failed to continue receiving data because the socket is null!\n" );
+		cocos2d::log( "[ERROR] Failed to finalize socket connect because the local sock is null!" );
+		FireEvent( CloudEvent::ConnectResult, (unsigned int) ConnectResult::ConnectionError );
+		CurrentState = ConnectionState::Failed;
 		return;
 	}
 
-	printf( "[RegCloud] Connected to RegSys!\n" );
+	if( bKill )
+		return;
+
+	CurrentState = ConnectionState::Connected;
+	cocos2d::log( "[RegSys] Connected to a NetNode!" );
 
 	// Begin receive loop
-	auto Callback = std::bind( &RegCloudConnection::OnReceive, *this, _1, _2, _3 );
-	ReceiveBuffer.clear();
-	Connection->ReceiveAsync( ReceiveBuffer, Callback );
+	LinkedContext.post( [ this ] ()
+	{
+		Socket->async_read_some( asio::buffer( ReceiveBuffer ), [ this ]( asio::error_code ErrorCode, unsigned int NumBytes )
+		{
+			if( !this )
+			{
+				cocos2d::log( "[ERROR] Failed to process data from a RegSysNetNode because the connection object is null!" );
+				return;
+			}
+
+			this->OnReceive( ErrorCode, NumBytes );
+		} );
+	} );
+
+	// Fire off internal event
+	FireEvent( CloudEvent::_Internal_Connect, 0 );
+
 }
 
 bool RegCloudConnection::IsConnected() const
 {
-	if( !Connection )
-	{
-		return false;
-	}
-
-	return Connection->IsConnected();
+	return( Socket && Socket->is_open() );
 }
 
-bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( FSockError, unsigned int )> Callback )
+bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asio::error_code, unsigned int )> Callback, ENetworkEncryption EncryptionLevel )
 {
-	if( !IsConnected() )
+	if( !IsConnected() || bKill )
 	{
-		printf( "[Warning] Failed to send data to RegSys because the socket is not connected/null!\n" );
+		cocos2d::log( "[Warning] Failed to send data to RegSys because the socket is not connected/null!" );
 		return false;
 	}
 	else if( Data.size() == 0 )
 	{
-		printf( "[Warning] Failed to send data to RegSys because the supplied buffer was empty!\n" );
+		cocos2d::log( "[Warning] Failed to send data to RegSys because the supplied buffer was empty!" );
 		return false;
 	}
 
 	// If a callback wasnt supplied, we will use the default callback to print any send errors
 	if( !Callback )
 	{
-		Callback = std::bind( &RegCloudConnection::OnSendDefault, *this, _1, _2 );
+		Callback = std::bind( &RegCloudConnection::OnSendDefault, this, _1, _2 );
 	}
 
-	Connection->SendAsync( Data, Callback );
+	// Determine encryption key needed for the specified encryption level
+	// Also, check if the specified encryption level is possible with the current state of the connection
+	uint8* EncryptionKey = nullptr;
+	uint8* EncryptionIV = nullptr;
+
+	if( EncryptionLevel == ENetworkEncryption::Full )
+	{
+		if( !SessionKey )
+		{
+			cocos2d::log( "[ERROR] Failed to send fully encrypted packet to RegSys because a session has not been established!" );
+			return false;
+		}
+
+		EncryptionKey = SessionKey;
+		EncryptionIV = DefaultIV;
+	}
+	else if( EncryptionLevel == ENetworkEncryption::Light )
+	{
+		EncryptionKey = DefaultKey;
+		EncryptionIV = DefaultIV;
+	}
+	else if( EncryptionLevel != ENetworkEncryption::None )
+	{
+		throw std::exception();
+		return false;
+	}
+
+	// Perform encryption if needed, and check for missing keys
+	if( EncryptionLevel != ENetworkEncryption::None )
+	{
+		if( !EncryptionIV || !EncryptionKey )
+		{
+			cocos2d::log( "[ERROR] Encryption key needed to send packet not found! Please restart..." );
+			return false;
+		}
+		else if( !CryptoLibrary::AesEncrypt( Data, EncryptionKey, EncryptionIV ) )
+		{
+			cocos2d::log( "[ERROR] Failed to send packet to RegSys! Packet encryption was not successful" );
+			return false;
+		}
+	}
+
+	// Create public header structure
+	FPublicHeader PacketHeader;
+	PacketHeader.PacketSize = PacketHeader.GetSize() + Data.size();
+	PacketHeader.EncryptionMethod = (int32) EncryptionLevel;
+	
+	// Determine Endian Order
+	uint16 TestValue = 0x0001;
+	uint8* TestBytes = (uint8*)&TestValue;
+	EEndianOrder Order = TestBytes[ 0 ] ? EEndianOrder::LittleEndian : EEndianOrder::BigEndian;
+
+	PacketHeader.EndianOrder = (uint32) Order;
+
+	// Build Final Packet
+	std::vector< uint8 > FinalPacket( PacketHeader.PacketSize );
+	std::move( Data.begin(), Data.end(), FinalPacket.begin() + PacketHeader.GetSize() );
+	Data.clear();
+
+	if( !PacketHeader.Serialize( FinalPacket.begin(), true, false ) )
+	{
+		cocos2d::log( "[ERROR] Failed to create packet to send to RegSys, header serialization failed!" );
+		FinalPacket.clear();
+		return false;
+	}
+
+	cocos2d::log( "FINAL PACKET SIZE: %d bytes", FinalPacket.size() );
+
+	// Insert this buffer into our write buffer
+	LinkedContext.post( [ this, FinalPacket, Callback ] ()
+	{
+		// Create outgoing packet structure
+		FOutgoingPacket OutPacket( FinalPacket.size() );
+		std::move( FinalPacket.begin(), FinalPacket.end(), OutPacket.Buffer.begin() );
+		OutPacket.Callback = Callback;
+		
+		// Put the message into the queue
+		WriteBuffers.push_back( OutPacket );
+
+		// If were not already in the process of sending data, then start
+		if( !bWriteInProgress )
+		{
+			BeginWriting();
+		}
+	} );
+	
 	return true;
 }
 
-
-bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, std::function<void( FSockError, unsigned int )> Callback /* = nullptr */ )
+void RegCloudConnection::BeginWriting( bool bIsRecursiveCall )
 {
-	if( !IsConnected() )
+	if( WriteBuffers.empty() || bKill )
 	{
-		printf( "[Warning] Failed to send packet to RegSys because the socket is not connected!\n" );
-		return false;
+		return;
 	}
-	
-	const size_t PacketSize = Packet.GetSize();
-	std::vector< uint8 > SerializedPacket( PacketSize );
-
-	// TODO: Determine endianess 
-	bool bFlipOrder = false;
-
-	if( !Packet.Serialize( SerializedPacket.begin(), true, bFlipOrder ) )
+	else if( !bIsRecursiveCall && bWriteInProgress )
 	{
-		printf( "[Warning] Failed to send packet to the server because serialization failed!\n" );
-		return false;
+		return;
 	}
 
-	return Send( SerializedPacket, Callback );
-	
+	bWriteInProgress = true;
+
+	LinkedContext.post( [ this ]()
+	{
+		asio::async_write( *Socket, asio::buffer( WriteBuffers.front().Buffer ), [ this ]( asio::error_code Error, unsigned int BytesSent )
+		{
+			// Pop message off from write buffer list
+			if( WriteBuffers.empty() )
+			{
+				bWriteInProgress = false;
+				return;
+			}
+
+			FOutgoingPacket& Packet = WriteBuffers.front();
+			if( Packet.Callback )
+			{
+				Packet.Callback( Error, BytesSent );
+			}
+			WriteBuffers.pop_front();
+
+			if( !WriteBuffers.empty() )
+			{
+				BeginWriting();
+			}
+			else
+			{
+				bWriteInProgress = false;
+			}
+		} );
+	} );
 }
 
 
-void RegCloudConnection::OnSendDefault( FSockError Error, unsigned int BytesSent )
+void RegCloudConnection::OnSendDefault( asio::error_code Error, unsigned int BytesSent )
 {
 	if( Error )
 	{
-		printf( "[Warning] Error sending data to RegSys! %s\n", Error.GetErrorMessage().c_str() );
+		cocos2d::log( "[Warning] Error sending data to RegSys! %s", Error.message().c_str() );
 	}
 }
 
 
-void RegCloudConnection::OnReceive( FSockError ErrorCode, unsigned int NumBytes, std::vector<uint8>& Data )
+void RegCloudConnection::OnReceive( asio::error_code ErrorCode, unsigned int NumBytes )
 {
+	cocos2d::log( "RECEIVING DATA FROM THE SERVER! %d bytes", NumBytes );
+	cocos2d::log( "SIZE OF RECEIVE BUFFER %d bytes", ReceiveBuffer.size() );
 	// Check for errors and disconnects
-	if( ErrorCode )
+	if( ErrorCode || NumBytes <= 0 )
 	{
-		if( ErrorCode.IsDisconnect() )
+		if( ErrorCode == asio::error::eof || ErrorCode == asio::error::connection_aborted || NumBytes <= 0 )
 		{
-			printf( "[RegCloud] Disconnected from the server!\n" );
+			cocos2d::log( "[RegCloud] Disconnected from the server!" );
 			return;
 		}
 		else
 		{
-			printf( "[Warning] An error has occurred while reading data from the server! %s\n", ErrorCode.GetErrorMessage().c_str() );
+			cocos2d::log( "[Warning] An error has occurred while reading data from the server! %s", ErrorCode.message().c_str() );
 		}
 	}
+
+	if( bKill )
+		return;
 
 	// Pass data along to handler
 	if( NumBytes > 0 )
 	{
-		OnData( std::vector< uint8 >( Data.begin(), Data.begin() + NumBytes ) );
+		OnData( ReceiveBuffer.begin(), ReceiveBuffer.begin() + NumBytes );
 	}
 
 	// Continue reading data if possible
-	if( !Connection )
+	if( !Socket )
 	{
-		printf( "[ERROR] Failed to continue receiving data from the server because the connection is null\n" );
-	}
-	else
-	{
-		auto Callback = std::bind( &RegCloudConnection::OnReceive, *this, _1, _2, _3 );
-		ReceiveBuffer.clear();
-		Connection->ReceiveAsync( ReceiveBuffer, Callback );
+		cocos2d::log( "[ERROR] Failed to continue receiving data from RegSys NetNode because the socket is null!" );
+		return;
 	}
 
+	LinkedContext.post( [ this ]()
+	{
+		Socket->async_read_some( asio::buffer( ReceiveBuffer ), [ this ]( asio::error_code ErrorCode, unsigned int NumBytes )
+		{
+			if( !this )
+			{
+				cocos2d::log( "[ERROR] Failed to process incoming data from a RegSysNetNode because the connection object is null!" );
+				return;
+			}
+
+			this->OnReceive( ErrorCode, NumBytes );
+		} );
+	} );
 }
 
 
-void RegCloudConnection::OnData( std::vector< uint8 >& Data )
+void RegCloudConnection::OnData( std::vector< uint8 >::iterator DataStart, std::vector< uint8 >::iterator DataEnd )
 {
+	// Debug Stuff
+	const size_t DataSize = DataEnd - DataStart;
+	cocos2d::log( "[RegSys Debug] Received data from the server! %d bytes", DataSize );
+
 	// Append data to the parse buffer
-	ParseBuffer.insert( ParseBuffer.end(), Data.begin(), Data.end() );
+	ParseBuffer.insert( ParseBuffer.end(), DataStart, DataEnd );
 
 	// Parse received data
 	FIncomingPacket NewPacket;
@@ -237,13 +467,31 @@ void RegCloudConnection::OnData( std::vector< uint8 >& Data )
 	{
 		if( DecryptPacket( NewPacket ) && ReadHeader( NewPacket ) )
 		{
-			// Call any callbacks bound to this command code
-			for( auto Entry : CallbackList )
+			// Check for ping, we want to respond ASAP
+			if( NewPacket.CommandCode == ENetworkCommand::Ping )
 			{
-				if( Entry.second.Command == NewPacket.CommandCode )
+				if( !Send( NewPacket.Buffer, []( asio::error_code PingError, unsigned int bytesSent )
 				{
-					// Were not going to do anything with the return value for now
-					Entry.second.Func( NewPacket );
+					if( PingError )
+						cocos2d::log( "[Warning] Failed to send ping packet to RegSys! Error Code: %d", PingError );
+					else
+						cocos2d::log( "[DEBUG] Relayed ping packet!" );
+
+				}, ENetworkEncryption::None ) )
+				{
+					cocos2d::log( "[Warning] Failed to relay a ping packet to RegSys!" );
+				}
+			}
+			else
+			{
+				// Call any callbacks bound to this command code
+				for( auto Entry : CallbackList )
+				{
+					if( Entry.second.Command == NewPacket.CommandCode )
+					{
+						// Were not going to do anything with the return value for now
+						Entry.second.Func( NewPacket );
+					}
 				}
 			}
 		}
@@ -270,11 +518,11 @@ bool RegCloudConnection::ConsumeBuffer( FIncomingPacket& OutPacket )
 	{
 		FPublicHeader ParsedHeader;
 
-		if( !ParsedHeader.Serialize( ParseBuffer.begin() ) ||
+		if( !ParsedHeader.Serialize( ParseBuffer.begin(), ShouldFlipByteOrder() ) ||
 			ParsedHeader.EncryptionMethod < 0 || ParsedHeader.EncryptionMethod > 2 ||
 			ParsedHeader.PacketSize <= 0 )
 		{
-			printf( "[WARNING] Invalid header found in buffer! Resetting parse buffer...\n" );
+			cocos2d::log( "[WARNING] Invalid header found in buffer! Resetting parse buffer..." );
 			CurrentHeader.PacketSize			= -1;
 			CurrentHeader.EncryptionMethod		= -1;
 
@@ -322,7 +570,7 @@ bool RegCloudConnection::DecryptPacket( FIncomingPacket& OutPacket )
 	if( OutPacket.Buffer.size() <= 0 || OutPacket.PacketHeader.EncryptionMethod < 0 || 
 		OutPacket.PacketHeader.EncryptionMethod > 2 || OutPacket.PacketHeader.PacketSize <= 0 )
 	{
-		printf( "[Warning] RegCloudConnection packet decryption failed! Invalid packet given\n" );
+		cocos2d::log( "[Warning] RegCloudConnection packet decryption failed! Invalid packet given" );
 		return false;
 	}
 
@@ -333,9 +581,9 @@ bool RegCloudConnection::DecryptPacket( FIncomingPacket& OutPacket )
 
 	if( Encryption == ENetworkEncryption::Full )
 	{
-		if( !IsSecure() )
+		if( !SessionKey )
 		{
-			printf( "[Warning] Failed to decrypt secure packet because we have not established a session with the server!\n" );
+			cocos2d::log( "[Warning] Failed to decrypt secure packet because we have not established a session with the server!" );
 			return false;
 		}
 
@@ -354,13 +602,19 @@ bool RegCloudConnection::DecryptPacket( FIncomingPacket& OutPacket )
 	}
 	else
 	{
-		printf( "[Warning] Unknown encryption scheme found! Packet is being marked as invalid\n" );
+		cocos2d::log( "[Warning] Unknown encryption scheme found! Packet is being marked as invalid" );
 		return false;
 	}
 
-	if( !CryptoLibrary::AesDecrypt( OutPacket.Buffer, EncryptionKey, EncryptionIV ) || OutPacket.Buffer.size() <= PrivateHeaderSize )
+	if( !EncryptionKey || !EncryptionIV )
 	{
-		printf( "[Warning] Failed to decrypt incoming packet from the server! Decryption failed/returned no data!\n" );
+		cocos2d::log( "[Warning] Missing key needed to decrypt packet from the server!" );
+		return false;
+	}
+
+	if( !CryptoLibrary::AesDecrypt( OutPacket.Buffer, EncryptionKey, EncryptionIV ) || OutPacket.Buffer.size() < PrivateHeaderSize )
+	{
+		cocos2d::log( "[Warning] Failed to decrypt incoming packet from the server! Decryption failed/returned no data!" );
 
 		OutPacket.Buffer.clear();
 		return false;
@@ -389,7 +643,7 @@ bool RegCloudConnection::ReadHeader( FIncomingPacket& OutPacket )
 
 	if( CommandCode < 0 )
 	{
-		printf( "[Warning] Invalid command code skimmed off from incoming packet! Marking packet as invalid!" );
+		cocos2d::log( "[Warning] Invalid command code skimmed off from incoming packet! Marking packet as invalid!" );
 		return false;
 	}
 
@@ -398,16 +652,16 @@ bool RegCloudConnection::ReadHeader( FIncomingPacket& OutPacket )
 }
 
 
-bool RegCloudConnection::RegisterCallback( std::function<bool( FIncomingPacket& )> Callback, ENetworkCommand CommandCode, std::string Identifier )
+bool RegCloudConnection::RegisterCallback( ENetworkCommand CommandCode, std::string Identifier, std::function<bool( FIncomingPacket& )> Callback )
 {
 	if( CallbackExists( Identifier ) )
 	{
-		printf( "[Warning] Failed to add new callback \"%s\" because one with this Id already exists!\n", Identifier.c_str() );
+		cocos2d::log( "[Warning] Failed to add new callback \"%s\" because one with this Id already exists!", Identifier.c_str() );
 		return false;
 	}
 	else if( Identifier.length() < 3 )
 	{
-		printf( "[Warning] Failed to add new callback \"%s\" because the supplied identifier was not 3 characters or more!\n", Identifier.c_str() );
+		cocos2d::log( "[Warning] Failed to add new callback \"%s\" because the supplied identifier was not 3 characters or more!", Identifier.c_str() );
 		return false;
 	}
 
@@ -428,10 +682,41 @@ bool RegCloudConnection::RemoveCallback( std::string Identifier )
 
 	if( Position == CallbackList.end() )
 	{
-		printf( "[Warning] Failed to remove callback \"%s\" because it was not found!\n", Identifier.c_str() );
+		cocos2d::log( "[Warning] Failed to remove callback \"%s\" because it was not found!", Identifier.c_str() );
 		return false;
 	}
 
 	CallbackList.erase( Position );
 	return true;
+}
+
+
+void RegCloudConnection::FireEvent( CloudEvent Event, int Parameter )
+{
+	RegCloud* Cloud = RegCloud::Get();
+
+	if( !Cloud )
+	{
+		cocos2d::log( "[Warning] Failed to fire off cloud event %d! Cloud singleton is null", (int) Event );
+		return;
+	}
+
+	Cloud->ExecuteEvent( Event, Parameter );
+}
+
+
+void RegCloudConnection::SetSessionKey( uint8* inKey )
+{
+	if( !inKey )
+	{
+		cocos2d::log( "[ERROR] RegSys failed to set session key for NetNode connection!" );
+		return;
+	}
+
+	if( SessionKey )
+	{
+		delete[] SessionKey;
+	}
+
+	SessionKey = inKey;
 }

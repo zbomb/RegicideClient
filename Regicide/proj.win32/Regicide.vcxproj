@@ -76,12 +76,11 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>E:\Regicide\Regicide\Asio\include;$(EngineRoot);$(EngineRoot)external;$(EngineRoot)cocos\audio\include;$(EngineRoot)external\chipmunk\include\chipmunk;$(EngineRoot)extensions;..\Classes;..;%(AdditionalIncludeDirectories);$(_COCOS_HEADER_WIN32_BEGIN);E:\Regicide\Regicide\cryptolib;$(_COCOS_HEADER_WIN32_END)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;CC_ENABLE_CHIPMUNK_INTEGRATION=1;COCOS2D_DEBUG=1;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;ASIO_STANDALONE;ASIO_SEPARATE_COMPILATION;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;CC_ENABLE_CHIPMUNK_INTEGRATION=1;COCOS2D_DEBUG=1;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;ASIO_STANDALONE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <DisableSpecificWarnings>4267;4251;4244;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -150,11 +149,13 @@ xcopy "$(ProjectDir)..\Resources" "$(OutDir)" /D /E /I /F /Y
   <ItemGroup>
     <ClCompile Include="..\Classes\AppDelegate.cpp" />
     <ClCompile Include="..\Classes\CryptoLibrary.cpp" />
-    <ClCompile Include="..\Classes\ISockSystem.cpp" />
-    <ClCompile Include="..\Classes\FSockWin.cpp" />
     <ClCompile Include="..\Classes\HelloWorldScene.cpp" />
+    <ClCompile Include="..\Classes\IntroScene.cpp" />
+    <ClCompile Include="..\Classes\LoginLayer.cpp" />
+    <ClCompile Include="..\Classes\MainMenuScene.cpp" />
     <ClCompile Include="..\Classes\RegCloud.cpp" />
     <ClCompile Include="..\Classes\RegCloudConnection.cpp" />
+    <ClCompile Include="..\Classes\RegisterLayer.cpp" />
     <ClCompile Include="..\cryptolib\aes.c" />
     <ClCompile Include="..\cryptolib\aes_platform_uil.c" />
     <ClCompile Include="..\cryptolib\asn1parse.c" />
@@ -178,13 +179,14 @@ xcopy "$(ProjectDir)..\Resources" "$(OutDir)" /D /E /I /F /Y
   <ItemGroup>
     <ClInclude Include="..\Classes\AppDelegate.h" />
     <ClInclude Include="..\Classes\CryptoLibrary.h" />
-    <ClInclude Include="..\Classes\FSock.h" />
-    <ClInclude Include="..\Classes\ISockSystem.h" />
-    <ClInclude Include="..\Classes\FSockWin.h" />
     <ClInclude Include="..\Classes\HelloWorldScene.h" />
+    <ClInclude Include="..\Classes\IntroScene.h" />
+    <ClInclude Include="..\Classes\LoginLayer.h" />
+    <ClInclude Include="..\Classes\MainMenuScene.h" />
     <ClInclude Include="..\Classes\NetHeaders.h" />
     <ClInclude Include="..\Classes\RegCloud.h" />
     <ClInclude Include="..\Classes\RegCloudConnection.h" />
+    <ClInclude Include="..\Classes\RegisterLayer.h" />
     <ClInclude Include="..\cryptolib\aes.h" />
     <ClInclude Include="..\cryptolib\asn1.h" />
     <ClInclude Include="..\cryptolib\bignum.h" />
@@ -205,8 +207,12 @@ xcopy "$(ProjectDir)..\Resources" "$(OutDir)" /D /E /I /F /Y
     <ClInclude Include="..\cryptolib\rsa_internal.h" />
     <ClInclude Include="..\cryptolib\sha256.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Asio\Boost.Asio\Boost.Asio.vcxproj">
+      <Project>{0255d53a-45d4-4e84-86aa-3df50def6e7d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\cocos2d\cocos\2d\libcocos2d.vcxproj">
       <Project>{98a51ba8-fc3a-415b-ac8f-8c7bd464e93e}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
@@ -217,6 +223,9 @@ xcopy "$(ProjectDir)..\Resources" "$(OutDir)" /D /E /I /F /Y
     <ProjectReference Include="..\cocos2d\external\Box2D\proj.win32\libbox2d.vcxproj">
       <Project>{929480e7-23c0-4df6-8456-096d71547116}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\game.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="game.rc" />

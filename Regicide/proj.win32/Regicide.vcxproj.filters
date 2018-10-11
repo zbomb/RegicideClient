@@ -16,6 +16,12 @@
     <Filter Include="src\network">
       <UniqueIdentifier>{9cd1528d-59fa-4f8e-be4d-57d5b23ff7f3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\scenes">
+      <UniqueIdentifier>{bb226c3b-2e27-46cf-ade9-0179cecaafa4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\layers">
+      <UniqueIdentifier>{d689cd65-b259-4f9f-a976-f17f3f5dde0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -26,9 +32,6 @@
     </ClCompile>
     <ClCompile Include="..\Classes\HelloWorldScene.cpp">
       <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Classes\FSockWin.cpp">
-      <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\cryptolib\aes.c">
       <Filter>src\crypto</Filter>
@@ -84,9 +87,6 @@
     <ClCompile Include="..\cryptolib\sha256.c">
       <Filter>src\crypto</Filter>
     </ClCompile>
-    <ClCompile Include="..\Classes\ISockSystem.cpp">
-      <Filter>src\network</Filter>
-    </ClCompile>
     <ClCompile Include="..\Classes\RegCloud.cpp">
       <Filter>src\network</Filter>
     </ClCompile>
@@ -95,6 +95,18 @@
     </ClCompile>
     <ClCompile Include="..\Classes\CryptoLibrary.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\MainMenuScene.cpp">
+      <Filter>src\scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\IntroScene.cpp">
+      <Filter>src\scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\LoginLayer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Classes\RegisterLayer.cpp">
+      <Filter>src\layers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -106,9 +118,6 @@
     </ClInclude>
     <ClInclude Include="..\Classes\HelloWorldScene.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Classes\FSockWin.h">
-      <Filter>win32</Filter>
     </ClInclude>
     <ClInclude Include="..\cryptolib\aes.h">
       <Filter>src\crypto</Filter>
@@ -167,12 +176,6 @@
     <ClInclude Include="..\cryptolib\sha256.h">
       <Filter>src\crypto</Filter>
     </ClInclude>
-    <ClInclude Include="..\Classes\FSock.h">
-      <Filter>src\network</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Classes\ISockSystem.h">
-      <Filter>src\network</Filter>
-    </ClInclude>
     <ClInclude Include="..\Classes\RegCloud.h">
       <Filter>src\network</Filter>
     </ClInclude>
@@ -185,6 +188,22 @@
     <ClInclude Include="..\Classes\CryptoLibrary.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\Classes\MainMenuScene.h">
+      <Filter>src\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\IntroScene.h">
+      <Filter>src\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\LoginLayer.h">
+      <Filter>src\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Classes\RegisterLayer.h">
+      <Filter>src\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\game.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="game.rc">

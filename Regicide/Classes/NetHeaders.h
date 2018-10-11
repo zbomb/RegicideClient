@@ -118,17 +118,54 @@ enum class EDisconnectReason
 	OtherError
 };
 
+enum class CloudEvent
+{
+	ConnectBegin,
+	ConnectResult,
+	_Internal_Connect,
+	Disconnect,
+	LoginBegin,
+	LoginComplete,
+	RegisterBegin,
+	RegisterComplete
+};
+
+enum class ConnectResult
+{
+	ConnectionError,
+	KeyExchangeError,
+	Success,
+	OtherError
+};
+
+enum class EEndianOrder
+{
+	BigEndian = 0,
+	LittleEndian = 1
+};
+
 
 /*=============================================================================================================================
 	Network Structs
 =============================================================================================================================*/
+
+struct FSerializableStruct
+{
+public:
+
+	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) = 0;
+	virtual ENetworkEncryption EncryptionLevel() const
+	{
+		return ENetworkEncryption::Full;
+	}
+};
 
 class FStructHelper
 {
 
 public:
 	
-	static bool Serialize( void* Var, size_t VarSize, std::vector< uint8 >::iterator BufferPos, bool bWrite, bool bFlipOrder )
+	static bool DoSerialize( void* Var, size_t VarSize, std::vector< uint8 >::iterator BufferPos, bool bWrite, bool bFlipOrder )
 	{
 		if( Var == nullptr || VarSize <= 0 )
 		{
@@ -162,13 +199,40 @@ public:
 
 		return true;
 	}
-};
 
-struct FSerializableStruct
-{
-public:
+	template< typename T >
+	static bool Deserialize( FSerializableStruct& Structure, std::vector< uint8 >::iterator DataStart, const size_t DataSize )
+	{
+		// Quick check if there is enough data for this operation
+		if( T::GetSize() > DataSize )
+		{
+			return false;
+		}
 
-	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) = 0;
+		// Check if we need to flip bytes from the server
+		RegCloud* Cloud = RegCloud::Get();
+		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+
+		// Deserialize the structure, taking into account mismatching endianess
+		return Structure.Serialize( DataStart, false, bShouldFlip );
+	}
+
+	template< typename T >
+	static bool Serialize( FSerializableStruct& Structure, std::vector< uint8 >::iterator DataStart, const size_t DataSize )
+	{
+		// Quick bounds check
+		if( T::GetSize() > DataSize )
+		{
+			return false;
+		}
+
+		// Ensure were serializing using little endian
+		RegCloud* Cloud = RegCloud::Get();
+		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+
+		// Were not going to flip byte order while serializing, the server will flip bytes if needed
+		return Structure.Serialize( DataStart, true, bShouldFlip );
+	}
 };
 
 
@@ -189,9 +253,20 @@ struct FPublicHeader : public FSerializableStruct
 
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
-		return( FStructHelper::Serialize( (void*)&PacketSize, 8, Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*)&EncryptionMethod, 4, Begin + 8, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*)&EndianOrder, 4, Begin + 12, bWrite, bFlipOrder ) );
+		return( FStructHelper::DoSerialize( (void*)&PacketSize, 8, Begin, bWrite, bFlipOrder ) &&
+				FStructHelper::DoSerialize( (void*)&EncryptionMethod, 4, Begin + 8, bWrite, bFlipOrder ) &&
+				FStructHelper::DoSerialize( (void*)&EndianOrder, 4, Begin + 12, bWrite, false ) );
+	}
+
+	virtual ENetworkEncryption EncryptionLevel() const override
+	{
+		return ENetworkEncryption::None;
+	}
+
+	// Were putting this function here, so if the public header is ever updated, then we can correct the alignment
+	static void GetEndianBytes( std::vector< uint8 >::iterator DataBegin, std::vector< uint8 >::iterator VarBegin )
+	{
+		std::copy( DataBegin + 12, DataBegin + 16, VarBegin );
 	}
 	
 };									// 16
@@ -213,8 +288,8 @@ struct FPrivateHeader : FSerializableStruct
 
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
-		return( FStructHelper::Serialize( (void*)&NetworkCommand, 4, Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*)&NetworkArgument, 4, Begin + 4, bWrite, bFlipOrder ) );
+		return( FStructHelper::DoSerialize( (void*)&NetworkCommand, 4, Begin, bWrite, bFlipOrder ) &&
+				FStructHelper::DoSerialize( (void*)&NetworkArgument, 4, Begin + 4, bWrite, bFlipOrder ) );
 	}
 };									// 8
 
@@ -243,9 +318,8 @@ struct FSmallPayloadPacket : FPrivateHeader
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
 		return( FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*)&Payload, 128, Begin + 8, bWrite, false ) );
+				FStructHelper::DoSerialize( (void*)&Payload, 128, Begin + 8, bWrite, false ) );
 	}
-
 };									// 13
 
 /*--------------------------------------------------------------------------------------
@@ -254,7 +328,7 @@ struct FSmallPayloadPacket : FPrivateHeader
 --------------------------------------------------------------------------------------*/
 struct FPingPacket : FPrivateHeader
 {
-	uint64 TimeStamp = 0;	// 4
+	int64 TimeStamp = 0;	// 4
 
 	static size_t GetSize()
 	{
@@ -264,7 +338,12 @@ struct FPingPacket : FPrivateHeader
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
 		return( FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*)&TimeStamp, 8, Begin + 8, bWrite, bFlipOrder ) );
+				FStructHelper::DoSerialize( (void*)&TimeStamp, 8, Begin + 8, bWrite, bFlipOrder ) );
+	}
+
+	virtual ENetworkEncryption EncryptionLevel() const override
+	{
+		return ENetworkEncryption::None;
 	}
 };									// 16
 
@@ -284,7 +363,12 @@ struct FKeyExchangePacket : FPrivateHeader
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
 		return( FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*) &Key, 512, Begin + 8, bWrite, false ) );
+				FStructHelper::DoSerialize( (void*) &Key, 512, Begin + 8, bWrite, false ) );
+	}
+
+	virtual ENetworkEncryption EncryptionLevel() const override
+	{
+		return ENetworkEncryption::Light;
 	}
 };									// 520
 
@@ -305,8 +389,8 @@ struct FLoginPacket : FPrivateHeader
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
 		return( FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*) &Username, 128, Begin + 8, bWrite, false ) &&
-				FStructHelper::Serialize( (void*) &Password, 32, Begin + 136, bWrite, false ) );
+				FStructHelper::DoSerialize( (void*) &Username, 128, Begin + 8, bWrite, false ) &&
+				FStructHelper::DoSerialize( (void*) &Password, 32, Begin + 136, bWrite, false ) );
 	}
 };
 
@@ -325,10 +409,10 @@ struct FRegisterPacket : FPrivateHeader
 	virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
 	{
 		return( FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder ) &&
-				FStructHelper::Serialize( (void*) &DisplayName, 256, Begin + 8, bWrite, false ) &&
-				FStructHelper::Serialize( (void*) &EmailAddress, 1024, Begin + 264, bWrite, false ) &&
-				FStructHelper::Serialize( (void*) &Username, 128, Begin + 1288, bWrite, false ) &&
-				FStructHelper::Serialize( (void*) &Password, 32, Begin + 1416, bWrite, false ) );
+				FStructHelper::DoSerialize( (void*) &DisplayName, 256, Begin + 8, bWrite, false ) &&
+				FStructHelper::DoSerialize( (void*) &EmailAddress, 1024, Begin + 264, bWrite, false ) &&
+				FStructHelper::DoSerialize( (void*) &Username, 128, Begin + 1288, bWrite, false ) &&
+				FStructHelper::DoSerialize( (void*) &Password, 32, Begin + 1416, bWrite, false ) );
 	}
 };
 
@@ -343,8 +427,4 @@ struct FIncomingPacket
 	ENetworkCommand CommandCode;
 };
 
-struct FOutgoingPacket
-{
-	std::vector< uint8 > Buffer;
-	ENetworkEncryption EncryptionMethod = ENetworkEncryption::Full;
-};
+

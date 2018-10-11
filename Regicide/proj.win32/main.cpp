@@ -25,7 +25,6 @@
 #include "main.h"
 #include "AppDelegate.h"
 #include "cocos2d.h"
-#include "../../Asio/include/asio/impl/src.hpp"
 
 USING_NS_CC;
 

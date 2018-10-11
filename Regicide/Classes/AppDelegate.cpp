@@ -24,7 +24,10 @@
 
 #include "AppDelegate.h"
 #include "HelloWorldScene.h"
-#include "RegCloudConnection.h"
+#include "MainMenuScene.h"
+#include "IntroScene.h"
+#include "RegCloud.h"
+#include <asio.hpp>
 
 #ifdef SDKBOX_ENABLED
 #ifndef WIN32
@@ -49,7 +52,7 @@ using namespace CocosDenshion;
 
 USING_NS_CC;
 
-static cocos2d::Size designResolutionSize = cocos2d::Size(480, 320);
+static cocos2d::Size designResolutionSize = cocos2d::Size(1920, 1080);
 static cocos2d::Size smallResolutionSize = cocos2d::Size(480, 320);
 static cocos2d::Size mediumResolutionSize = cocos2d::Size(1024, 768);
 static cocos2d::Size largeResolutionSize = cocos2d::Size(2048, 1536);
@@ -65,6 +68,7 @@ AppDelegate::~AppDelegate()
 #elif USE_SIMPLE_AUDIO_ENGINE
     SimpleAudioEngine::end();
 #endif
+	RegCloud::Shutdown();
 }
 
 // if you want a different context, modify the value of glContextAttrs
@@ -102,9 +106,9 @@ bool AppDelegate::applicationDidFinishLaunching() {
         director->setOpenGLView(glview);
     }
 
-	// Begin Connecting To RegSys
-	RegCloudConnection* Connection = RegCloudConnection::Get();
-	Connection->BeginConnect();
+	// Initialize RegCloud
+	RegCloud* CloudInstance = RegCloud::Get();
+	CloudInstance->Init();
 
     // turn on display FPS
     director->setDisplayStats(true);
@@ -133,13 +137,29 @@ bool AppDelegate::applicationDidFinishLaunching() {
 
     register_all_packages();
 
-    // create a scene. it's an autorelease object
-    auto scene = HelloWorld::createScene();
+	// Get Scheduler Ref
+	auto sch = director ? director->getScheduler() : nullptr;
 
-    // run
-    director->runWithScene(scene);
+	if( !sch )
+	{
+		// If for some reason we cant get the scheduler, then start right at the main menu
+		director->runWithScene( MainMenu::createScene() );
+	}
+	else
+	{
+		director->runWithScene( MainMenu::createScene() );
+		//director->runWithScene( IntroScene::createScene() );
+		//sch->schedule( std::bind( &AppDelegate::FinishIntro, this, std::placeholders::_1 ), this, 2.5f, 0, 2.5f, false, "IntroEnd" );
+	}
 
     return true;
+}
+
+void AppDelegate::FinishIntro( float Delay )
+{
+	auto director = Director::getInstance();
+
+	director->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
 }
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.
