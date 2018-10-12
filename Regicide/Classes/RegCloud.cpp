@@ -393,30 +393,26 @@ bool RegCloud::OnInvalidPacket( FIncomingPacket& Packet )
 	}
 }
 
-void RegCloud::Login( std::string Username, std::string Password, std::function<void( RegCloud::LoginResult )> Callback )
+void RegCloud::Login( std::string Username, std::string Password )
 {
-	// Update Callback
-	if( Callback )
-	{
-		LoginCallback = Callback;
-	}
 
 	// Check if this operation is already in progress, or complete
 	if( LoginState == ENodeProcessState::InProgress )
 	{
-		log( "[RegSys] Attempt to login, but login was already in progress! Callback updated" );
+		log( "[RegSys] Attempt to login, but login was already in progress!" );
 		return;
 	}
 	else if( LoginState == ENodeProcessState::Complete )
 	{
 		log( "[RegSys] Attempt to login, but user is already logged in! Must log out before attempting another login!" );
-		LoginCallback( RegCloud::LoginResult::AlreadyLoggedIn );
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::AlreadyLoggedIn );
 		return;
 	}
-	else if( !IsSecure() )
+	
+	if( !IsSecure() )
 	{
 		log( "[RegSys] Attempt to login, but there is no active session! Reconnect and retry!" );
-		LoginCallback( RegCloud::LoginResult::ConnectionError );
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		return;
 	}
 
@@ -432,7 +428,7 @@ void RegCloud::Login( std::string Username, std::string Password, std::function<
 		if( PasswordData.size() == 0 )
 		{
 			log( "[RegSys Login] An error occurred while hashing! Please re-open login menu and try again!" );
-			LoginCallback( RegCloud::LoginResult::InvalidInput );
+			ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::InvalidInput );
 			return;
 		}
 	}
@@ -441,15 +437,15 @@ void RegCloud::Login( std::string Username, std::string Password, std::function<
 	if( PasswordData.size() != 32 || Username.size() > 128 )
 	{
 		log( "[RegSys Login] Check inputs. Username must be between 5 and 32 characters." );
-		LoginCallback( RegCloud::LoginResult::InvalidInput );
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::InvalidInput );
 		return;
 	}
 
 	// Copy everything into the packet
 	FLoginPacket Packet;
 
-	std::copy( Username.begin(), Username.end(), std::addressof( Packet.Username ) );
-	std::copy( PasswordData.begin(), PasswordData.end(), std::addressof( Packet.Password ) );
+	std::copy( Username.begin(), Username.end(), std::begin( Packet.Username ) );
+	std::copy( PasswordData.begin(), PasswordData.end(), std::begin( Packet.Password ) );
 
 	Packet.NetworkCommand = (uint32) ENetworkCommand::Login;
 	Packet.NetworkArgument = 0;
@@ -460,12 +456,12 @@ void RegCloud::Login( std::string Username, std::string Password, std::function<
 		if( SendErr )
 		{
 			log( "[RegSys Login] Failed to send login packet to service! Error: %s", SendErr.message() );
-			LoginCallback( RegCloud::LoginResult::ConnectionError );
+			ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		}
 	} ) )
 	{
 		log( "[RegSys Login] Failed to send login packet to service! Unknown error.." );
-		LoginCallback( RegCloud::LoginResult::ConnectionError );
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		return;
 	}
 
@@ -482,9 +478,10 @@ void RegCloud::Login( std::string Username, std::string Password, std::function<
 		} ) )
 		{
 			// Operation timed out
+			localAccountInfo.reset();
 			LoginState = ENodeProcessState::Reset;
 			log( "[RegSys Login] Error! Login operation timed-out!" );
-			LoginCallback( RegCloud::LoginResult::Timeout );
+			ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::Timeout );
 		}
 	} );
 	
@@ -498,38 +495,26 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 	if( !FStructHelper::Deserialize< FGenericPacket >( ResponsePacket, Packet.Buffer.begin(), Packet.Buffer.size() ) )
 	{
 		log( "[RegSys Login] Error! Received invalid login response from the server!" );
-		if( LoginCallback )
-		{
-			LoginCallback( RegCloud::LoginResult::ConnectionError );
-		}
-		else
-		{
-			log( "[RegSys Login] ERROR! No login callback is bound!" );
-		}
 
-		// TODO: Clear local account info
 		LoginState = ENodeProcessState::Reset;
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		return true;
 	}
 
 	if( ResponsePacket.NetworkArgument == (uint32) ELoginResponse::Error )
 	{
 		log( "[RegSys Login] Warning! An error occurred on the server while processing login request!" );
-		if( LoginCallback )
-			LoginCallback( RegCloud::LoginResult::ConnectionError );
-		
-		// TODO: Clear local account info
+
 		LoginState = ENodeProcessState::Reset;
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		return true;
 	}
 	else if( ResponsePacket.NetworkArgument == (uint32) ELoginResponse::InvalidCredentials )
 	{
 		log( "[RegSys Login] Warning! Login attempt failed because the credentials were not correct!" );
-		if( LoginCallback )
-			LoginCallback( RegCloud::LoginResult::InvalidCredentials );
 
-		// TODO: Clear local account info
 		LoginState = ENodeProcessState::Reset;
+		ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::InvalidCredentials );
 		return true;
 	}
 	else
@@ -537,15 +522,13 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 		// Success! We need to deseraialize the full packet now, and handle the parsing of this data
 		if( HandleAccountInfo( Packet.Buffer ) )
 		{
-			log( "[RegSys] Login was successful!" );
 			LoginState = ENodeProcessState::Complete;
+			ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::Success );
 		}
 		else
 		{
-			log( "[RegSys Login] Failed to process account info!" );
-
-			// TODO: Clear local account info
 			LoginState = ENodeProcessState::Reset;
+			ExecuteEvent( CloudEvent::LoginComplete, (int) LoginResult::ConnectionError );
 		}
 
 		return true;
@@ -555,5 +538,38 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 
 bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 {
+	FAccountInfo accountInfo;
 	
+	if( !FStructHelper::Deserialize< FAccountInfo >( accountInfo, RawAccountInfo.begin(), RawAccountInfo.size() ) )
+	{
+		log( "[RegSys] Login Failed! Couldnt read server response.." );		
+		return false;
+	}
+
+	// Now all we need to do is set the account info
+	localAccountInfo = std::make_shared< FAccountInfo >( accountInfo );
+	log( "[RegSys] Login successful! Welcome \"%s\"", accountInfo.DisplayName );
+
+}
+
+bool RegCloud::BindListener( CloudEvent targetEvent, std::string uniqueId, std::function< void( CloudEvent, unsigned int ) > callbackFunc )
+{
+	// Basic parameter checking
+	if( targetEvent == CloudEvent::None || uniqueId.size() <= 0 || 
+		!callbackFunc || ListenerExists( uniqueId, targetEvent ) )
+	{
+		log( "[ERROR] Failed to add a callback.. invalid parameters" );
+		return false;
+	}
+
+	CloudEventListener newListener;
+	newListener.callback = callbackFunc;
+	newListener.identifier = uniqueId;
+
+	eventListeners[ targetEvent ].push_back( newListener );
+}
+
+bool RegCloud::ListenerExists( CloudEvent targetEvent, std::string uniqueId )
+{
+	// NEXT
 }

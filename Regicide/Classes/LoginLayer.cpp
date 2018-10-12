@@ -1,6 +1,8 @@
 
 #include "LoginLayer.h"
 #include "CryptoLibrary.h"
+#include "RegCloud.h"
+#include <vector>
 
 
 namespace Regicide
@@ -187,13 +189,16 @@ bool LoginLayer::init()
 		addChild( ButtonBank, 17, "ButtonBank" );
 	}
 
+	// Bind events
+
+
 	return true;
 }
 
 
 void LoginLayer::ShowError( std::string ErrorMessage )
 {
-
+	log( "[RegSys] Login Error: %s", ErrorMessage );
 }
 
 
@@ -205,6 +210,9 @@ void LoginLayer::OnLoginClick( Ref* Caller )
 		ShowError( "UI Error. Please re-open login menu and try again!" );
 		return;
 	}
+
+	// DEBUG
+	log( "[RegSys] LOGGING IN!" );
 
 	std::string UserStr = Username->getText();
 	std::string PassStr = Password->getText();
@@ -226,31 +234,16 @@ void LoginLayer::OnLoginClick( Ref* Caller )
 		return;
 	}
 
-	
+	// Call login and wait for the callback event
+	RegCloud* Cloud = RegCloud::Get();
 
-	
-	// Ensure function completed successfully
-
-
-	std::vector< uint8 > HashedPassword = CryptoLibrary::SHA256( PasswordData );
-	if( HashedPassword.size() == 0 )
+	if( !Cloud )
 	{
-		ShowError( "An error occurred while hashing password! Please re-open login menu and try again!" );
+		ShowError( "Login error! Please restart the game and try again.." );
 		return;
 	}
 
-
-
-	CryptoLibrary::SHA256( PasswordChars );
-
-
-	// Besides this, we cant really do much else, as were not really able to handle UTF text
-	// So, we will just ship it off to the server to be handled properly
-	FLoginPacket Packet;
-	
-	std::copy( UserStr.begin(), UserStr.end(), std::addressof( Packet.Username ) );
-
-
+	Cloud->Login( UserStr, PassStr );
 
 }
 
