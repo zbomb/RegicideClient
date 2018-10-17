@@ -1,10 +1,11 @@
 #include "CryptoLibrary.h"
-#include "cryptolib/cipher.h"
-#include "cryptolib/sha256.h"
+#include "cipher.h"
+#include "sha256.h"
 #include "cocos/base/CCConsole.h"
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include "utf8.h"
 
 using namespace cocos2d;
 
@@ -141,7 +142,7 @@ std::vector< uint8 > CryptoLibrary::SHA256( std::vector< uint8 >& Data )
 void CryptoLibrary::PrintVector( const std::vector< uint8 >& Data, std::string Name )
 {
 	log( "\n======================= Debug Vector Print =============================" );
-	log( "-----> %s   Size: %d", Name.c_str(), Data.size() );
+	log( "-----> %s   Size: %d", Name.c_str(), (uint)Data.size() );
 
 	std::ostringstream Output;
 
@@ -154,11 +155,12 @@ void CryptoLibrary::PrintVector( const std::vector< uint8 >& Data, std::string N
 			Output << "\n";
 		}
 
-		Output << std::hex << Data[ Index ] << "   ";
+		Output << "0X" << std::hex << (int) *It << "   ";
 	}
 
 	Output << "\n";
 	Output << "============================== End Vector ================================";
 
-	log( Output.str().c_str() );
+    log( "%s", Output.str().c_str() );
 }
+

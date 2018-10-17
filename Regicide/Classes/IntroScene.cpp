@@ -89,5 +89,6 @@ bool IntroScene::init()
 			this->addChild( ValidNode, 3 );
 		}
 	}
-
+    
+    return true;
 }

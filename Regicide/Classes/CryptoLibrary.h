@@ -32,15 +32,12 @@ public:
 	static std::vector< uint8 > SHA256( std::vector< uint8 >& Data );
 
 	static void PrintVector( const std::vector< uint8 >& Data, std::string Name );
-	
 };
 
 
 template< typename T >
 T* CryptoLibrary::DeserializePacket( ByteIter Start, ByteIter End )
 {
-	static_assert( End >= Start, "Invalid byte iterator start/end provided" );
-
 	// Ensure we have enough data to create this object
 	size_t InputSize = End - Start;
 	if( InputSize < sizeof( T ) )
@@ -65,8 +62,6 @@ T* CryptoLibrary::DeserializePacket( ByteIter Start, ByteIter End )
 template< typename T >
 bool CryptoLibrary::DeserializeCopy( ByteIter Start, ByteIter End, T& Output )
 {
-	static_assert( End >= Start, "Invalid byte iterator start/end provided!" );
-
 	size_t InputSize = End - Start;
 	if( InputSize < sizeof( T ) )
 	{

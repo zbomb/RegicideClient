@@ -1,3 +1,5 @@
+#pragma once
+
 #include <memory>
 #include <vector>
 #include <deque>
@@ -5,17 +7,14 @@
 #include <asio.hpp>
 #include "NetHeaders.h"
 
-#pragma once
-
 // Settings
-#define REGCLOUD_REMOTEADDRESS "network.regicidemobile.com"
+#define REGCLOUD_REMOTEADDRESS "regicidemobile.com"
 #define REGCLOUD_PORT 8800
-#define REGCLOUD_DEBUGADDRESS "127.0.0.1"
+#define REGCLOUD_DEBUGADDRESS "52.20.253.91"
 #define REGCLOUD_DEBUG
 #define REGCLOUD_BUFFERLEN 2048
 
 class FSockError;
-
 using namespace asio::ip;
 
 class RegCloudConnection
@@ -80,8 +79,10 @@ public:
 
 	RegCloudConnection();
 	~RegCloudConnection();
+    
+    inline asio::io_context& GetContext() { return LinkedContext; }
 
-	void BeginConnect();
+	bool BeginConnect();
 	bool IsConnected() const;
 	bool Send( std::vector< uint8 >& Data, std::function< void( asio::error_code, unsigned int ) > Callback = nullptr, ENetworkEncryption EncryptionLevel = ENetworkEncryption::Full );
 
@@ -95,18 +96,18 @@ public:
 	bool CallbackExists( std::string Identifier );
 	bool RemoveCallback( std::string Identifier );
 
-	void FireEvent( CloudEvent Event, int Parameter );
 	void SetSessionKey( uint8* SessionKey );
 
 	inline bool ShouldFlipByteOrder() const { return LocalByteOrder != EndianOrder::LittleEndian; }
 
 	enum ConnectionState { Connected, InProgress, NotStarted, Failed };
 	inline ConnectionState GetState() const { return CurrentState; }
+    
+    void TimeoutConnection( bool bUpdateState );
 
 private:
 
 	ConnectionState CurrentState = ConnectionState::NotStarted;
-
 
 };
 
@@ -133,8 +134,6 @@ bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, std::function<void(
 		log( "[Warning] Failed to send packet to the server because serialization failed!" );
 		return false;
 	}
-
-	log( "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" );
 
 	return Send( SerializedPacket, Callback, Packet.EncryptionLevel() );
 }

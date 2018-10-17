@@ -31,7 +31,7 @@
 
 #ifdef SDKBOX_ENABLED
 #ifndef WIN32
-#include "PluginIAP/PluginIAP.h"
+//#include "PluginIAP/PluginIAP.h"
 #endif
 #endif
 
@@ -91,7 +91,7 @@ static int register_all_packages()
 bool AppDelegate::applicationDidFinishLaunching() {
 #ifdef SDKBOX_ENABLED
 #ifndef WIN32
-    sdkbox::IAP::init();
+    //sdkbox::IAP::init();
 #endif
 #endif
     // initialize director
@@ -141,15 +141,30 @@ bool AppDelegate::applicationDidFinishLaunching() {
 	auto sch = director ? director->getScheduler() : nullptr;
 
 	if( !sch )
-	{
+    {
+    if( director->getRunningScene() )
+    {
+        director->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
+    }
+    else
+    {
 		// If for some reason we cant get the scheduler, then start right at the main menu
 		director->runWithScene( MainMenu::createScene() );
+    }
 	}
 	else
 	{
-		director->runWithScene( MainMenu::createScene() );
-		//director->runWithScene( IntroScene::createScene() );
-		//sch->schedule( std::bind( &AppDelegate::FinishIntro, this, std::placeholders::_1 ), this, 2.5f, 0, 2.5f, false, "IntroEnd" );
+		////director->runWithScene( MainMenu::createScene() );
+        
+        if( director->getRunningScene() == NULL )
+        {
+            director->replaceScene( TransitionFade::create( 2, IntroScene::createScene(), Color3B( 0, 0, 0 ) ) );
+        }
+        else
+        {
+            director->runWithScene( IntroScene::createScene() );
+        }
+        sch->schedule( std::bind( &AppDelegate::FinishIntro, this, std::placeholders::_1 ), this, 2.5f, 0, 2.5f, false, "IntroEnd" );
 	}
 
     return true;

@@ -3,18 +3,10 @@
 #include "CryptoLibrary.h"
 #include "RegCloud.h"
 #include <vector>
+#include "MainMenuScene.h"
+#include "EventHub.h"
+#include "utf8.h"
 
-
-namespace Regicide
-{
-constexpr auto REG_USERNAME_MINLEN =	5;
-constexpr auto REG_USERNAME_MAXLEN =	32;
-constexpr auto REG_PASSWORD_MINLEN =	5;
-constexpr auto REG_EMAIL_MINLEN	= 		5;
-constexpr auto REG_EMAIL_MAXLEN	= 		255;
-constexpr auto REG_DISPNAME_MINLEN =	5;
-constexpr auto REG_DISPNAME_MAXLEN =	48;
-};
 
 
 bool LoginLayer::init()
@@ -46,8 +38,6 @@ bool LoginLayer::init()
 	{
 		log( "[UI ERROR] Failed to create draw node for login panel!" );
 	}
-	
-	
 
 	// Create Header Text
 	Header = Label::createWithTTF( "Account Login", "fonts/arial.ttf", fontSize, Size::ZERO, TextHAlignment::CENTER, TextVAlignment::BOTTOM );
@@ -60,7 +50,7 @@ bool LoginLayer::init()
 	UsernameLabel = Label::createWithTTF( "Username", "fonts/arial.ttf", fontSize * 0.6f, Size::ZERO, TextHAlignment::CENTER, TextVAlignment::BOTTOM );
 	if( UsernameLabel )
 	{
-		UsernameLabel->setPosition( thisX + thisW / 2.f, thisY + thisH * 0.6f + fontSize * 0.7f + 5.f );
+		UsernameLabel->setPosition( thisX + thisW / 2.f, thisY + thisH * 0.65f + fontSize * 0.7f + 5.f );
 		addChild( UsernameLabel, 16 );
 	}
 
@@ -69,7 +59,7 @@ bool LoginLayer::init()
 	if( Username )
 	{
 		Username->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
-		Username->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.6f ) );
+		Username->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.65f ) );
 		//Username->setPlaceHolder( "Username" );
 		Username->setFontColor( Color4B( 10, 10, 10, 255 ) );
 		Username->setTextHorizontalAlignment( TextHAlignment::CENTER );
@@ -94,7 +84,7 @@ bool LoginLayer::init()
 	PasswordLabel = Label::createWithTTF( "Password", "fonts/arial.ttf", fontSize * 0.6f, Size::ZERO, TextHAlignment::CENTER, TextVAlignment::BOTTOM );
 	if( PasswordLabel )
 	{
-		PasswordLabel->setPosition( thisX + thisW / 2.f, thisY + thisH * 0.35f + fontSize * 0.7f + 5.f );
+		PasswordLabel->setPosition( thisX + thisW / 2.f, thisY + thisH * 0.4f + fontSize * 0.7f + 5.f );
 		addChild( PasswordLabel, 16 );
 	}
 
@@ -103,7 +93,7 @@ bool LoginLayer::init()
 	if( Password )
 	{
 		Password->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
-		Password->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.35f ) );
+		Password->setPosition( Vec2( thisX + thisW * 0.5f, thisY + thisH * 0.4f ) );
 		//Password->setPlaceHolder( "Password" );
 		Password->setFontColor( Color4B( 10, 10, 10, 255 ) );
 		Password->setTextHorizontalAlignment( TextHAlignment::CENTER );
@@ -125,7 +115,23 @@ bool LoginLayer::init()
 
 		addChild( Password, 17, "Password" );
 	}
-
+    else
+    {
+        log( "[UI ERROR] Failed to create password box!" );
+    }
+    
+    ErrorMessage = Label::createWithTTF( "", "fonts/arial.ttf", fontSize * 0.5f, Size( thisW * 0.92f, thisH * 0.12f ), TextHAlignment::CENTER, TextVAlignment::CENTER );
+    if( ErrorMessage )
+    {
+        ErrorMessage->setPosition( thisX + thisW / 2.f, thisY + thisH * 0.275f );
+        ErrorMessage->setTextColor( Color4B( 240, 30, 30, 255 ) );
+        addChild( ErrorMessage, 20 );
+    }
+    else
+    {
+        log( "[UI ERROR] Failed to create error message label!" );
+    }
+    
 	cocos2d::Vector< Node* > MenuItems;
 
 	// Create Login Button
@@ -188,17 +194,17 @@ bool LoginLayer::init()
 
 		addChild( ButtonBank, 17, "ButtonBank" );
 	}
-
-	// Bind events
-
-
+    
 	return true;
 }
 
 
-void LoginLayer::ShowError( std::string ErrorMessage )
+void LoginLayer::ShowError( std::string Message )
 {
-	log( "[RegSys] Login Error: %s", ErrorMessage );
+	log( "[RegSys] Login Error: %s", Message.c_str() );
+    
+    if( ErrorMessage )
+        ErrorMessage->setString( Message );
 }
 
 
@@ -210,51 +216,200 @@ void LoginLayer::OnLoginClick( Ref* Caller )
 		ShowError( "UI Error. Please re-open login menu and try again!" );
 		return;
 	}
-
-	// DEBUG
-	log( "[RegSys] LOGGING IN!" );
+    
+    // Deselect Edit Boxes
+    // TODO
 
 	std::string UserStr = Username->getText();
 	std::string PassStr = Password->getText();
-
-	// We can do some simple checks to ensure the data is proper before sending it off to the server
-	auto UserLen = UserStr.length();
-	auto PassLen = PassStr.length();
-
-	// TODO: Handle UTF characters better! (at all really)
-	if( UserLen < Regicide::REG_USERNAME_MINLEN || UserLen > 128 )
-	{
-		ShowError( "Username must be between " + std::to_string( Regicide::REG_USERNAME_MINLEN ) + " and " +
-					std::to_string( Regicide::REG_USERNAME_MAXLEN ) + " characters!" );
-		return;
-	}
-	else if( PassLen < Regicide::REG_PASSWORD_MINLEN )
-	{
-		ShowError( "Password must be at least " + std::to_string( Regicide::REG_PASSWORD_MINLEN ) + " characters!" );
-		return;
-	}
-
+    
+    // Clear Pass Box
+    Password->setText( "" );
+    
+    // Validate Input Format
+    if( !utf8::is_valid( UserStr.begin(), UserStr.end() ) ||
+        !utf8::is_valid( PassStr.begin(), PassStr.end() ) )
+    {
+        ShowError( "Invalid Username/Password. Please check input and try again." );
+        return;
+    }
+    
+    auto UserLen = utf8::distance( UserStr.begin(), UserStr.end() );
+    auto PassLen = utf8::distance( PassStr.begin(), PassStr.end() );
+    
+    // Check input lengths
+    if( UserLen < Regicide::REG_USERNAME_MINLEN || UserLen > Regicide::REG_USERNAME_MAXLEN )
+    {
+        ShowError( "Invalid Username/Password. Please check input and try again." );
+        return;
+    }
+    else if( PassLen < Regicide::REG_PASSWORD_MINLEN )
+    {
+        ShowError( "Invalid Username/Password. Please check input and try again." );
+        return;
+    }
+    
+    // Check for invalid characters
+    // First, check username for invalid characters
+    typedef utf8::iterator< std::string::iterator > UTFIter;
+    UTFIter UserIt( UserStr.begin(), UserStr.begin(), UserStr.end() );
+    UTFIter UserItEnd( UserStr.end(), UserStr.begin(), UserStr.end() );
+    UTFIter PassIt( PassStr.begin(), PassStr.begin(), PassStr.end() );
+    UTFIter PassItEnd( PassStr.end(), PassStr.begin(), PassStr.end() );
+    
+    for( auto Iter = UserIt; Iter != UserItEnd; Iter++ )
+    {
+        if(( *Iter < 0x0030 ) ||
+           ( *Iter > 0x0039 && *Iter < 0x0041 ) ||
+           ( *Iter > 0x005A && *Iter < 0x0061 ) ||
+           ( *Iter > 0x007A ) )
+        {
+            ShowError( "Invalid Username/Password. Please check input and try again." );
+            return;
+        }
+    }
+    
+    bool bUppercase = false;
+    bool bLowercase = false;
+    bool bSymbol = false;
+    bool bNumber = false;
+    
+    for( auto Iter = PassIt; Iter != PassItEnd; Iter++ )
+    {
+        if( *Iter < 0x0030 ||
+           ( *Iter > 0x007E && *Iter < 0x00A1 ) )
+        {
+            ShowError( "Invalid Username/Password. Please check input and try again." );
+            return;
+        }
+        
+        if( !bSymbol &&
+           ( *Iter < 0x0030 ||
+           ( *Iter > 0x0039 && *Iter < 0x0041 ) ||
+           ( *Iter > 0x005A && *Iter < 0x0061 ) ||
+           ( *Iter > 0x007A && *Iter < 0x007F ) ) )
+        {
+            bSymbol = true;
+        }
+        else if( !bNumber &&
+           ( *Iter > 0x002F && *Iter < 0x003A ) )
+        {
+            bNumber = true;
+        }
+        else if( !bLowercase &&
+                ( *Iter > 0x0040 && *Iter < 0x005B ) )
+        {
+            bLowercase = true;
+        }
+        else if( !bUppercase &&
+                ( *Iter > 0x0060 && *Iter < 0x007B ) )
+        {
+            bUppercase = true;
+        }
+        
+        if( bNumber && bLowercase && bUppercase )
+            break;
+    }
+    
+    if( !bNumber || !bLowercase || !bUppercase )
+    {
+        ShowError( "Invalid Username/Password. Please check input and try again." );
+        return;
+    }
+    
 	// Call login and wait for the callback event
-	RegCloud* Cloud = RegCloud::Get();
-
-	if( !Cloud )
-	{
-		ShowError( "Login error! Please restart the game and try again.." );
-		return;
-	}
-
-	Cloud->Login( UserStr, PassStr );
-
+    MainMenu* Menu = static_cast< MainMenu* >( getParent() );
+    if( !Menu )
+    {
+        ShowError( "Critical Error! Please restart the game and retry!" );
+        return;
+    }
+    
+    if( !Menu->PerformLogin( UserStr, PassStr ) )
+    {
+        ShowError( "Error contacting the Regicide Network! Please retry" );
+    }
 }
 
 void LoginLayer::OnRegisterClick( Ref* Caller )
 {
-	// Open register menu
-
+    MainMenu* Menu = static_cast< MainMenu* >( getParent() );
+    
+    if( !Menu )
+    {
+        log( "[UI ERROR] Failed to open register menu.. Login menu parent was null.." );
+        return;
+    }
+    
+    Menu->OpenRegisterMenu();
 }
 
 void LoginLayer::OnCancelClick( Ref* Caller )
 {
 	// If the user doesnt want to login, then we cant let them play the game
+    auto dir = Director::getInstance();
+    auto menu = dir ? dir->getRunningScene() : nullptr;
+    MainMenu* MenuScene = static_cast< MainMenu* >( menu );
+    
+    if( !MenuScene )
+    {
+        removeFromParentAndCleanup( true );
+        return;
+    }
+    
+    MenuScene->CancelLogin();
+}
 
+void LoginLayer::Destroy()
+{
+    auto FadeOut = Sequence::create( FadeOut::create( 0.5f ), RemoveSelf::create( true ), NULL );
+    
+    for( Node* Child : getChildren() )
+    {
+        if( Child )
+            Child->runAction( FadeOut );
+    }
+    
+    this->runAction( FadeOut );
+}
+
+void LoginLayer::OnLoginFailure( LoginResult ErrorCode )
+{
+    if( ErrorCode == LoginResult::AlreadyLoggedIn )
+    {
+        ShowError( "Critical Error! Please try to manually log out, and then retry login." );
+    }
+    else if( ErrorCode == LoginResult::ConnectionError )
+    {
+        ShowError( "Failed to reach the Regicide Cloud! Please retry momentarily" );
+    }
+    else if( ErrorCode == LoginResult::InvalidCredentials || ErrorCode == LoginResult::InvalidInput )
+    {
+        ShowError( "Invalid username/password! Please use the link below to reset your password!" );
+    }
+    else if( ErrorCode == LoginResult::Timeout )
+    {
+        ShowError( "The login attempt timed-out. Please retry momentarily" );
+    }
+}
+
+// EventBoxDelegate Implementation
+void LoginLayer::editBoxReturn( EditBox* Box )
+{
+
+}
+
+void LoginLayer::editBoxTextChanged( EditBox *Box, const std::string &Text )
+{
+
+}
+
+void LoginLayer::editBoxEditingDidEnd( EditBox* Box )
+{
+    //EditBoxDelegate::editBoxEditingDidEnd( Box );
+}
+
+void LoginLayer::editBoxEditingDidBegin( EditBox *Box )
+{
+    EditBoxDelegate::editBoxEditingDidBegin( Box );
 }

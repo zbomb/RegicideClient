@@ -9,6 +9,7 @@
 #include "SimpleAudioEngine.h"
 #include "RegCloud.h"
 #include "LoginLayer.h"
+#include "EventHub.h"
 
 
 using namespace cocos2d;
@@ -20,6 +21,15 @@ Scene* MainMenu::createScene()
 	auto ret = MainMenu::create();
 	if( ret ) { ret->setName( "MainMenu" ); }
 	return ret;
+}
+
+MainMenu::~MainMenu()
+{
+    EVENT_SAFE_UNBIND( ConnectBeginId );
+    EVENT_SAFE_UNBIND( ConnectEndId );
+    EVENT_SAFE_UNBIND( DisconnectId );
+    EVENT_SAFE_UNBIND( LoginId );
+    EVENT_SAFE_UNBIND( RegisterId );
 }
 
 bool MainMenu::init()
@@ -218,8 +228,6 @@ bool MainMenu::init()
 		log( "[UI ERROR] Failed to create label for options button!" );
 	}
 
-	auto DebugBox = ui::EditBox::create( Size( 500.f, 50.f ), "editbox_bg.png" );
-
 #if CC_TARGET_PLATFORM == CC_PLATFORM_WIN32 || CC_TARGET_PLATFORM == CC_PLATFORM_MAC
 
 	auto ExitButton = MenuItemImage::create( "CloseNormal.png", "CloseSelected.png", "CloseSelected.png", [ this ]( Ref* Caller )
@@ -241,7 +249,7 @@ bool MainMenu::init()
 	}
 
 #endif
-
+    
 	MenuContainer = Menu::createWithArray( MenuItems );
 	if( MenuContainer )
 	{
@@ -259,7 +267,8 @@ bool MainMenu::init()
 	// If we cant get a ref to RegSys, run in offline mode
 	if( !RegSys )
 	{
-		OnLostConnection( CloudEvent::ConnectResult, (int) ConnectResult::OtherError );
+        NumericEventData Data( (int) ConnectResult::OtherError );
+        OnLostConnection( &Data );
 		return true;
 	}
 	
@@ -268,29 +277,35 @@ bool MainMenu::init()
 
 	// Bind hooks right after checking state, so if we end up connecting before the menu is constructed, the state will be double
 	// checked after construction and the situation will be detected, and the same applies if the connection happens in between this line and the last line of code
-	RegSys->BindEvent( CloudEvent::ConnectResult, CC_CALLBACK_2( MainMenu::OnConnect, this ) );
-	RegSys->BindEvent( CloudEvent::Disconnect, CC_CALLBACK_2( MainMenu::OnLostConnection, this ) );
-	RegSys->BindEvent( CloudEvent::ConnectBegin, CC_CALLBACK_2( MainMenu::OnReconnectBegin, this ) );
-
+    using namespace std::placeholders;
+    
+    ConnectEndId    = EventHub::Bind( "ConnectResult", std::bind( &MainMenu::OnConnect, this, _1 ), CallbackThread::Game );
+    DisconnectId    = EventHub::Bind( "Disconnect", std::bind( &MainMenu::OnLostConnection, this, _1 ), CallbackThread::Game );
+    ConnectBeginId  = EventHub::Bind( "ConnectBegin", std::bind( &MainMenu::OnReconnectBegin, this, _1 ), CallbackThread::Game );
+    LoginId         = EventHub::Bind( "LoginResult", std::bind( &MainMenu::OnLogin, this, _1 ), CallbackThread::Game );
+    RegisterId      = EventHub::Bind( "RegisterResult", std::bind( &MainMenu::OnRegister, this, _1 ), CallbackThread::Game );
+    
 	if( ConnectionState == ENodeProcessState::InProgress || ConnectionState == ENodeProcessState::NotStarted )
 	{
+        SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
 		ShowConnectingMenu();
 	}
 	else if( ConnectionState == ENodeProcessState::Reset )
 	{
 		// Connection Error!
-		OnConnectFailure( CloudEvent::ConnectResult, (int) EConnectResult::ConnectionFailure );
+        OnConnectFailure( (int) ConnectResult::ConnectionError );
 	}
 	else
 	{
 		// Already Connected!
+        SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
 		StartLoginProcess();
 	}
 
 	return true;
 }
 
-void MainMenu::OnReconnectBegin( CloudEvent inEvent, int Param )
+bool MainMenu::OnReconnectBegin( EventData* inData )
 {
 	// Were just going to call ShowConnectingMenu()
 	if( !_bPopupVisible ||
@@ -298,6 +313,11 @@ void MainMenu::OnReconnectBegin( CloudEvent inEvent, int Param )
 	{
 		ShowConnectingMenu();
 	}
+    
+    RegCloud* Cloud = RegCloud::Get();
+    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+    
+    return true;
 }
 
 void MainMenu::ShowConnectingMenu()
@@ -387,29 +407,37 @@ void MainMenu::ShowConnectingMenu()
 	// Check if RegSys in null
 	if( !RegSys )
 	{
-		return OnConnectFailure( CloudEvent::ConnectResult, (int) ConnectResult::OtherError );
+		return OnConnectFailure( (int) ConnectResult::OtherError );
 	}
 
 	// Check if the connection occurred already, if so, there is a possibility it was missed
 	auto CurrentState = RegSys->GetConnectionState();
 	if( CurrentState == ENodeProcessState::Complete )
 	{
-		OnConnect( CloudEvent::ConnectResult, (int) ConnectResult::Success );
+        NumericEventData Data( (int) ConnectResult::Success );
+        OnConnect( &Data );
 	}
 	else if( CurrentState == ENodeProcessState::Reset )
 	{
-		OnConnectFailure( CloudEvent::ConnectResult, (int) ConnectResult::ConnectionError );
+		OnConnectFailure( (int) ConnectResult::ConnectionError );
 	}
 }
 
 
-void MainMenu::OnConnect( CloudEvent inEvent, int Parameter )
+bool MainMenu::OnConnect( EventData* inData )
 {
+    NumericEventData* numData = (NumericEventData*) inData;
+    RegCloud* Cloud = RegCloud::Get();
+    
 	// Check for failure
-	if( Parameter != (int) ConnectResult::Success )
+	if( numData->Data != (int) ConnectResult::Success )
 	{
-		return OnConnectFailure( inEvent, Parameter );
+        SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+        OnConnectFailure( numData->Data );
+        return true;
 	}
+    
+    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::LoggedIn : LoginState::LoggedOut );
 
 	if( Connecting && _bPopupVisible )
 	{
@@ -434,22 +462,18 @@ void MainMenu::OnConnect( CloudEvent inEvent, int Parameter )
 		// Begin login logic
 		StartLoginProcess();
 	}
-
+    
+    return true;
 }
 
-void MainMenu::OnConnectFailure( CloudEvent inEvent, int Parameter )
+void MainMenu::OnConnectFailure( int Parameter )
 {
-	auto Result = ConnectResult( Parameter );
-
 	log( "[UI DEBUG] ON CONNECT FAILURE" );
-	
+    
 	if( Connecting && !_bPopupIsError && _bPopupVisible )
 	{
 		_bPopupIsError = true;
-
-		auto sceneSize = Director::getInstance()->getVisibleSize();
-		int HeaderFontSize = ( sceneSize.width / 1920.f ) * 86.f;
-		
+        
 		// Animate into this error message
 		if( ConnectingLabel )
 		{
@@ -521,9 +545,15 @@ void MainMenu::CloseErrorMenu()
 
 }
 
-void MainMenu::OnLostConnection( CloudEvent inEvent, int Paramater )
+bool MainMenu::OnLostConnection( EventData* inData )
 {
 	log( "[UI] Connection to RegSys appears to be lost!" );
+    
+    // Check if were logged in still
+    RegCloud* Cloud = RegCloud::Get();
+
+    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+    return true;
 }
 
 void MainMenu::OnlineCallback( Ref* Caller )
@@ -558,7 +588,9 @@ void MainMenu::StartLoginProcess()
 	if( !RegSys || !RegSys->IsSecure() )
 	{
 		// CRITICAL ERROR
-		return OnLostConnection( CloudEvent::ConnectResult, (int) ConnectResult::ConnectionError );
+        NumericEventData Data( (int) ConnectResult::ConnectionError );
+        OnLostConnection( &Data );
+        return;
 	}
 
 	bool bIsAccountStored = false;
@@ -568,13 +600,183 @@ void MainMenu::StartLoginProcess()
 	}
 	else
 	{
-		if( !_bLoginOpen )
-		{	
-			_bLoginOpen = true;
-
-			// Force user login
-			LoginPanel = LoginLayer::create();
-			addChild( LoginPanel, 15, "LoginPanel" );
-		}
+        OpenLoginMenu();
 	}
+}
+
+bool MainMenu::PerformLogin( std::string Username, std::string Password )
+{
+    RegCloud* Cloud = RegCloud::Get();
+    
+    if( !Cloud )
+    {
+        log( "[RegLogin] Critical Error! RegCloud singleton is null!" );
+        return false;
+    }
+    
+    Cloud->Login( Username, Password );
+    return true;
+}
+
+bool MainMenu::PerformRegister( std::string Username, std::string Password, std::string DisplayName, std::string EmailAddress )
+{
+    RegCloud* Cloud = RegCloud::Get();
+    
+    if( !Cloud )
+    {
+        log( "[RegLogin] Critical Error! RegCloud singleton is null!" );
+        return false;
+    }
+    
+    Cloud->Register( Username, Password, DisplayName, EmailAddress );
+    return true;
+}
+
+void MainMenu::CloseLoginMenu()
+{
+    if( _bLoginOpen && LoginPanel )
+    {
+        LoginPanel->Destroy();
+        
+        if( LoginPanel )
+        {
+            LoginPanel->removeFromParentAndCleanup( true );
+            LoginPanel = nullptr;
+        }
+        _bLoginOpen = false;
+    }
+}
+
+void MainMenu::CancelLogin()
+{
+    RegCloud* RegSys = RegCloud::Get();
+    SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+    CloseLoginMenu();
+}
+
+bool MainMenu::OnLogin( EventData* inData )
+{
+    LoginEventData* Result = static_cast< LoginEventData* >( inData );
+    
+    if( !Result || Result->Result != LoginResult::Success )
+    {
+        SetLoginState( LoginState::LoggedOut );
+        if( _bLoginOpen && LoginPanel )
+            LoginPanel->OnLoginFailure( Result->Result );
+    }
+    else
+    {
+        SetLoginState( LoginState::LoggedIn );
+        CloseLoginMenu();
+    }
+
+    return true;
+}
+
+bool MainMenu::OnRegister( EventData *inData )
+{
+    NumericEventData* Result = static_cast< NumericEventData* >( inData );
+    
+    if( !Result || Result->Data != (int) ERegisterResult::Success )
+    {        if( _bRegisterOpen && RegisterPanel )
+            RegisterPanel->OnRegisterFailure( Result->Data );
+    }
+    else if( Result->Data == (int) ERegisterResult::SuccessWithInvalidPacket )
+    {
+        // This means that the account was created, but we didnt download it properly,
+        // so we will force the user to relogin
+        OpenLoginMenu();
+        if( LoginPanel )
+            LoginPanel->ShowError( "Account was created.. but the new account couldnt be downloaded. Please login to your new account to continue" );
+    }
+    else
+    {
+        SetLoginState( LoginState::LoggedIn );
+        CloseRegisterMenu();
+    }
+    
+    return true;
+}
+
+void MainMenu::SetLoginState( LoginState inState )
+{
+    CurrentState = inState;
+    
+    if( inState == LoginState::OfflineLogin )
+    {
+        OnlineButton->setEnabled( false );
+        StoreButton->setEnabled( false );
+        SingleplayerButton->setEnabled( true );
+        AccountButton->setEnabled( true );
+        OptionsButton->setEnabled( true );
+    }
+    else if( inState == LoginState::LoggedOut )
+    {
+        OnlineButton->setEnabled( false );
+        StoreButton->setEnabled( false );
+        SingleplayerButton->setEnabled( false );
+        AccountButton->setEnabled( false );
+        OptionsButton->setEnabled( false );
+    }
+    else
+    {
+        OnlineButton->setEnabled( true );
+        StoreButton->setEnabled( true );
+        SingleplayerButton->setEnabled( true );
+        AccountButton->setEnabled( true );
+        OptionsButton->setEnabled( true );
+    }
+}
+
+void MainMenu::OpenRegisterMenu()
+{
+    // Close Menus
+    CloseLoginMenu();
+    
+    if( !_bRegisterOpen )
+    {
+        if( RegisterPanel )
+        {
+            RegisterPanel->removeFromParentAndCleanup( true );
+            RegisterPanel = nullptr;
+        }
+        
+        RegisterPanel = RegisterLayer::create();
+        addChild( RegisterPanel, 15, "RegisterPanel" );
+        _bRegisterOpen = true;
+    }
+}
+
+void MainMenu::OpenLoginMenu()
+{
+    // Close Menus
+    CloseRegisterMenu();
+    
+    if( !_bLoginOpen )
+    {
+        if( LoginPanel )
+        {
+            LoginPanel->removeFromParentAndCleanup( true );
+            LoginPanel = nullptr;
+        }
+        
+        LoginPanel = LoginLayer::create();
+        addChild( LoginPanel, 15, "LoginPanel" );
+        _bLoginOpen = true;
+    }
+}
+
+void MainMenu::CloseRegisterMenu()
+{
+    if( _bRegisterOpen && RegisterPanel )
+    {
+        RegisterPanel->Destroy();
+        
+        if( RegisterPanel )
+        {
+            RegisterPanel->removeFromParentAndCleanup( true );
+            RegisterPanel = nullptr;
+        }
+        _bRegisterOpen = false;
+    }
 }

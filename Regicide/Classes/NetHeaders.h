@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdint.h>
 #include <algorithm>
 #include "cocos/cocos2d.h"
@@ -34,6 +35,16 @@ enum class ENetworkEncryption
 	Full = 0,
 	Light = 1,
 	None = 2
+};
+
+enum class LoginResult
+{
+    ConnectionError,
+    Timeout,
+    AlreadyLoggedIn,
+    InvalidInput,
+    InvalidCredentials,
+    Success
 };
 
 enum class ELoginResponse
@@ -111,7 +122,8 @@ enum class ERegisterResult
 	TryLater = 4,
 	Success = 5,
 	SuccessWithInvalidPacket = 6,
-	IllegalUsername = 7
+	IllegalUsername = 7,
+    ConnectionError = 8
 };
 
 enum class EConnectResult
@@ -237,11 +249,11 @@ public:
 		}
 
 		// Check if we need to flip bytes from the server
-		RegCloud* Cloud = RegCloud::Get();
-		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+		//RegCloud* Cloud = RegCloud::Get();
+		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
 
 		// Deserialize the structure, taking into account mismatching endianess
-		return Structure.Serialize( DataStart, false, bShouldFlip );
+		return Structure.Serialize( DataStart, false, false );
 	}
 
 	template< typename T >
@@ -254,11 +266,11 @@ public:
 		}
 
 		// Ensure were serializing using little endian
-		RegCloud* Cloud = RegCloud::Get();
-		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+		//RegCloud* Cloud = RegCloud::Get();
+		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
 
 		// Were not going to flip byte order while serializing, the server will flip bytes if needed
-		return Structure.Serialize( DataStart, true, bShouldFlip );
+		return Structure.Serialize( DataStart, true, false );
 	}
 
 	template< typename T >
@@ -270,10 +282,10 @@ public:
 			return false;
 		}
 
-		RegCloud* Cloud = RegCloud::Get();
-		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+		//RegCloud* Cloud = RegCloud::Get();
+		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
 
-		return Structure.Serialize( DataStart, DataStart + DataSize, true, bShouldFlip );
+		return Structure.Serialize( DataStart, DataStart + DataSize, true, false );
 	}
 
 	template< typename T >
@@ -287,10 +299,10 @@ public:
 			return false;
 		}
 
-		RegCloud* Cloud = RegCloud::Get();
-		bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+		//RegCloud* Cloud = RegCloud::Get();
+		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
 
-		return Structure.Serialize( DataStart, DataStart + DataSize, false, bShouldFlip );
+		return Structure.Serialize( DataStart, DataStart + DataSize, false, false );
 	}
 };
 
@@ -459,7 +471,7 @@ struct FLoginPacket : FPrivateHeader
 {
 	uint8 Username[ 128 ];
 	uint8 Password[ 32 ];
-
+    
 	static size_t GetSize()
 	{
 		return 168;
@@ -563,7 +575,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 	REG_SERIALIZE_DYN()
 	{
 		if( bWrite )
-			throw std::exception( "Writing account data is not implemented!" );
+			throw std::exception();
 
 		char c_DisplayName[ 256 ];
 		char c_EmailAddress[ 1024 ];
@@ -628,7 +640,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 			if( !REG_SERIALIZE_NUM_ABS( NewCard.Identifier, 2, Iter ) ||
 				!REG_SERIALIZE_NUM_ABS( NewCard.Count, 2, Iter + 2 ) )
 			{
-				log( "[Reg Serialization] Failed to deserialize a card within the account info!" );
+                cocos2d::log( "[Reg Serialization] Failed to deserialize a card within the account info!" );
 				break;
 			}
 
@@ -648,7 +660,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 				!REG_SERIALIZE_NUM_ABS( NewDeck.CardCount, 4, Iter + 4 ) ||
 				!REG_SERIALIZE_STR_ABS( DisplayName, 256, Iter + 8 ) )
 			{
-				log( "[Reg Serialization] Failed to deserialize static portion of a deck!" );
+                cocos2d::log( "[Reg Serialization] Failed to deserialize static portion of a deck!" );
 				break;
 			}
 
@@ -667,7 +679,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 			const size_t TotalCardsSize = NewDeck.CardCount * CardSize;
 			if( Iter + DeckStaticSize + TotalCardsSize >= AchvBegin )
 			{
-				log( "[Reg Serialization] Not enough data to deserialize deck '%s'", NewDeck.DisplayName );
+                cocos2d::log( "[Reg Serialization] Not enough data to deserialize deck '%s'", NewDeck.DisplayName.c_str() );
 				break;
 			}
 
@@ -682,7 +694,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 				if( !REG_SERIALIZE_NUM_ABS( NewCard.Identifier, 2, Iter ) ||
 					!REG_SERIALIZE_NUM_ABS( NewCard.Count, 2, Iter + 2 ) )
 				{
-					log( "[Reg Serialization] Failed to deserialize a card within the deck '%s'", NewDeck.DisplayName );
+                    cocos2d::log( "[Reg Serialization] Failed to deserialize a card within the deck '%s'", NewDeck.DisplayName.c_str() );
 
 					bCardError = true;
 					break;
@@ -712,12 +724,14 @@ struct FAccountInfo : FPrivateHeaderDynamic
 				!REG_SERIALIZE_NUM_ABS( NewAchv.State, 4, Iter + 8 ) ||
 				!REG_SERIALIZE_NUM_ABS( NewAchv._reserved_, 4, Iter + 12 ) )
 			{
-				log( "[Reg Serialization] Failed to deserialize an achievement!" );
+                cocos2d::log( "[Reg Serialization] Failed to deserialize an achievement!" );
 				break;
 			}
 
 			Achv.push_back( NewAchv );
 		}
+        
+        return true;
 	}
 };
 
@@ -740,3 +754,13 @@ struct FIncomingPacket
 };
 
 
+namespace Regicide
+{
+    constexpr auto REG_USERNAME_MINLEN =    5;
+    constexpr auto REG_USERNAME_MAXLEN =    32;
+    constexpr auto REG_PASSWORD_MINLEN =    5;
+    constexpr auto REG_EMAIL_MINLEN    =         5;
+    constexpr auto REG_EMAIL_MAXLEN    =         255;
+    constexpr auto REG_DISPNAME_MINLEN =    5;
+    constexpr auto REG_DISPNAME_MAXLEN =    48;
+};
