@@ -205,6 +205,16 @@ void LoginLayer::ShowError( std::string Message )
     
     if( ErrorMessage )
         ErrorMessage->setString( Message );
+    
+    // Clear password edit box
+    if( Password )
+    {
+        Password->setText( "" );
+        Password->setEnabled( true );
+    }
+    
+    if( Username )
+        Username->setEnabled( true );
 }
 
 
@@ -223,8 +233,9 @@ void LoginLayer::OnLoginClick( Ref* Caller )
 	std::string UserStr = Username->getText();
 	std::string PassStr = Password->getText();
     
-    // Clear Pass Box
-    Password->setText( "" );
+    // Lock EditBoxes
+    Username->setEnabled( false );
+    Password->setEnabled( false );
     
     // Validate Input Format
     if( !utf8::is_valid( UserStr.begin(), UserStr.end() ) ||

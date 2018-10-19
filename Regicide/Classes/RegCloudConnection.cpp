@@ -13,11 +13,12 @@
 using namespace std::placeholders;
 using namespace cocos2d;
 
+static bool bFirstConnect = true;
+
 RegCloudConnection::RegCloudConnection()
 	: ReceiveBuffer( REGCLOUD_BUFFERLEN ), ParseBuffer(), LinkedContext()
 {
-	Socket = std::make_shared< tcp::socket >( LinkedContext );
-
+    Socket = std::make_shared< tcp::socket >( LinkedContext );
 	// Default encryption keys for low security packets
 	DefaultKey = new uint8[ 32 ] {	0x81, 0xe5, 0x20, 0x5e, 0x97, 0xf9, 0x37, 0x64, 0x1a, 0xf8, 0x7d, 0x47, 0x79, 0x31, 0x12, 0x92,
 									0xb8, 0xb5, 0xa5, 0x6c, 0x9e, 0xa8, 0x48, 0x17, 0x65, 0xee, 0xa7, 0xfc, 0xbe, 0xdf, 0xb6, 0xe9 };
@@ -106,7 +107,25 @@ bool RegCloudConnection::BeginConnect()
 	}
 
 	CurrentState = ConnectionState::InProgress;
-
+    
+    // Reset the io context if needed
+    if( !LinkedContext.stopped() )
+    {
+        LinkedContext.stop();
+    }
+    
+    LinkedContext.reset();
+    
+    // Stop the current IO thread if needed
+    if( IOThread )
+    {
+        IOThread->join();
+        IOThread.reset();
+    }
+    
+    // We need to reopen the socket if its closed
+    Socket->open( asio::ip::tcp::v4() );
+    
 #ifndef REGCLOUD_DEBUG
 	bool bUsingHostname = true;
 	std::string Address = REGCLOUD_REMOTEADDRESS;
@@ -155,10 +174,10 @@ bool RegCloudConnection::BeginConnect()
 		}
 
 		tcp::endpoint Endpoint = tcp::endpoint( IpAddress, REGCLOUD_PORT );
-        
+
 		Socket->async_connect( Endpoint, [ this ]( asio::error_code ErrorCode )
 		{
-			if( !this )
+            if( !this )
 			{
 				cocos2d::log( "[ERROR] Failed to finalize connection with a RegSysNetNode because the connection object is null!" );
 				CurrentState = ConnectionState::Failed;
@@ -168,30 +187,41 @@ bool RegCloudConnection::BeginConnect()
 			this->OnConnect( ErrorCode );
 		} );
 	}
+    
+    if( !LinkedContext.stopped() && IOThread )
+    {
+        LinkedContext.stop();
+        LinkedContext.reset();
+    }
+    
+    if( IOThread )
+    {
+        IOThread->join();
+        IOThread.reset();
+    }
+    
+    IOThread = std::make_shared<std::thread>( [ this ]()
+    {
+        try
+        {
+            LinkedContext.run();
+        }
+        catch( ... )
+        {
+            cocos2d::log( "[ERROR] An exception was thrown from the RegSys connection!" );
+            if( Socket && Socket->is_open() )
+            {
+                Socket->close();
+            }
+        }
+    } );
+    
+    bFirstConnect = false;
 
+	cocos2d::log( "[RegSys] Connecting to NetNode..." );
     NullEventData Data;
     EventHub::Execute( "ConnectBegin", Data );
 
-	if( !LinkedContext.stopped() )
-	{
-		IOThread = std::make_shared<std::thread>( [ this ]()
-		{
-			try
-			{
-				LinkedContext.run();
-			}
-			catch( ... )
-			{
-				cocos2d::log( "[ERROR] An exception was thrown from the RegSys connection!" );
-				if( Socket && Socket->is_open() )
-				{
-					Socket->close();
-				}
-			}
-		} );
-	}
-
-	cocos2d::log( "[RegSys] Connecting to NetNode..." );
     return true;
 }
 
@@ -201,6 +231,9 @@ void RegCloudConnection::TimeoutConnection( bool bUpdateState )
     if( Socket )
     {
         Socket->cancel();
+        
+        if( bUpdateState )
+            Socket->close();
     }
     
     if( bUpdateState )
@@ -213,11 +246,21 @@ void RegCloudConnection::OnConnect( asio::error_code ErrorCode )
 {
 	if( ErrorCode )
 	{
-		cocos2d::log( "[ERROR] Failed to connect to RegSys! %s", ErrorCode.message().c_str() );
-	
-        NumericEventData Data( (int) ConnectResult::ConnectionError );
-        EventHub::Execute( "ConnectResult", Data );
-		CurrentState = ConnectionState::Failed;
+        if( ErrorCode == asio::error::operation_aborted )
+        {
+            cocos2d::log( "[ERROR] Connection attempt has timed-out!" );
+            
+            // The event will be called from the time-out function, more reliably
+        }
+        else
+        {
+            cocos2d::log( "[ERROR] Failed to connect to RegSys! %s", ErrorCode.message().c_str() );
+        
+            NumericEventData Data( (int) ConnectResult::ConnectionError );
+            EventHub::Execute( "ConnectResult", Data );
+        }
+        
+        CurrentState = ConnectionState::Failed;
 		return;
 	}
 	else if( !Socket )
@@ -347,8 +390,6 @@ bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asi
 		return false;
 	}
 
-	cocos2d::log( "FINAL PACKET SIZE: %d bytes", (int)FinalPacket.size() );
-
 	// Insert this buffer into our write buffer
 	LinkedContext.post( [ this, FinalPacket, Callback ] ()
 	{
@@ -453,6 +494,13 @@ void RegCloudConnection::OnReceive( asio::error_code ErrorCode, unsigned int Num
 		if( ErrorCode == asio::error::eof || ErrorCode == asio::error::connection_aborted || NumBytes <= 0 )
 		{
 			cocos2d::log( "[RegCloud] Disconnected from the server!" );
+            
+            // Close it down on our end
+            CurrentState = ConnectionState::NotStarted;
+            
+            if( Socket )
+                Socket->close();
+            
             // Fire Event
             NullEventData Data;
             EventHub::Execute( "Disconnect", Data );

@@ -30,6 +30,12 @@ MainMenu::~MainMenu()
     EVENT_SAFE_UNBIND( DisconnectId );
     EVENT_SAFE_UNBIND( LoginId );
     EVENT_SAFE_UNBIND( RegisterId );
+    
+    if( TouchHandler )
+    {
+        _eventDispatcher->removeEventListener( &*TouchHandler );
+        TouchHandler.reset();
+    }
 }
 
 bool MainMenu::init()
@@ -288,7 +294,7 @@ bool MainMenu::init()
 	if( ConnectionState == ENodeProcessState::InProgress || ConnectionState == ENodeProcessState::NotStarted )
 	{
         SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-		ShowConnectingMenu();
+        ShowPopup( "Connecting...", Color4B( 240, 240, 240, 255 ), 1.f, false );
 	}
 	else if( ConnectionState == ENodeProcessState::Reset )
 	{
@@ -301,128 +307,24 @@ bool MainMenu::init()
         SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
 		StartLoginProcess();
 	}
-
+    
+    BannerTouch = EventListenerTouchOneByOne::create();
+    BannerTouch->onTouchEnded = CC_CALLBACK_2( MainMenu::HandleBannerTouch, this );
+    BannerTouch->onTouchBegan = CC_CALLBACK_2( MainMenu::HandleBannerTouchBegin, this );
+    _eventDispatcher->addEventListenerWithFixedPriority( BannerTouch, -10 );
+    
 	return true;
 }
 
 bool MainMenu::OnReconnectBegin( EventData* inData )
 {
-	// Were just going to call ShowConnectingMenu()
-	if( !_bPopupVisible ||
-		( _bPopupVisible && !_bPopupIsError ) )
-	{
-		ShowConnectingMenu();
-	}
+    ShowPopup( "Connecting...", Color4B( 240, 240, 240, 255 ), 1.f, false );
     
     RegCloud* Cloud = RegCloud::Get();
     SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
     
     return true;
 }
-
-void MainMenu::ShowConnectingMenu()
-{
-	auto sceneOrigin = Director::getInstance()->getVisibleOrigin();
-	auto sceneSize = Director::getInstance()->getVisibleSize();
-	int HeaderFontSize = ( sceneSize.width / 1920.f ) * 86.f;
-
-	// Check if the popup is valid
-	DrawNode* _Connecting = nullptr;
-	Label* _ConnectingLabel = nullptr;
-
-	// Construct the nodes if needed
-	if( !Connecting )
-	{
-		_Connecting = DrawNode::create();
-
-		if( _Connecting )
-		{
-			_Connecting->drawSolidRect( Vec2( sceneOrigin.x, sceneOrigin.y ), Vec2( sceneOrigin.x + sceneSize.width, sceneOrigin.y + sceneSize.height ), Color4F( 0.f, 0.f, 0.f, .8f ) );
-			_Connecting->drawSolidRect( Vec2( sceneOrigin.x + sceneSize.width * 0.2f, sceneOrigin.y + sceneSize.height * 0.35f ),
-										Vec2( sceneOrigin.x + sceneSize.width * 0.8f, sceneOrigin.y + sceneSize.height * 0.65f ),
-										Color4F( 0.35f, 0.35f, 0.35f, 1.f ) );
-			_Connecting->drawSolidRect( Vec2( sceneOrigin.x + sceneSize.width * 0.2f + 4, sceneOrigin.y + sceneSize.height * 0.35f + 4 ),
-										Vec2( sceneOrigin.x + sceneSize.width * 0.8f - 4, sceneOrigin.y + sceneSize.height * 0.65f - 4 ),
-										Color4F( 0.15f, 0.15f, 0.15f, 1.f ) );
-
-			this->addChild( _Connecting, 10, "ConnectingBox" );
-		}
-	}
-
-	if( !ConnectingLabel )
-	{
-		_ConnectingLabel = Label::createWithTTF( "Connecting...", "fonts/arial.ttf", HeaderFontSize,
-													  Size( sceneSize.width, sceneSize.height * 0.3f ),
-													  TextHAlignment::CENTER, TextVAlignment::CENTER );
-		if( _ConnectingLabel )
-		{
-			_ConnectingLabel->setOverflow( Label::Overflow::RESIZE_HEIGHT );
-			_ConnectingLabel->setPosition( Vec2( sceneOrigin.x + sceneSize.width / 2.f, sceneOrigin.y + sceneSize.height / 2.f ) );
-			this->addChild( _ConnectingLabel, 11, "ConnectingLabel" );
-		}
-	}
-
-	// Set Touch Event Listener
-	// First, remove any linked listeners
-	_eventDispatcher->removeEventListenersForTarget( this, false );
-
-	if( !TouchKiller )
-	{
-		TouchKiller = std::make_shared< EventListenerTouchOneByOne >( *EventListenerTouchOneByOne::create() );
-	}
-
-	if( TouchKiller )
-	{
-		TouchKiller->onTouchBegan = [ = ]( Touch* inTouch, Event* inEvent )
-		{
-			return true;
-		};
-
-		TouchKiller->setSwallowTouches( true );
-		_eventDispatcher->addEventListenerWithFixedPriority( &(*TouchKiller), -100 );
-	}
-
-	// Set node refs
-	if( _ConnectingLabel )
-	{
-		ConnectingLabel = _ConnectingLabel;
-	}
-	else
-	{
-		// If there was already a ConnectingLabel, then we will just update the text
-		ConnectingLabel->setString( "Connecting..." );
-		ConnectingLabel->setScale( 1.f );
-	}
-
-	if( _Connecting )
-	{
-		Connecting = _Connecting;
-	}
-
-	_bPopupIsError = false;
-	_bPopupVisible = true;
-
-	RegCloud* RegSys = RegCloud::Get();
-
-	// Check if RegSys in null
-	if( !RegSys )
-	{
-		return OnConnectFailure( (int) ConnectResult::OtherError );
-	}
-
-	// Check if the connection occurred already, if so, there is a possibility it was missed
-	auto CurrentState = RegSys->GetConnectionState();
-	if( CurrentState == ENodeProcessState::Complete )
-	{
-        NumericEventData Data( (int) ConnectResult::Success );
-        OnConnect( &Data );
-	}
-	else if( CurrentState == ENodeProcessState::Reset )
-	{
-		OnConnectFailure( (int) ConnectResult::ConnectionError );
-	}
-}
-
 
 bool MainMenu::OnConnect( EventData* inData )
 {
@@ -438,111 +340,176 @@ bool MainMenu::OnConnect( EventData* inData )
 	}
     
     SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::LoggedIn : LoginState::LoggedOut );
-
-	if( Connecting && _bPopupVisible )
-	{
-		_bPopupIsError = false;
-		_bPopupVisible = false;
-
-		Connecting->runAction( Sequence::create( FadeOut::create( 1.f ), NULL ) );
-
-		if( ConnectingLabel )
-		{
-			ConnectingLabel->runAction( Sequence::create( FadeOut::create( 1.f ), NULL ) );
-		}
-
-		if( TouchKiller )
-		{
-			_eventDispatcher->removeEventListener( &(*TouchKiller) );
-
-			//TouchKiller->release();
-			TouchKiller.reset();
-		}
-
-		// Begin login logic
-		StartLoginProcess();
-	}
+    
+    // Hide any popups
+    HidePopup();
+    HideDisconnectedBanner();
+    
+    // Check if we need to open the login menu
+    if( Cloud && !Cloud->IsLoggedIn() )
+    {
+        OpenLoginMenu();
+    }
     
     return true;
 }
 
-void MainMenu::OnConnectFailure( int Parameter )
+void MainMenu::ShowPopup( std::string inMessage, Color4B inColor, float inScale, bool bAllowClose )
 {
-	log( "[UI DEBUG] ON CONNECT FAILURE" );
+    auto ScreenPos = Director::getInstance()->getVisibleOrigin();
+    auto ScreenSize = Director::getInstance()->getVisibleSize();
     
-	if( Connecting && !_bPopupIsError && _bPopupVisible )
-	{
-		_bPopupIsError = true;
+    float thisW = ScreenSize.width * 0.6f;
+    float thisH = ScreenSize.height * 0.3f;
+    float thisX = ScreenPos.x + ScreenSize.width * 0.2f;
+    float thisY = ScreenPos.y + ScreenSize.height * 0.35f;
+    
+    float FontSize = thisW / 18.f;
+    
+    // Create the nodes if need be
+    if( !PopupNode )
+    {
+        PopupNode = DrawNode::create();
         
-		// Animate into this error message
-		if( ConnectingLabel )
-		{
-			std::string DetailedError;
-			if( Parameter == (int) ConnectResult::ConnectionError )
-				DetailedError = "check your internet connection";
-			else if( Parameter == (int) ConnectResult::KeyExchangeError )
-				DetailedError = "a crypto error occurred";
-			else
-				DetailedError = "an unknown error occurred";
+        if( !PopupNode )
+        {
+            log( "[UI ERROR] Failed to create popup menu! Draw Node couldnt be created" );
+            return;
+        }
+        
+        // Draw background blur
+        PopupNode->drawSolidRect( Vec2( ScreenPos.x, ScreenPos.y ), Vec2( ScreenPos.x + ScreenSize.width, ScreenPos.y + ScreenSize.height ), Color4F( 0.f, 0.f, 0.f, 0.5f ) );
+        
+        // Draw Outline
+        PopupNode->drawSolidRect( Vec2( thisX, thisY ), Vec2( thisX + thisW, thisY + thisH ), Color4F( 0.4f, 0.4f, 0.4f, 1.f ) );
+        
+        // Draw Inner Box
+        PopupNode->drawSolidRect( Vec2( thisX + 3.f, thisY + 3.f ), Vec2( thisX + thisW - 3.f, thisY + thisH - 3.f ), Color4F( 0.1f, 0.1f, 0.1f, 1.f ) );
+        
+        addChild( PopupNode, 20, "PopupNode" );
+        PopupNode->runAction( Sequence::create( FadeIn::create( 0.3f ), NULL ) );
+    }
+    
+    bool bNewLabel = false;
+    if( !PopupLabel )
+    {
+        PopupLabel = Label::createWithTTF( inMessage, "fonts/arial.ttf", FontSize, Size( thisW - 10.f, thisH - 10.f ), TextHAlignment::CENTER, TextVAlignment::CENTER );
+        
+        if( !PopupLabel )
+        {
+            log( "[UI ERROR] Failed to create popup menu! Label Node couldnt be created" );
+            
+            // Creation failed! Cleanup popup node and stop
+            if( PopupNode )
+            {
+                PopupNode->removeFromParentAndCleanup( true );
+                PopupNode = nullptr;
+            }
+            
+            return;
+        }
+        
+        // Setup layout
+        PopupLabel->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
+        PopupLabel->setPosition( Vec2( thisX + thisW / 2.f, thisY + thisH / 2.f ) );
+        
+        addChild( PopupLabel, 21, "PopupLabel" );
+        PopupLabel->runAction( Sequence::create( FadeIn::create( 0.3f ), NULL ) );
+        
+        bNewLabel = true;
+    }
+    
+    if( bNewLabel && PopupLabel )
+        PopupLabel->runAction( Sequence::create( FadeOut::create( 0.2f ), NULL ) );
+    
+    if( PopupLabel )
+    {
+        // Set Label Properties
+        PopupLabel->setString( inMessage );
+        PopupLabel->setTextColor( inColor );
+        PopupLabel->setScale( inScale );
+    
+        if( bNewLabel )
+            PopupLabel->runAction( Sequence::create( FadeIn::create( 0.2f ), NULL ) );
+    }
+    
+    // We need to create a new touch listener every time, since we cant update it
+    if( TouchHandler )
+    {
+        _eventDispatcher->removeEventListener( &(*TouchHandler ) );
+        TouchHandler.reset();
+    }
+    
+    TouchHandler = std::make_shared< EventListenerTouchOneByOne >( *EventListenerTouchOneByOne::create() );
+    if( !TouchHandler )
+    {
+        log( "[UI ERROR] Failed to create touch handler for popup menu! Closing automatically" );
+        std::this_thread::sleep_for( std::chrono::milliseconds( 2000 ) );
+        HidePopup();
+        return;
+    }
 
-			ConnectingLabel->runAction( FadeOut::create( 0.5f ) );
-			std::this_thread::sleep_for( std::chrono::milliseconds( 500 ) );
-			ConnectingLabel->setScale( 0.5f );
-			ConnectingLabel->setTextColor( Color4B( 220, 30, 30, 255 ) );
-			ConnectingLabel->setString( "Failed to connect to cloud, " + DetailedError + "! The game will run in offline-mode until you choose to reconnect. Click to close." );
-			ConnectingLabel->runAction( FadeIn::create( 0.5f ) );
-		}
-
-		// Create touch listener if needed
-		if( !TouchKiller )
-		{
-			TouchKiller = std::make_shared< EventListenerTouchOneByOne >( *EventListenerTouchOneByOne::create() );
-		}
-		
-		if( TouchKiller )
-		{
-			TouchKiller->onTouchBegan = [ this ]( Touch* inTouch, Event* inEvent )
-			{
-				if( this )
-				{
-					this->CloseErrorMenu();
-				}
-
-				return true;
-			};
-		}
-		else
-		{
-			// Wait for 2 seconds before removing this popup message, since we cant bind to a touch event
-			std::this_thread::sleep_for( std::chrono::milliseconds( 2000 ) );
-			CloseErrorMenu();
-		}
-	}
+    // Ensure all touches are swallowed by the popup
+    TouchHandler->setSwallowTouches( true );
+    TouchHandler->onTouchBegan = [] ( Touch* inTouch, Event* inEvent ) { return true; };
+    
+    if( bAllowClose )
+    {
+        TouchHandler->onTouchEnded = [ this ] ( Touch* inTouch, Event* inEvent )
+        {
+            if( this )
+                this->HidePopup();
+        };
+    }
+    else
+    {
+        TouchHandler->onTouchEnded = [] ( Touch* inTouch, Event* inEvent ) {};
+    }
+    
+    _eventDispatcher->addEventListenerWithFixedPriority( &(*TouchHandler), -100 );
 }
 
-void MainMenu::CloseErrorMenu()
+void MainMenu::HidePopup()
 {
-	_bPopupVisible = false;
-	
-	// Fade out error menu
-	if( ConnectingLabel )
-	{
-		ConnectingLabel->runAction( Sequence::create( FadeOut::create( 1.f ), NULL ) );
-	}
+    if( PopupNode )
+    {
+        PopupNode->removeFromParentAndCleanup( true );
+        PopupNode = nullptr;
+    }
+    
+    if( PopupLabel )
+    {
+        PopupLabel->removeFromParentAndCleanup( true );
+        PopupLabel = nullptr;
+    }
+    
+    if( TouchHandler )
+    {
+        _eventDispatcher->removeEventListener( &(*TouchHandler ) );
+        TouchHandler.reset();
+    }
+}
 
-	if( Connecting )
-	{
-		Connecting->runAction( Sequence::create( FadeOut::create( 1.f ), NULL ) );
-	}
+void MainMenu::ShowError( std::string ErrorMessage )
+{
+    ShowPopup( ErrorMessage, Color4B( 240, 30, 30, 255 ), 0.65f, true );
+}
 
-	// Stop consuming touch events
-	if( TouchKiller )
-	{
-		_eventDispatcher->removeEventListener( &(*TouchKiller ) );
-		//TouchKiller->release();
-		//TouchKiller.reset();
-	}
-
+void MainMenu::OnConnectFailure( int Parameter )
+{
+    std::string DetailedError;
+    if( Parameter == (int) ConnectResult::ConnectionError )
+        DetailedError = "check your internet connection";
+    else if( Parameter == (int) ConnectResult::KeyExchangeError )
+        DetailedError = "a crypto error occurred";
+    else
+        DetailedError = "an unknown error occurred";
+    
+    // Create popup error message
+    ShowError( "Failed to connect to cloud, " + DetailedError + "! The game will run in offline-mode until you reconnect. Tap anywhere to close" );
+    
+    // Show the disconnected banner
+    ShowDisconnectedBanner();
 }
 
 bool MainMenu::OnLostConnection( EventData* inData )
@@ -551,8 +518,19 @@ bool MainMenu::OnLostConnection( EventData* inData )
     
     // Check if were logged in still
     RegCloud* Cloud = RegCloud::Get();
-
     SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+    
+    // Close any open login or register menus
+    CloseLoginMenu();
+    CloseRegisterMenu();
+    HidePopup();
+    
+    // Create the disconnected banner
+    ShowDisconnectedBanner();
+    
+    // Show error message
+    ShowError( "Lost connection to the Regicide Network!" );
+    
     return true;
 }
 
@@ -749,6 +727,8 @@ void MainMenu::OpenRegisterMenu()
 
 void MainMenu::OpenLoginMenu()
 {
+    log( "ASDASDADSASDASDASDASDASDASDASDASDASDASD" );
+    
     // Close Menus
     CloseRegisterMenu();
     
@@ -779,4 +759,118 @@ void MainMenu::CloseRegisterMenu()
         }
         _bRegisterOpen = false;
     }
+}
+
+void MainMenu::ShowDisconnectedBanner()
+{
+    if( _bBannerOpen )
+        return;
+    
+    if( BannerDraw )
+    {
+        BannerDraw->removeFromParentAndCleanup( true );
+        BannerDraw = nullptr;
+    }
+    
+    if( BannerLabel )
+    {
+        BannerLabel->removeFromParentAndCleanup( true );
+        BannerLabel = nullptr;
+    }
+    
+    auto screenPos = Director::getInstance()->getVisibleOrigin();
+    auto screenSiz = Director::getInstance()->getVisibleSize();
+    
+    float thisX = screenPos.x;
+    float thisY = screenPos.y;
+    float thisW = screenSiz.width;
+    float thisH = screenSiz.height;
+    
+    float fontSize = thisH / 36.f;
+    
+    BannerDraw = DrawNode::create();
+    if( BannerDraw )
+    {
+        BannerDraw->drawSolidRect(Vec2( thisX, thisY ), Vec2( thisX + thisW, thisY + 52 ), Color4F( 0.3f, 0.3f, 0.3f, 1.f ) );
+        BannerDraw->drawSolidRect( Vec2( thisX, thisY ), Vec2( thisX + thisW, thisY + 50 ), Color4F( 0.1f, 0.1f, 0.1f, 1.f ) );
+        addChild( BannerDraw, 15 );
+    }
+    
+    BannerLabel = Label::createWithTTF( "Lost connection to the Regicide Network. Online features disabled. Click here to reconnect.", "fonts/arial.ttf", fontSize, Size::ZERO, TextHAlignment::CENTER, TextVAlignment::CENTER );
+    if( BannerLabel )
+    {
+        BannerLabel->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
+        BannerLabel->setPosition( Vec2( thisX + thisW / 2.f, thisY + 25 ) );
+        BannerLabel->setTextColor( Color4B( 235, 235, 235, 255 ) );
+        addChild( BannerLabel, 16 );
+    }
+    
+    _bBannerOpen = true;
+ }
+
+void MainMenu::HideDisconnectedBanner()
+{
+    if( !_bBannerOpen )
+        return;
+    
+    if( BannerDraw )
+    {
+        BannerDraw->removeFromParentAndCleanup( true );
+        BannerDraw = nullptr;
+    }
+    
+    if( BannerLabel )
+    {
+        BannerLabel->removeFromParentAndCleanup( true );
+        BannerLabel = nullptr;
+    }
+    
+    _bBannerOpen = false;
+}
+
+void MainMenu::HandleBannerTouch( Touch* inTouch, Event *inEvent )
+{
+    if( !_bBannerOpen )
+        return;
+    
+    auto screenPos = Director::getInstance()->getVisibleOrigin();
+    float thisY = screenPos.y;
+    
+    auto touchLocation = inTouch->getLocation();
+    
+    if( touchLocation.y <= thisY + 52 )
+    {
+        // Clicked on the banner!
+        RegCloud* Cloud = RegCloud::Get();
+        if( !Cloud )
+        {
+            log( "[RegCloud] Failed to get RegCloud singleton! Can not reconnect to the network." );
+            return;
+        }
+        
+        if( !Cloud->Reconnect() )
+        {
+            // Show error message
+            log( "[RegSys] Failed to attempt reconnect with the Regicide Network. Restart game and try again" );
+            ShowError( "Failed to start reconnect. Restart game and try again." );
+        }
+    }
+}
+
+bool MainMenu::HandleBannerTouchBegin( Touch *inTouch, Event *inEvent )
+{
+    if( !_bBannerOpen )
+        return false;
+    
+    auto screenPos = Director::getInstance()->getVisibleOrigin();
+    float thisY = screenPos.y;
+    
+    auto touchLocation = inTouch->getLocation();
+    
+    if( touchLocation.y <= thisY + 52 )
+    {
+        return true;
+    }
+    
+    return false;
 }

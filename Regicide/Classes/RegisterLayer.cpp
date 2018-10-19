@@ -325,9 +325,12 @@ void RegisterLayer::DoRegister( Ref* inRef)
         return;
     }
     
-    // Clear Password Fields
-    PassBox->setText( "" );
-    ConfPassBox->setText( "" );
+    // Lock Input
+    UserBox->setEnabled( false );
+    PassBox->setEnabled( false );
+    ConfPassBox->setEnabled( false );
+    DispBox->setEnabled( false );
+    EmailBox->setEnabled( false );
     
     // Validate Input
     if( !utf8::is_valid( Username.begin(), Username.end() ) ||
@@ -492,6 +495,27 @@ void RegisterLayer::ShowError( std::string inError )
         ErrorMessage->setString( inError );
     
     log( "[RegLogin] Register Error: %s", inError.c_str() );
+    
+    if( PassBox )
+    {
+        PassBox->setText( "" );
+        PassBox->setEnabled( true );
+    }
+    
+    if( ConfPassBox )
+    {
+        ConfPassBox->setText( "" );
+        ConfPassBox->setEnabled( true );
+    }
+    
+    if( DispBox )
+        DispBox->setEnabled( true );
+    
+    if( EmailBox )
+        EmailBox->setEnabled( true );
+    
+    if( UserBox )
+        UserBox->setEnabled( true );
 }
 
 void RegisterLayer::OnRegisterFailure( int Result )

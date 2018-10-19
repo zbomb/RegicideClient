@@ -942,3 +942,14 @@ bool RegCloud::HandleRegisterResponse( FIncomingPacket& Packet )
 	
 	return true;
 }
+
+bool RegCloud::Reconnect()
+{
+	if( !Connection.IsConnected() )
+	{
+		UpdateTimeout( "connect", 12000 );
+		return Connection.BeginConnect();
+	}
+	
+	return false;
+}

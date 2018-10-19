@@ -61,7 +61,9 @@ public:
     bool IsTimedOut( std::string Identifier );
     
     bool RegisterPacketCallback( ENetworkCommand Command, std::string CallbackName, std::function< bool( FIncomingPacket& ) > Callback );
-
+    
+    bool Reconnect();
+    
 private:
 
 	void EstablishSession();
