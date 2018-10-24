@@ -215,11 +215,29 @@ void LoginLayer::ShowError( std::string Message )
     
     if( Username )
         Username->setEnabled( true );
+    if( CancelButton )
+        CancelButton->setEnabled( true );
+    if( LoginButton )
+        LoginButton->setEnabled( true );
+    if( RegisterButton )
+        RegisterButton->setEnabled( true );
 }
 
 
 void LoginLayer::OnLoginClick( Ref* Caller )
 {
+    // Lock Menus
+    if( Password )
+        Password->setEnabled( false );
+    if( Username )
+        Username->setEnabled( false );
+    if( CancelButton )
+        CancelButton->setEnabled( false );
+    if( LoginButton )
+        LoginButton->setEnabled( false );
+    if( RegisterButton )
+        RegisterButton->setEnabled( false );
+    
 	// Get text and attempt login
 	if( !Password || !Username )
 	{

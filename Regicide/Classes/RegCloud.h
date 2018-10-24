@@ -6,7 +6,72 @@
 #include "NetHeaders.h"
 //#include "EventHub.h"
 #include "EventDataTypes.h"
+#include <time.h>
 
+struct Account
+{
+    uint32 Identifier;
+    std::string Username;
+    std::string EmailAddress;
+    std::string DisplayName;
+    uint64 Coins;
+    bool Verified;
+    std::time_t CreatedOn;
+    std::time_t LastLogin;
+    
+    Account()
+    {
+        Identifier = 0;
+        Username = std::string( nullptr );
+        EmailAddress = std::string( nullptr );
+        DisplayName = std::string( nullptr );
+        Coins = 0;
+        Verified = false;
+        CreatedOn = std::time_t();
+        LastLogin = std::time_t();
+    }
+};
+
+struct Card
+{
+    uint16 Identifier;
+    uint16 Count;
+    
+    Card()
+    {
+        Identifier = 0;
+        Count = 0;
+    }
+};
+
+struct Deck
+{
+    uint32 Identifier;
+    std::string DisplayName;
+    
+    std::vector< Card > Cards;
+    
+    Deck()
+    {
+        Identifier = 0;
+        DisplayName = std::string( nullptr );
+        Cards = std::vector< Card >();
+    }
+};
+
+struct Achievement
+{
+    uint16 Identifier;
+    uint16 State;
+    float Progress;
+    
+    Achievement()
+    {
+        Identifier = 0;
+        State = 0;
+        Progress = 0.f;
+    }
+};
 
 class RegCloud
 {
@@ -49,8 +114,7 @@ public:
 
 	void Login( std::string Username, std::string PasswordHash );
     void Register( std::string& Username, std::string& Password, std::string& DispName, std::string& EmailAddr );
-	inline const std::shared_ptr< FAccountInfo > GetLocalAccountInfo() const { return localAccountInfo; }
-    
+
     void ExecuteBackgroundWork( std::function< void() > inWork, std::function< void() > onComplete = nullptr );
     
     bool CancelTimeout( std::string Identifier );
@@ -97,7 +161,10 @@ private:
     bool HandleRegisterResponse( FIncomingPacket& Packet );
 	bool HandleAccountInfo( std::vector< uint8 >& RawAccountInfo );
 
-	std::shared_ptr< FAccountInfo > localAccountInfo;
+    std::shared_ptr< Account > LocalAccount;
+    std::shared_ptr< std::vector< Card > > LocalCards;
+    std::shared_ptr< std::vector< Deck > > LocalDecks;
+    std::shared_ptr< std::vector< Achievement > > LocalAchv;
     
     bool bRegisterInProgress = false;
     
@@ -106,5 +173,9 @@ private:
     void SessionTimeout();
     void LoginTimeout();
     void RegisterTimeout();
+    
+public:
+    
 
+    
 };

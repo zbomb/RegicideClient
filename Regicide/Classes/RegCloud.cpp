@@ -10,6 +10,8 @@
 #include "CryptoLibrary.h"
 #include "EventHub.h"
 #include "EventDataTypes.h"
+#include "../snappy/snappy.h"
+#include "external/json/document.h"
 
 
 #define REGCLOUD_EXCHANGE_KEYSIZE 2048
@@ -591,24 +593,147 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 	}
 }
 
-
 bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 {
-	FAccountInfo accountInfo = FAccountInfo();
-	
-	if( !FStructHelper::Deserialize< FAccountInfo >( accountInfo, RawAccountInfo.begin(), RawAccountInfo.size() ) )
+	// We need to remove header data, then we will handle the dynamic portion
+	if( RawAccountInfo.size() < sizeof( FPrivateHeader ) )
 	{
-		log( "[RegSys] Login Failed! Couldnt read server response.." );		
+		log( "[RegSys] Login Failed! Buffer Size < Header Size?" );
 		return false;
 	}
 	
-	// We need to process this into the local account structure
+	RawAccountInfo.erase( RawAccountInfo.begin(), RawAccountInfo.begin() + sizeof( FPrivateHeader ) );
 	
+	// Decompress
+	std::string Output;
+	size_t CompressedSize = snappy::Uncompress( (const char*)RawAccountInfo.data(), RawAccountInfo.size(), &Output );
 
-	// Now all we need to do is set the account info
-	localAccountInfo = std::make_shared< FAccountInfo >( accountInfo );
-	log( "[RegSys] Login successful! Welcome \"%s\"", accountInfo.DisplayName.c_str() );
-    
+	if( CompressedSize == 0 || Output.size() == 0 )
+	{
+		log( "[RegSys] Login Failed! Couldnt decompress data!" );
+		return false;
+	}
+	
+	// Now we need to parse string with json to get the account data structure
+	rapidjson::Document Doc;
+	Doc.Parse<0>( Output.c_str() );
+	
+	// Get Basic Account Info
+	if( !Doc.HasMember( "Account" ) || !Doc.HasMember( "Cards" ) )
+	{
+		log( "[RegSys] Login Failed! Couldnt parse data. Missing basic info or cards" );
+		return false;
+	}
+	
+	auto AccountInfo = Doc[ "Account" ].GetObject();
+	Account LoadedAccount = Account();
+	
+	// Ensure we have all the data fields we need
+	if( !AccountInfo.HasMember( "Identifier" ) || !AccountInfo.HasMember( "Username" ) || !AccountInfo.HasMember( "EmailAddress" ) ||
+	   !AccountInfo.HasMember( "DisplayName" ) || !AccountInfo.HasMember( "Coins" ) || !AccountInfo.HasMember( "Verified" ) )
+	{
+		log( "[RegSys] Login Failed! Couldnt parse data. AccountInfo was missing fields." );
+		return false;
+	}
+	
+	LoadedAccount.Identifier = AccountInfo[ "Identifier" ].GetUint();
+	LoadedAccount.Username = AccountInfo[ "Username" ].GetString();
+	LoadedAccount.EmailAddress = AccountInfo[ "EmailAddress" ].GetString();
+	LoadedAccount.DisplayName = AccountInfo[ "DisplayName" ].GetString();
+	LoadedAccount.Coins = AccountInfo[ "Coins" ].GetUint64();
+	LoadedAccount.Verified = AccountInfo[ "Verified" ].GetBool();
+	
+	// Get Card List
+	auto CardList = Doc[ "Cards" ].GetArray();
+	std::vector< Card > Cards;
+	
+	for( auto Iter = CardList.begin(); Iter != CardList.End(); Iter++ )
+	{
+		auto CardObj = Iter->GetObject();
+		if( CardObj.HasMember("Id" ) && CardObj.HasMember( "Count" ) )
+		{
+			Card NewCard = Card();
+			NewCard.Identifier = CardObj[ "Identifier" ].GetUint();
+			NewCard.Count = CardObj[ "Identifier" ].GetUint();
+			
+			Cards.push_back( NewCard );
+		}
+		else
+		{
+			log( "[RegSys] Warning. While reading account info, an invalid card was found in list" );
+		}
+	}
+	
+	// Get Deck List
+	auto DeckList = Doc[ "Decks" ].GetArray();
+	std::vector< Deck > Decks;
+	
+	for( auto Iter = DeckList.begin(); Iter != DeckList.end(); Iter++ )
+	{
+		auto DeckObj = Iter->GetObject();
+		
+		if( DeckObj.HasMember( "Id" ) && DeckObj.HasMember( "Name" ) && DeckObj.HasMember( "Cards" ) )
+		{
+			Deck NewDeck = Deck();
+			NewDeck.Identifier = DeckObj[ "Id" ].GetUint();
+			NewDeck.DisplayName = DeckObj[ "Name" ].GetString();
+			
+			auto DeckCards = DeckObj[ "Cards" ].GetArray();
+			for( auto CardIter = DeckCards.begin(); CardIter != DeckCards.end(); CardIter++ )
+			{
+				auto CardObj = CardIter->GetObject();
+				
+				if( CardObj.HasMember( "Id" ) && CardObj.HasMember( "Name" ) )
+				{
+					Card NewCard = Card();
+					NewCard.Identifier = CardObj[ "Id" ].GetUint();
+					NewCard.Count = CardObj[ "Count" ].GetUint();
+					
+					NewDeck.Cards.push_back( NewCard );
+				}
+				else
+				{
+					log( "[RegSys] Warning! Invalid card found in deck %s while reading account info!", NewDeck.DisplayName.c_str() );
+				}
+			}
+		}
+		else
+		{
+			log( "[RegSys] Warning! Invalid deck found in account info!" );
+		}
+	}
+	
+	// Get Achievement List
+	std::vector< Achievement > AchvList;
+	
+	if( Doc.HasMember( "Achv" ) )
+	{
+		auto AchvObj = Doc[ "Achv" ].GetArray();
+		
+		for( auto Iter = AchvObj.begin(); Iter != AchvObj.end(); Iter++ )
+		{
+			auto Achv = Iter->GetObject();
+			
+			if( Achv.HasMember( "Id" ) && Achv.HasMember( "State" ) && Achv.HasMember( "Prog" ) )
+			{
+				Achievement newAchv = Achievement();
+				newAchv.Identifier = Achv[ "Id" ].GetUint();
+				newAchv.State = Achv[ "State" ].GetInt();
+				newAchv.Progress = Achv[ "Prog" ].GetFloat();
+				
+				AchvList.push_back( newAchv );
+			}
+		}
+	}
+	
+	// Set Local Members
+	LocalAccount 	= std::make_shared< Account >( LoadedAccount );
+	LocalCards 		= std::make_shared< std::vector< Card > >( Cards );
+	LocalDecks 		= std::make_shared< std::vector< Deck > >( Decks );
+	LocalAchv 		= std::make_shared< std::vector< Achievement > >( AchvList );
+	
+	log( "[Login] Successfully logged in! Welcome back %s", LocalAccount.get()->Username.c_str() );
+	
     return true;
 }
 
@@ -934,7 +1059,10 @@ bool RegCloud::HandleRegisterResponse( FIncomingPacket& Packet )
 		log( "[RegLogin] Created a new account.. but the server response was bad!" );
 		
 		LoginState = ENodeProcessState::Reset;
-		localAccountInfo.reset();
+		LocalAccount.reset();
+		LocalCards.reset();
+		LocalDecks.reset();
+		LocalAchv.reset();
 		
 		NumericEventData Data( (int) ERegisterResult::SuccessWithInvalidPacket );
 		EventHub::Execute( "RegisterResult", Data );

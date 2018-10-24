@@ -332,6 +332,13 @@ void RegisterLayer::DoRegister( Ref* inRef)
     DispBox->setEnabled( false );
     EmailBox->setEnabled( false );
     
+    if( LoginButton )
+        LoginButton->setEnabled( false );
+    if( CancelButton )
+        CancelButton->setEnabled( false );
+    if( CreateButton )
+        CreateButton->setEnabled( false );
+    
     // Validate Input
     if( !utf8::is_valid( Username.begin(), Username.end() ) ||
        !utf8::is_valid( Password.begin(), Password.end() ) ||
@@ -510,12 +517,16 @@ void RegisterLayer::ShowError( std::string inError )
     
     if( DispBox )
         DispBox->setEnabled( true );
-    
     if( EmailBox )
         EmailBox->setEnabled( true );
-    
     if( UserBox )
         UserBox->setEnabled( true );
+    if( CreateButton )
+        CreateButton->setEnabled( true );
+    if( CancelButton )
+        CancelButton->setEnabled( true );
+    if( LoginButton )
+        LoginButton->setEnabled( true );
 }
 
 void RegisterLayer::OnRegisterFailure( int Result )

@@ -562,7 +562,7 @@ struct FAccountInfo : FPrivateHeaderDynamic
 	// Serialization Logic
 
 	// Since this is a dynamic packet, we need to declare the size of the static portion
-	REG_DEFINE_STATIC_SIZE( 1320 );
+	REG_DEFINE_STATIC_SIZE( 1324 );
 
 	REG_CALC_DYN_SIZE()
 	{
@@ -582,14 +582,14 @@ struct FAccountInfo : FPrivateHeaderDynamic
 
 		if( !REG_SERIALIZE_HEADER_DYN() ||
 			!REG_SERIALIZE_NUM( PlayerId, 4, 8 ) ||
-			!REG_SERIALIZE_STR( c_DisplayName, 256, 12 ) ||
-			!REG_SERIALIZE_STR( c_EmailAddress, 1024, 268 ) ||
-			!REG_SERIALIZE_NUM( _reserved1_, 4, 1292 ) ||
-			!REG_SERIALIZE_NUM( Coins, 8, 1296 ) ||
-			!REG_SERIALIZE_NUM( CardDataSize, 4, 1304 ) ||
-			!REG_SERIALIZE_NUM( DeckDataSize, 4, 1308 ) ||
-			!REG_SERIALIZE_NUM( AchvDataSize, 4, 1312 ) ||
-			!REG_SERIALIZE_NUM( _reserved2_, 4, 1316 ) )
+			!REG_SERIALIZE_STR( c_DisplayName, 256, 16 ) ||
+			!REG_SERIALIZE_STR( c_EmailAddress, 1024, 272 ) ||
+			!REG_SERIALIZE_NUM( _reserved1_, 4, 1296 ) ||
+			!REG_SERIALIZE_NUM( Coins, 8, 1300 ) ||
+			!REG_SERIALIZE_NUM( CardDataSize, 4, 1308 ) ||
+			!REG_SERIALIZE_NUM( DeckDataSize, 4, 1312 ) ||
+			!REG_SERIALIZE_NUM( AchvDataSize, 4, 1316 ) ||
+			!REG_SERIALIZE_NUM( _reserved2_, 4, 1320 ) )
 		{
 			return false;
 		}

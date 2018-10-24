@@ -8,9 +8,9 @@
 #include "NetHeaders.h"
 
 // Settings
-#define REGCLOUD_REMOTEADDRESS "regicidemobile.com"
+#define REGCLOUD_REMOTEADDRESS "34.195.8.40"
 #define REGCLOUD_PORT 8800
-#define REGCLOUD_DEBUGADDRESS "52.20.253.91"
+#define REGCLOUD_DEBUGADDRESS "34.195.8.40"
 #define REGCLOUD_DEBUG
 #define REGCLOUD_BUFFERLEN 2048
 
