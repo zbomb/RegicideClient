@@ -84,21 +84,25 @@ public:
 
 	bool BeginConnect();
 	bool IsConnected() const;
-	bool Send( std::vector< uint8 >& Data, std::function< void( asio::error_code, unsigned int ) > Callback = nullptr, ENetworkEncryption EncryptionLevel = ENetworkEncryption::Full );
+	bool Send( std::vector< uint8 >& Data, std::function< void( asio::error_code, unsigned int ) > Callback = nullptr, ENetworkEncryption EncryptionLevel = ENetworkEncryption::Full, uint32 Flags = 0 );
 
 	template< typename T >
-	bool SendPacket( FPrivateHeader& Packet, std::function< void( asio::error_code, unsigned int )> Callback );
+    bool SendPacket( FPrivateHeader& Packet, std::function< void( asio::error_code, unsigned int )> Callback, ENetworkEncryption EncryptionLevel = ENetworkEncryption::Full, uint32 Flags = 0 );
 
 	template< typename T >
-	bool SendPacket( FPrivateHeader& Packet );
+    bool SendPacket( FPrivateHeader& Packet, ENetworkEncryption Encryption = ENetworkEncryption::Full, uint32 Flags = 0 );
+    
+    template< typename T >
+    bool SendDynamic( FPrivateHeader& StaticPacket, std::vector< uint8 >& DynamicData, ENetworkEncryption Encryption = ENetworkEncryption::Full, uint32 AddtlFlags = 0 );
+    
+    template< typename T >
+    bool SendDynamic( FPrivateHeader& StaticPacket, std::vector< uint8 >& DynamicData, std::function< void( asio::error_code, unsigned int) > Callback, ENetworkEncryption Encryption = ENetworkEncryption::Full, uint32 AddtlFlags = 0 );
 
 	bool RegisterCallback( ENetworkCommand CommandCode, std::string Identifier, std::function< bool( FIncomingPacket& )> Callback );
 	bool CallbackExists( std::string Identifier );
 	bool RemoveCallback( std::string Identifier );
 
 	void SetSessionKey( uint8* SessionKey );
-
-	inline bool ShouldFlipByteOrder() const { return LocalByteOrder != EndianOrder::LittleEndian; }
 
 	enum ConnectionState { Connected, InProgress, NotStarted, Failed };
 	inline ConnectionState GetState() const { return CurrentState; }
@@ -113,7 +117,7 @@ private:
 
 
 template< typename T >
-bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, std::function<void( asio::error_code, unsigned int )> Callback )
+bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, std::function<void( asio::error_code, unsigned int )> Callback, ENetworkEncryption Encryption, uint32 Flags )
 {
 	if( !IsConnected() || bKill )
 	{
@@ -127,20 +131,64 @@ bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, std::function<void(
 	// Determine Endian Order
 	uint16 TestValue = 0x0001;
 	uint8* TestBytes = (uint8*) &TestValue;
-	EEndianOrder Order = TestBytes[ 0 ] ? EEndianOrder::LittleEndian : EEndianOrder::BigEndian;
+    bool bLittleEndian = TestBytes[ 0 ];
 
-	if( !Packet.Serialize( SerializedPacket.begin(), true, false ) )
+    if( !Packet.Serialize( SerializedPacket.begin(), true, !bLittleEndian ) )
 	{
 		log( "[Warning] Failed to send packet to the server because serialization failed!" );
 		return false;
 	}
 
-	return Send( SerializedPacket, Callback, Packet.EncryptionLevel() );
+	return Send( SerializedPacket, Callback, Encryption, Flags );
 }
 
 template< typename T >
-bool RegCloudConnection::SendPacket( FPrivateHeader& Packet )
+bool RegCloudConnection::SendPacket( FPrivateHeader& Packet, ENetworkEncryption Encryption, uint32 Flags )
 {
-	return SendPacket< T >( Packet, nullptr );
+	return SendPacket< T >( Packet, nullptr, Encryption, Flags );
 }
 
+template< typename T >
+bool RegCloudConnection::SendDynamic( FPrivateHeader& StaticPacket, std::vector< uint8 >& DynamicData, std::function< void( asio::error_code, unsigned int ) > Callback, ENetworkEncryption Encryption, uint32 AddtlFlags  )
+{
+    if( !IsConnected() || bKill )
+    {
+        log( "[Warning] Failed to send packet to RegSys because the socket is not connected!" );
+        return false;
+    }
+    
+    const size_t PacketSize = T::GetSize();
+    const size_t DynamicSize = DynamicData.size();
+    
+    std::vector< uint8 > FinalPacket( PacketSize + DynamicSize );
+    
+    // Determine endian order, for dynamic data, the caller will have to handle endian issues
+    // But, all data needs to be sent using little endian
+    uint16 TestValue = 0x0001;
+    uint8* TestBytes = (uint8*) &TestValue;
+    bool bLittleEndian = TestBytes[ 0 ];
+    
+    // Serialize static portion of data
+    if( !StaticPacket.Serialize( FinalPacket.begin(), true, !bLittleEndian ) )
+    {
+        log( "[Warning] Failed to send dynamic packet to the server because serialization of the static packet failed!" );
+        return false;
+    }
+    
+    // Copy dynamic data into packet
+    std::copy( DynamicData.begin(), DynamicData.end(), FinalPacket.begin() + PacketSize );
+    
+    // Set dynamic flag if the caller didnt already
+    if( !( AddtlFlags & PACKET_FLAG_DYNAMIC ) )
+    {
+        AddtlFlags |= PACKET_FLAG_DYNAMIC;
+    }
+    
+    return Send( FinalPacket, Callback, Encryption, AddtlFlags );
+}
+
+template< typename T >
+bool RegCloudConnection::SendDynamic( FPrivateHeader& StaticPacket, std::vector< uint8 >& DynamicData, ENetworkEncryption Encryption, uint32 AddtlFlags )
+{
+    return SendDynamic< T >( StaticPacket, DynamicData, nullptr, Encryption, AddtlFlags );
+}

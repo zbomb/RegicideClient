@@ -51,6 +51,7 @@ RegCloud::RegCloud()
 
 	// Bind Events
     EventHub::Bind( "_Sock_Connect_", std::bind( &RegCloud::OnSocketConnection, this, _1 ), CallbackThread::Network );
+	EventHub::Bind( "Disconnect", std::bind( &RegCloud::OnSocketDisconnect, this, _1 ), CallbackThread::Network );
 
 	Connection.RegisterCallback( ENetworkCommand::KeyExchange, "regcloud_exchange", std::bind( &RegCloud::OnSessionResponse, this, _1 ) );
 	Connection.RegisterCallback( ENetworkCommand::Login, "regcloud_login", std::bind( &RegCloud::HandleLoginResponse, this, _1 ) );
@@ -136,6 +137,15 @@ bool RegCloud::OnSocketConnection( EventData* inEvent )
 	CancelTimeout( "connect" );
 	EstablishSession();
     return true;
+}
+
+bool RegCloud::OnSocketDisconnect( EventData* inEvent )
+{
+	// When we loose connection to the socket we need to cleanup some things
+	// to make sure we can reconnect cleanly
+	Logout( false );
+	ResetSession();
+	return true;
 }
 
 void RegCloud::ConnectTimeout()
@@ -254,7 +264,7 @@ void RegCloud::EstablishSession()
 			UpdateTimeout( "session", 12000 );
 			log( "[RegSys] Sent session request to server!" );
 		}
-	} ) )
+	}, ENetworkEncryption::Light ) )
 	{
 		log( "[ERROR] Failed to send session request to RegSys!" );
 
@@ -430,6 +440,37 @@ bool RegCloud::OnInvalidPacket( FIncomingPacket& Packet )
     return true;
 }
 
+void RegCloud::Logout( bool bInformServer )
+{
+	// Reset State
+	LoginState = ENodeProcessState::Reset;
+	
+	if( bInformServer && LocalAccount )
+	{
+		FGenericPacket Packet = FGenericPacket();
+		Packet.NetworkCommand = (uint32) ENetworkCommand::Logout;
+		Packet.NetworkArgument = LocalAccount->Identifier;
+		
+		if( !Connection.SendPacket< FGenericPacket >( Packet ) )
+		{
+			log( "[RegSys] Failed to send logout command to the server!" );
+		}
+	}
+	
+	// Reset Structures
+	LocalAccount.reset();
+	LocalCards.reset();
+	LocalDecks.reset();
+	LocalAchv.reset();
+	
+}
+
+void RegCloud::ResetSession()
+{
+	SessionState = ENodeProcessState::Reset;
+	Connection.SetSessionKey( nullptr );
+}
+
 void RegCloud::Login( std::string Username, std::string Password )
 {
 	// Check if this operation is already in progress, or complete
@@ -574,6 +615,9 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 	else
 	{
 		// Success! We need to deseraialize the full packet now, and handle the parsing of this data
+		// First, lets remove the private header data from the buffer
+		Packet.Buffer.erase( Packet.Buffer.begin(), Packet.Buffer.begin() + FPrivateHeader::GetSize() );
+		
 		if( HandleAccountInfo( Packet.Buffer ) )
 		{
 			LoginState = ENodeProcessState::Complete;
@@ -595,30 +639,21 @@ bool RegCloud::HandleLoginResponse( FIncomingPacket& Packet )
 
 bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 {
-	// We need to remove header data, then we will handle the dynamic portion
-	if( RawAccountInfo.size() < sizeof( FPrivateHeader ) )
-	{
-		log( "[RegSys] Login Failed! Buffer Size < Header Size?" );
-		return false;
-	}
-	
-	RawAccountInfo.erase( RawAccountInfo.begin(), RawAccountInfo.begin() + sizeof( FPrivateHeader ) );
-	
-	// Decompress
-	std::string Output;
-	size_t CompressedSize = snappy::Uncompress( (const char*)RawAccountInfo.data(), RawAccountInfo.size(), &Output );
-
-	if( CompressedSize == 0 || Output.size() == 0 )
-	{
-		log( "[RegSys] Login Failed! Couldnt decompress data!" );
-		return false;
-	}
+	// Null terminate the vector, so rapid json can properly parse the data
+	RawAccountInfo.push_back( '\0' );
+	log( "[DEBUG] %s", (char*)RawAccountInfo.data() );
 	
 	// Now we need to parse string with json to get the account data structure
 	rapidjson::Document Doc;
-	Doc.Parse<0>( Output.c_str() );
+	Doc.Parse<0>( (char*)RawAccountInfo.data() );
 	
 	// Get Basic Account Info
+	if( Doc.HasParseError() )
+	{
+		log( "[RegSys] Login Failed! An error occured while parsing account info. %d", Doc.GetParseError() );
+		return false;
+	}
+	
 	if( !Doc.HasMember( "Account" ) || !Doc.HasMember( "Cards" ) )
 	{
 		log( "[RegSys] Login Failed! Couldnt parse data. Missing basic info or cards" );
@@ -643,12 +678,21 @@ bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 	LoadedAccount.Coins = AccountInfo[ "Coins" ].GetUint64();
 	LoadedAccount.Verified = AccountInfo[ "Verified" ].GetBool();
 	
+	log( "[DEBUG] Loading Account: " );
+	log( "[DEBUG] Id: %d", LoadedAccount.Identifier );
+	log( "[DEBUG] Username: %s", LoadedAccount.Username.c_str() );
+	log( "[DEBUG] Email: %s", LoadedAccount.EmailAddress.c_str() );
+	log( "[DEBUG] Display Name: %s", LoadedAccount.DisplayName.c_str() );
+	log( "[DEBUG] Coins: %d", (int) LoadedAccount.Coins );
+	log( "[DEBUG] Verified: %d", (int) LoadedAccount.Verified );
+	
 	// Get Card List
 	auto CardList = Doc[ "Cards" ].GetArray();
 	std::vector< Card > Cards;
 	
 	for( auto Iter = CardList.begin(); Iter != CardList.End(); Iter++ )
 	{
+		log( "ADSADASD" );
 		auto CardObj = Iter->GetObject();
 		if( CardObj.HasMember("Id" ) && CardObj.HasMember( "Count" ) )
 		{
@@ -657,6 +701,9 @@ bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 			NewCard.Count = CardObj[ "Identifier" ].GetUint();
 			
 			Cards.push_back( NewCard );
+			
+			// DEBUG
+			log( "[DEBUG] Loaded Card: id=%d  count=%d", NewCard.Identifier, NewCard.Count );
 		}
 		else
 		{
@@ -678,6 +725,9 @@ bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 			NewDeck.Identifier = DeckObj[ "Id" ].GetUint();
 			NewDeck.DisplayName = DeckObj[ "Name" ].GetString();
 			
+			log( "[DEBUG] Loading new deck: id=%d  name=%s", (int) NewDeck.Identifier, NewDeck.DisplayName.c_str() );
+			log( "{" );
+			
 			auto DeckCards = DeckObj[ "Cards" ].GetArray();
 			for( auto CardIter = DeckCards.begin(); CardIter != DeckCards.end(); CardIter++ )
 			{
@@ -690,12 +740,16 @@ bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 					NewCard.Count = CardObj[ "Count" ].GetUint();
 					
 					NewDeck.Cards.push_back( NewCard );
+					
+					log( "\tCard: id=%d  count=%d", NewCard.Identifier, NewCard.Count );
 				}
 				else
 				{
 					log( "[RegSys] Warning! Invalid card found in deck %s while reading account info!", NewDeck.DisplayName.c_str() );
 				}
 			}
+			
+			log( "}" );
 		}
 		else
 		{
@@ -722,6 +776,8 @@ bool RegCloud::HandleAccountInfo( std::vector< uint8 >& RawAccountInfo )
 				newAchv.Progress = Achv[ "Prog" ].GetFloat();
 				
 				AchvList.push_back( newAchv );
+				
+				log( "[DEBUG] Achievement: id=%d  state=%d", newAchv.Identifier, newAchv.State );
 			}
 		}
 	}

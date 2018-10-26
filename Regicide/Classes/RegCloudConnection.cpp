@@ -8,6 +8,7 @@
 #include "CryptoLibrary.h"
 #include "cocos/base/CCConsole.h"
 #include "EventHub.h"
+#include "../snappy/snappy.h"
 
 
 using namespace std::placeholders;
@@ -305,7 +306,7 @@ bool RegCloudConnection::IsConnected() const
 	return( Socket && Socket->is_open() );
 }
 
-bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asio::error_code, unsigned int )> Callback, ENetworkEncryption EncryptionLevel )
+bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asio::error_code, unsigned int )> Callback, ENetworkEncryption EncryptionLevel, uint32 Flags )
 {
 	if( !IsConnected() || bKill )
 	{
@@ -323,6 +324,24 @@ bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asi
 	{
 		Callback = std::bind( &RegCloudConnection::OnSendDefault, this, _1, _2 );
 	}
+    
+    // Check for compression flag, and compress data if desired by caller
+    if( Flags & PACKET_FLAG_COMPRESS )
+    {
+        std::string CompressionOutput;
+        size_t CompressedSize = snappy::Compress( (const char*)Data.data(), Data.size(), &CompressionOutput );
+        
+        if( CompressedSize == 0 || CompressionOutput.size() == 0 )
+        {
+            log( "[Error] Failed to compress outgoing packet! Sending uncompressed instead..." );
+            Flags &= ~PACKET_FLAG_COMPRESS;
+        }
+        else
+        {
+            Data.resize( CompressedSize );
+            std::move( CompressionOutput.begin(), CompressionOutput.end(), Data.begin() );
+        }
+    }
 
 	// Determine encryption key needed for the specified encryption level
 	// Also, check if the specified encryption level is possible with the current state of the connection
@@ -370,20 +389,19 @@ bool RegCloudConnection::Send( std::vector<uint8>& Data, std::function<void( asi
 	FPublicHeader PacketHeader;
 	PacketHeader.PacketSize = PacketHeader.GetSize() + Data.size();
 	PacketHeader.EncryptionMethod = (int32) EncryptionLevel;
+    PacketHeader.Flags = Flags;
 	
 	// Determine Endian Order
 	uint16 TestValue = 0x0001;
 	uint8* TestBytes = (uint8*)&TestValue;
-	EEndianOrder Order = TestBytes[ 0 ] ? EEndianOrder::LittleEndian : EEndianOrder::BigEndian;
-
-	PacketHeader.EndianOrder = (uint32) Order;
+    bool bLittleEndian = TestBytes[ 0 ];
 
 	// Build Final Packet
 	std::vector< uint8 > FinalPacket( PacketHeader.PacketSize );
 	std::move( Data.begin(), Data.end(), FinalPacket.begin() + PacketHeader.GetSize() );
 	Data.clear();
 
-	if( !PacketHeader.Serialize( FinalPacket.begin(), true, false ) )
+    if( !PacketHeader.Serialize( FinalPacket.begin(), true, !bLittleEndian) )
 	{
 		cocos2d::log( "[ERROR] Failed to create packet to send to RegSys, header serialization failed!" );
 		FinalPacket.clear();
@@ -517,10 +535,7 @@ void RegCloudConnection::OnReceive( asio::error_code ErrorCode, unsigned int Num
 		return;
 
 	// Pass data along to handler
-	if( NumBytes > 0 )
-	{
-		OnData( ReceiveBuffer.begin(), ReceiveBuffer.begin() + NumBytes );
-	}
+    OnData( ReceiveBuffer.begin(), ReceiveBuffer.begin() + NumBytes );
 
 	// Continue reading data if possible
 	if( !Socket )
@@ -610,14 +625,20 @@ bool RegCloudConnection::ConsumeBuffer( FIncomingPacket& OutPacket )
 	if( CurrentHeader.PacketSize <= 0 && BufferSize >= PublicHeaderSize )
 	{
 		FPublicHeader ParsedHeader;
-
-		if( !ParsedHeader.Serialize( ParseBuffer.begin(), ShouldFlipByteOrder() ) ||
+        
+        // Determine if were using little endian
+        uint16 TestValue = 0x0001;
+        uint8* FirstByte = (uint8*) &TestValue;
+        bool bLittleEndian = FirstByte[ 0 ];
+        
+		if( !ParsedHeader.Serialize( ParseBuffer.begin(), !bLittleEndian ) ||
 			ParsedHeader.EncryptionMethod < 0 || ParsedHeader.EncryptionMethod > 2 ||
 			ParsedHeader.PacketSize <= 0 )
 		{
 			cocos2d::log( "[WARNING] Invalid header found in buffer! Resetting parse buffer..." );
 			CurrentHeader.PacketSize			= -1;
 			CurrentHeader.EncryptionMethod		= -1;
+            CurrentHeader.Flags                 = 0;
 
 			ParseBuffer.clear();
 			return false;
@@ -712,6 +733,24 @@ bool RegCloudConnection::DecryptPacket( FIncomingPacket& OutPacket )
 		OutPacket.Buffer.clear();
 		return false;
 	}
+    
+    // Decompress If Needed
+    // We could check if the data is decompressable first, but to save a few cycles, we will assume its good and error if not
+    if( OutPacket.PacketHeader.Flags & PACKET_FLAG_COMPRESS )
+    {
+        std::string DecompressedData;
+        bool bResult = snappy::Uncompress( (const char*) OutPacket.Buffer.data(), OutPacket.Buffer.size(), &DecompressedData );
+        if( !bResult || DecompressedData.size() == 0 )
+        {
+            cocos2d::log( "[Error] Failed to decompress incoming packet that had the compression flag!" );
+            OutPacket.Buffer.clear();
+            return false;
+        }
+        
+        // Replace buffer with decompressed data before continuing
+        OutPacket.Buffer.resize( DecompressedData.size() );
+        std::move( DecompressedData.begin(), DecompressedData.end(), OutPacket.Buffer.begin() );
+    }
 
 	return true;
 }
@@ -723,9 +762,12 @@ bool RegCloudConnection::ReadHeader( FIncomingPacket& OutPacket )
 
 	uint8* VarStart = reinterpret_cast< uint8* >( std::addressof( CommandCode ) );
 	
-	// TODO: CHECK FOR ENDIANNESS
-	bool bFlipOrder = false;
-	if( bFlipOrder )
+    // Ensure we are running little endian
+    uint16 TestValue = 0x0001;
+    uint8* FirstByte = (uint8*) &TestValue;
+    bool bLittleEndian = FirstByte[ 0 ];
+
+	if( !bLittleEndian )
 	{
 		std::reverse_copy( OutPacket.Buffer.begin(), OutPacket.Buffer.begin() + 4, VarStart );
 	}

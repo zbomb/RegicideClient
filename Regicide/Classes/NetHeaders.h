@@ -15,17 +15,6 @@ typedef int32_t int32;
 typedef uint64_t uint64;
 typedef int64_t int64;
 
-#define REG_DEFINE_SIZE( Size ) static size_t GetSize() { return Size; }
-#define REG_DEFINE_STATIC_SIZE( Size ) static size_t GetStaticSize() { return Size; }
-#define REG_CALC_DYN_SIZE() virtual size_t GetDynamicSize() override
-#define REG_SERIALIZE_FUNC() virtual bool Serialize( std::vector< uint8 >::iterator Begin, bool bWrite = false, bool bFlipOrder = false ) override
-#define REG_SERIALIZE_DYN() virtual bool Serialize( std::vector< uint8 >::iterator Begin, std::vector< uint8 >::iterator End, bool bWrite = false, bool bFlipOrder = false ) override
-#define REG_SERIALIZE_HEADER() FPrivateHeader::Serialize( Begin, bWrite, bFlipOrder )
-#define REG_SERIALIZE_HEADER_DYN() FPrivateHeaderDynamic::Serialize( Begin, End, bWrite, bFlipOrder )
-#define REG_SERIALIZE_NUM( Var, Size, Offset ) FStructHelper::DoSerialize( (void*) &Var, Size, Begin + Offset, bWrite, bFlipOrder )
-#define REG_SERIALIZE_STR( Var, Size, Offset ) FStructHelper::DoSerialize( (void*) &Var, Size, Begin + Offset, bWrite, false )
-#define REG_SERIALIZE_NUM_ABS( Var, Size, Iter ) FStructHelper::DoSerialize( (void*) &Var, Size, Iter, bWrite, bFlipOrder )
-#define REG_SERIALIZE_STR_ABS( Var, Size, Iter ) FStructHelper::DoSerialize( (void*) &Var, Size, Iter, bWrite, false )
 
 /*=============================================================================================================================
 	Network Enumerators
@@ -165,12 +154,9 @@ enum class ConnectResult
 	OtherError
 };
 
-enum class EEndianOrder
-{
-	BigEndian = 0,
-	LittleEndian = 1
-};
-
+#define PACKET_FLAG_NONE 0
+#define PACKET_FLAG_DYNAMIC ( 1 << 0 )
+#define PACKET_FLAG_COMPRESS ( 1 << 1 )
 
 /*=============================================================================================================================
 	Network Structs
@@ -249,11 +235,12 @@ public:
 		}
 
 		// Check if we need to flip bytes from the server
-		//RegCloud* Cloud = RegCloud::Get();
-		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+        uint16 TestValue = 0x0001;
+        uint8* FirstByte = (uint8*) &TestValue;
+        bool bLittleEndian = FirstByte[ 0 ];
 
 		// Deserialize the structure, taking into account mismatching endianess
-		return Structure.Serialize( DataStart, false, false );
+		return Structure.Serialize( DataStart, false, !bLittleEndian );
 	}
 
 	template< typename T >
@@ -266,43 +253,12 @@ public:
 		}
 
 		// Ensure were serializing using little endian
-		//RegCloud* Cloud = RegCloud::Get();
-		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
+        uint16 TestValue = 0x0001;
+        uint8* FirstByte = (uint8*) &TestValue;
+        bool bLittleEndian = FirstByte[ 0 ];
 
 		// Were not going to flip byte order while serializing, the server will flip bytes if needed
-		return Structure.Serialize( DataStart, true, false );
-	}
-
-	template< typename T >
-	static bool Serialize( FSerializableDynamicStruct& Structure, std::vector< uint8 >::iterator DataStart, const size_t DataSize )
-	{
-		// Check to ensure theres enough data in the vector for the entire dynamic structure
-		if( T::GetDynamicSize() > DataSize )
-		{
-			return false;
-		}
-
-		//RegCloud* Cloud = RegCloud::Get();
-		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
-
-		return Structure.Serialize( DataStart, DataStart + DataSize, true, false );
-	}
-
-	template< typename T >
-	static bool Deserialize( FSerializableDynamicStruct& Structure, std::vector< uint8 >::iterator DataStart, const size_t DataSize )
-	{
-		// Since the structure size can vary, we dont know how large the structure is until we actually deserialize
-		// But, we do know there has to be enough data for the static members, so we can check that now, if data is 
-		// missing, it will be caught during deserialization
-		if( T::GetStaticSize() > DataSize )
-		{
-			return false;
-		}
-
-		//RegCloud* Cloud = RegCloud::Get();
-		//bool bShouldFlip = Cloud ? Cloud->DoesServerEndianMatch() : false;
-
-		return Structure.Serialize( DataStart, DataStart + DataSize, false, false );
+		return Structure.Serialize( DataStart, true, !bLittleEndian );
 	}
 };
 
@@ -315,7 +271,7 @@ struct FPublicHeader : public FSerializableStruct
 {
 	int64 PacketSize = 0;	// 0
 	int32 EncryptionMethod = 0;	// 8
-	uint32 EndianOrder = 1;
+    uint32 Flags = 0; // 12
 
 	static size_t GetSize()
 	{
@@ -326,18 +282,12 @@ struct FPublicHeader : public FSerializableStruct
 	{
 		return( FStructHelper::DoSerialize( (void*)&PacketSize, 8, Begin, bWrite, bFlipOrder ) &&
 				FStructHelper::DoSerialize( (void*)&EncryptionMethod, 4, Begin + 8, bWrite, bFlipOrder ) &&
-				FStructHelper::DoSerialize( (void*)&EndianOrder, 4, Begin + 12, bWrite, false ) );
+				FStructHelper::DoSerialize( (void*)&Flags, 4, Begin + 12, bWrite, bFlipOrder ) );
 	}
 
 	virtual ENetworkEncryption EncryptionLevel() const override
 	{
 		return ENetworkEncryption::None;
-	}
-
-	// Were putting this function here, so if the public header is ever updated, then we can correct the alignment
-	static void GetEndianBytes( std::vector< uint8 >::iterator DataBegin, std::vector< uint8 >::iterator VarBegin )
-	{
-		std::copy( DataBegin + 12, DataBegin + 16, VarBegin );
 	}
 	
 };									// 16
@@ -363,26 +313,6 @@ struct FPrivateHeader : FSerializableStruct
 				FStructHelper::DoSerialize( (void*)&NetworkArgument, 4, Begin + 4, bWrite, bFlipOrder ) );
 	}
 };	// 8
-
-struct FPrivateHeaderDynamic : FSerializableDynamicStruct
-{
-	uint32 NetworkCommand = 0;
-	uint32 NetworkArgument = 0;
-
-	REG_DEFINE_STATIC_SIZE( 8 );
-	
-	// Base class member, in derived classes, use REG_CALC_DYN_SIZE()
-	virtual size_t GetDynamicSize()
-	{
-		return 8;
-	}
-
-	REG_SERIALIZE_DYN()
-	{
-		return( REG_SERIALIZE_NUM( NetworkCommand, 4, 0 ) &&
-				REG_SERIALIZE_NUM( NetworkArgument, 4, 4 ) );
-	}
-};
 
 /*--------------------------------------------------------------------------------------
 	FGenericPacket
@@ -529,215 +459,6 @@ struct FPlayerDeck
 
 	// Static Size = 4 + 4 + 256 = 264
 	std::vector< FPlayerCard > Cards;
-};
-
-// ONLY DESERIALIZATION!!!!!
-struct FAccountInfo : FPrivateHeaderDynamic
-{
-	uint32 PlayerId = 0;
-
-	std::string DisplayName;
-	std::string EmailAddress;
-
-	uint32 _reserved1_ = 0;
-
-	uint64 Coins = 0;
-
-	// The rest of the data is all variable in size, which means we will have to create a custom function to 
-	// deseraialize these packets, since the existing deserialize method is for fixed size packets only.
-	// To know where the different data sections end, we need some offset values.
-	uint32 CardDataSize = 0;
-	uint32 DeckDataSize = 0;
-	uint32 AchvDataSize = 0;
-
-	int _reserved2_ = 0;
-
-	/*-------------------------------------------------
-		Card Data -> Deck Data -> Acheivment Data
-	-------------------------------------------------*/
-	std::vector< FPlayerCard > Cards;
-	std::vector< FPlayerDeck > Decks;
-	std::vector< FPlayerAchievement > Achv;
-	
-	// Serialization Logic
-
-	// Since this is a dynamic packet, we need to declare the size of the static portion
-	REG_DEFINE_STATIC_SIZE( 1324 );
-
-	REG_CALC_DYN_SIZE()
-	{
-		return GetStaticSize() +
-			CardDataSize +
-			DeckDataSize +
-			AchvDataSize;
-	}
-
-	REG_SERIALIZE_DYN()
-	{
-		if( bWrite )
-			throw std::exception();
-
-		char c_DisplayName[ 256 ];
-		char c_EmailAddress[ 1024 ];
-
-		if( !REG_SERIALIZE_HEADER_DYN() ||
-			!REG_SERIALIZE_NUM( PlayerId, 4, 8 ) ||
-			!REG_SERIALIZE_STR( c_DisplayName, 256, 16 ) ||
-			!REG_SERIALIZE_STR( c_EmailAddress, 1024, 272 ) ||
-			!REG_SERIALIZE_NUM( _reserved1_, 4, 1296 ) ||
-			!REG_SERIALIZE_NUM( Coins, 8, 1300 ) ||
-			!REG_SERIALIZE_NUM( CardDataSize, 4, 1308 ) ||
-			!REG_SERIALIZE_NUM( DeckDataSize, 4, 1312 ) ||
-			!REG_SERIALIZE_NUM( AchvDataSize, 4, 1316 ) ||
-			!REG_SERIALIZE_NUM( _reserved2_, 4, 1320 ) )
-		{
-			return false;
-		}
-
-		// Create strings
-		std::string s_DisplayName;
-		std::string s_EmailAddress;
-
-		for( char c : c_DisplayName )
-		{
-			s_DisplayName.append( 1, c );
-			if( c == (char) 0 )
-				break;
-		}
-
-		for( char c : c_EmailAddress )
-		{
-			s_EmailAddress.append( 1, c );
-			if( c == (char) 0 )
-				break;
-		}
-
-		DisplayName = s_DisplayName;
-		EmailAddress = s_EmailAddress;
-
-		// Ensure we have enough data
-		if( Begin + CardDataSize + DeckDataSize + AchvDataSize > End )
-		{
-			cocos2d::log( "[Reg Serialization] Not enough data to (de)serialize a dynamic packet!" );
-			return false;
-		}
-
-		// Now for the hard part, we need to handle variable sized fields
-		// First, lets get an iterator to the beginning of the variable data blob
-		std::vector< uint8 >::iterator CardBegin = Begin + GetStaticSize();
-		std::vector< uint8 >::iterator DeckBegin = CardBegin + CardDataSize;
-		std::vector< uint8 >::iterator AchvBegin = DeckBegin + DeckDataSize;
-		std::vector< uint8 >::iterator DataEnd = Begin + CardDataSize + DeckDataSize + AchvDataSize;
-
-		Cards.clear();
-		Decks.clear();
-		Achv.clear();
-
-		const size_t CardSize = sizeof( FPlayerCard );
-		for( auto Iter = CardBegin; Iter + CardSize < DeckBegin; Iter += CardSize )
-		{
-			FPlayerCard NewCard;
-			if( !REG_SERIALIZE_NUM_ABS( NewCard.Identifier, 2, Iter ) ||
-				!REG_SERIALIZE_NUM_ABS( NewCard.Count, 2, Iter + 2 ) )
-			{
-                cocos2d::log( "[Reg Serialization] Failed to deserialize a card within the account info!" );
-				break;
-			}
-
-			Cards.push_back( NewCard );
-		}
-
-		// Decks are a little more tricky, since each one is of variable size itself
-		// The static size of a deck is 264, so we should start out by 
-		const size_t DeckStaticSize = 264;
-		for( auto Iter = DeckBegin; Iter + DeckStaticSize < AchvBegin; )
-		{
-			FPlayerDeck NewDeck;
-
-			char DisplayName[ 256 ];
-
-			if( !REG_SERIALIZE_NUM_ABS( NewDeck.Identifier, 4, Iter ) ||
-				!REG_SERIALIZE_NUM_ABS( NewDeck.CardCount, 4, Iter + 4 ) ||
-				!REG_SERIALIZE_STR_ABS( DisplayName, 256, Iter + 8 ) )
-			{
-                cocos2d::log( "[Reg Serialization] Failed to deserialize static portion of a deck!" );
-				break;
-			}
-
-			// Create String
-			std::string nameStr;
-			for( char c : DisplayName )
-			{
-				nameStr.append( 1, c );
-				if( c == (char) 0 )
-					break;
-			}
-
-			NewDeck.DisplayName = nameStr;
-
-			// Check if we have enough data for the entire deck
-			const size_t TotalCardsSize = NewDeck.CardCount * CardSize;
-			if( Iter + DeckStaticSize + TotalCardsSize >= AchvBegin )
-			{
-                cocos2d::log( "[Reg Serialization] Not enough data to deserialize deck '%s'", NewDeck.DisplayName.c_str() );
-				break;
-			}
-
-			// Advance Iter
-			Iter += DeckStaticSize;
-			bool bCardError = false;
-
-			// Deserialize each card
-			for( unsigned int Index = 0; Index < NewDeck.CardCount; Index++ )
-			{
-				FPlayerCard NewCard;
-				if( !REG_SERIALIZE_NUM_ABS( NewCard.Identifier, 2, Iter ) ||
-					!REG_SERIALIZE_NUM_ABS( NewCard.Count, 2, Iter + 2 ) )
-				{
-                    cocos2d::log( "[Reg Serialization] Failed to deserialize a card within the deck '%s'", NewDeck.DisplayName.c_str() );
-
-					bCardError = true;
-					break;
-				}
-
-				// Advance Iterator, and insert card
-				Iter += CardSize;
-				NewDeck.Cards.push_back( NewCard );
-			}
-
-			if( bCardError )
-			{
-				break;
-			}
-
-			Decks.push_back( NewDeck );
-		}
-
-		// Time for achievements, these are quite easy
-		const size_t AchvSize = sizeof( FPlayerAchievement );
-		for( auto Iter = AchvBegin; Iter + AchvSize < DataEnd; Iter += AchvSize )
-		{
-			FPlayerAchievement NewAchv;
-
-			if( !REG_SERIALIZE_NUM_ABS( NewAchv.Identifier, 4, Iter ) ||
-				!REG_SERIALIZE_NUM_ABS( NewAchv.Progress, 4, Iter + 4 ) ||
-				!REG_SERIALIZE_NUM_ABS( NewAchv.State, 4, Iter + 8 ) ||
-				!REG_SERIALIZE_NUM_ABS( NewAchv._reserved_, 4, Iter + 12 ) )
-			{
-                cocos2d::log( "[Reg Serialization] Failed to deserialize an achievement!" );
-				break;
-			}
-
-			Achv.push_back( NewAchv );
-		}
-        
-        return true;
-	}
-};
-
-// ONLY DESERIALIZATION!
-struct FLoginResponse : FAccountInfo
-{
 };
 
 
