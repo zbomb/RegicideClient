@@ -6,6 +6,9 @@
 #include <sstream>
 #include <iomanip>
 #include "utf8.h"
+#include <iostream>
+#include "Numeric.h"
+#include "API.h"
 
 using namespace cocos2d;
 
@@ -146,7 +149,7 @@ void CryptoLibrary::PrintVector( const std::vector< uint8 >& Data, std::string N
 
 	std::ostringstream Output;
 
-	uint32 Index = 0;
+	uint32_t Index = 0;
 	for( auto It = Data.begin(); It != Data.end(); It++, Index++ )
 	{
 		if( Index >= 16 )
@@ -164,3 +167,121 @@ void CryptoLibrary::PrintVector( const std::vector< uint8 >& Data, std::string N
     log( "%s", Output.str().c_str() );
 }
 
+static const std::string base64_chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
+
+static inline bool is_base64( unsigned char c )
+{
+    return( isalnum( c ) || ( c == '+' ) || ( c == '/' ) );
+}
+
+std::string CryptoLibrary::Base64Encode( std::vector< uint8 > Input )
+{
+    std::string ret;
+    int in_len = Input.size();
+    const uint8* bytes_to_encode = Input.data();
+    
+    int i = 0;
+    int j = 0;
+    unsigned char char_array_3[3];
+    unsigned char char_array_4[4];
+    
+    while (in_len--) {
+        char_array_3[i++] = *(bytes_to_encode++);
+        if (i == 3) {
+            char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+            char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+            char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+            char_array_4[3] = char_array_3[2] & 0x3f;
+            
+            for(i = 0; (i <4) ; i++)
+                ret += base64_chars[char_array_4[i]];
+            i = 0;
+        }
+    }
+    
+    if (i)
+    {
+        for(j = i; j < 3; j++)
+            char_array_3[j] = '\0';
+        
+        char_array_4[0] = ( char_array_3[0] & 0xfc) >> 2;
+        char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+        char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+        
+        for (j = 0; (j < i + 1); j++)
+            ret += base64_chars[char_array_4[j]];
+        
+        while((i++ < 3))
+            ret += '=';
+    }
+    
+    return ret;
+}
+
+std::vector< uint8 > CryptoLibrary::Base64Decode( std::string Input )
+{
+    int in_len = Input.size();
+    int i = 0;
+    int j = 0;
+    int in_ = 0;
+    unsigned char char_array_4[4], char_array_3[3];
+    std::string ret;
+    
+    while (in_len-- && ( Input[in_] != '=') && is_base64(Input[in_])) {
+        char_array_4[i++] = Input[in_]; in_++;
+        if (i ==4) {
+            for (i = 0; i <4; i++)
+                char_array_4[i] = base64_chars.find(char_array_4[i]);
+            
+            char_array_3[0] = ( char_array_4[0] << 2       ) + ((char_array_4[1] & 0x30) >> 4);
+            char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+            char_array_3[2] = ((char_array_4[2] & 0x3) << 6) +   char_array_4[3];
+            
+            for (i = 0; (i < 3); i++)
+                ret += char_array_3[i];
+            i = 0;
+        }
+    }
+    
+    if (i) {
+        for (j = 0; j < i; j++)
+            char_array_4[j] = base64_chars.find(char_array_4[j]);
+        
+        char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+        char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+        
+        for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
+    }
+    
+    return std::vector< uint8 >( ret.begin(), ret.end() );
+}
+
+
+std::string CryptoLibrary::HashPassword( const std::string& Password, const std::string& Username )
+{
+    // We dont want to perform validation here but, we need to have
+    // enough data to performing the salting, we will leave utf8 checking
+    // and length contraints to the caller
+    if( Password.size() < Regicide::REG_PASSWORD_MINLEN || Username.size() < Regicide::REG_USERNAME_MINLEN )
+        return std::string();
+    
+    // Copy password into a buffer, and salt
+    std::vector< uint8 > PasswordData( Password.size() + 5 );
+    std::copy( Password.begin(), Password.end(), PasswordData.begin() );
+    std::copy( Username.rbegin(), Username.rbegin() + 5, PasswordData.end() - 5 );
+    
+    // Triple hash the salted password
+    for( int i = 0; i < 3; i++ )
+    {
+        PasswordData = CryptoLibrary::SHA256( PasswordData );
+        if( PasswordData.size() == 0 )
+        {
+            return std::string();
+        }
+    }
+    
+    return CryptoLibrary::Base64Encode( PasswordData );
+}

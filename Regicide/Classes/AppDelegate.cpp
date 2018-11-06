@@ -26,8 +26,13 @@
 #include "HelloWorldScene.h"
 #include "MainMenuScene.h"
 #include "IntroScene.h"
-#include "RegCloud.h"
 #include <asio.hpp>
+#include "IContentSystem.hpp"
+#include "UpdateScene.hpp"
+#include <chrono>
+
+using namespace Regicide;
+
 
 #ifdef SDKBOX_ENABLED
 #ifndef WIN32
@@ -68,7 +73,7 @@ AppDelegate::~AppDelegate()
 #elif USE_SIMPLE_AUDIO_ENGINE
     SimpleAudioEngine::end();
 #endif
-	RegCloud::Shutdown();
+	//RegCloud::Shutdown();
 }
 
 // if you want a different context, modify the value of glContextAttrs
@@ -105,11 +110,17 @@ bool AppDelegate::applicationDidFinishLaunching() {
 #endif
         director->setOpenGLView(glview);
     }
-
-	// Initialize RegCloud
-	RegCloud* CloudInstance = RegCloud::Get();
-	CloudInstance->Init();
-
+    
+    // Initialize Content System
+    Regicide::IContentSystem::Init();
+    
+    // Check if theres an account stored locally
+    auto ActManager = Regicide::IContentSystem::GetAccounts();
+    if( ActManager->IsLoginStored() )
+    {
+        // TODO: Call API Method 'ValidateToken'
+    }
+    
     // turn on display FPS
     director->setDisplayStats(true);
 
@@ -137,44 +148,65 @@ bool AppDelegate::applicationDidFinishLaunching() {
 
     register_all_packages();
 
-	// Get Scheduler Ref
-	auto sch = director ? director->getScheduler() : nullptr;
-
-	if( !sch )
-    {
     if( director->getRunningScene() )
-    {
         director->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
-    }
     else
-    {
-		// If for some reason we cant get the scheduler, then start right at the main menu
-		director->runWithScene( MainMenu::createScene() );
-    }
-	}
-	else
-	{
-		////director->runWithScene( MainMenu::createScene() );
-        
-        if( director->getRunningScene() == NULL )
-        {
-            director->replaceScene( TransitionFade::create( 2, IntroScene::createScene(), Color3B( 0, 0, 0 ) ) );
-        }
-        else
-        {
-            director->runWithScene( IntroScene::createScene() );
-        }
-        sch->schedule( std::bind( &AppDelegate::FinishIntro, this, std::placeholders::_1 ), this, 2.5f, 0, 2.5f, false, "IntroEnd" );
-	}
-
+        director->runWithScene( IntroScene::createScene() );
+    
+    auto start = std::chrono::steady_clock::now();
+    
+    // Begin Update
+    auto Manager = IContentSystem::GetManager();
+    Manager->ListenForUpdate( [ this, start ] ( bool bNeedUpdates, bool bError, std::string ErrMessage )
+                             {
+                                 // We need to ensure that the intro scene is open for a minimum peroid of time
+                                 auto delta = std::chrono::duration_cast< std::chrono::milliseconds >( std::chrono::steady_clock::now() - start ).count();
+                                 using namespace std::placeholders;
+                                 std::function< void(float) > Callback = std::bind( &AppDelegate::FinishIntro, this, _1, bNeedUpdates, bError, ErrMessage );
+                                 
+                                 if( delta < 1500 )
+                                 {
+                                     auto sch = Director::getInstance()->getScheduler();
+                                     float RemainingTime = ( 1500 - delta ) / 1000.f;
+                                     sch->schedule( Callback, this, RemainingTime, 0, RemainingTime, false, "IntroEnd" );
+                                 }
+                                 else
+                                 {
+                                     Callback( 0.f );
+                                 }
+                             } );
+    
+    Manager->CheckForUpdates();
+    
     return true;
 }
 
-void AppDelegate::FinishIntro( float Delay )
+void AppDelegate::FinishIntro( float Delay, bool bNeedUpdates, bool bErrors, std::string ErrorMessage )
 {
-	auto director = Director::getInstance();
+    auto dir = Director::getInstance();
+    
+    if( bNeedUpdates )
+    {
+        auto upd = UpdateScene::createScene();
+        // TODO: Pass message to update scene
+        dir->replaceScene( TransitionFade::create( 1.2f, upd, Color3B( 0, 0, 0 ) ) );
+    }
+    else
+    {
+        auto mm = MainMenu::createScene();
+        // TODO: Pass message along to main menu
+        dir->replaceScene( TransitionFade::create( 1.2f, mm, Color3B( 0, 0, 0 ) ) );
+    }
+}
 
-	director->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
+void AppDelegate::OpenMainMenu( float Delay )
+{
+    auto dir = Director::getInstance();
+    
+    if( dir->getRunningScene() )
+        dir->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
+    else
+        dir->runWithScene( MainMenu::createScene() );
 }
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.

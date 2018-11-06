@@ -7,11 +7,11 @@
 #pragma once
 
 #include "cocos2d.h"
-#include "NetHeaders.h"
 #include "LoginLayer.h"
 #include "EventDataTypes.h"
 #include "RegisterLayer.h"
 #include "EventHub.h"
+#include "Numeric.h"
 
 using namespace cocos2d;
 
@@ -29,15 +29,18 @@ public:
 
     void CancelLogin();
     
+    // Local Login State
     enum LoginState { LoggedOut, OfflineLogin, LoggedIn };
     LoginState CurrentState;
     inline LoginState GetLoginState() const { return CurrentState; }
     void SetLoginState( LoginState inState );
+    
     bool OnLogin( EventData* inData );
     bool OnRegister( EventData* inData );
     
     bool PerformLogin( std::string Username, std::string Password );
     bool PerformRegister( std::string Username, std::string Password, std::string DisplayName, std::string EmailAddress );
+    
     void CloseLoginMenu();
     void CloseRegisterMenu();
     
@@ -69,17 +72,9 @@ private:
 	void OnAccountCallback( Ref* Caller );
 	void OnOptionsCallback( Ref* Caller );
     
-	bool OnConnect( EventData* inData );
-	void OnConnectFailure( int Paramter );
-    bool OnReconnectBegin( EventData* inData );
-	std::shared_ptr< EventListenerTouchOneByOne > TouchKiller;
-    
 	// Popup Menu Tracking
 	bool _bLoginOpen	= false;
     bool _bRegisterOpen = false;
-
-	bool OnLostConnection( EventData* inData );
-    void StartLoginProcess();
 
 	LoginLayer* LoginPanel = nullptr;
     RegisterLayer* RegisterPanel = nullptr;
@@ -104,4 +99,5 @@ private:
     DrawNode* PopupNode     = nullptr;
     Label* PopupLabel       = nullptr;
     std::shared_ptr< EventListenerTouchOneByOne > TouchHandler;
+
 };

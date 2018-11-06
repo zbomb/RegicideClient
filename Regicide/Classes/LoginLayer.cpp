@@ -1,12 +1,11 @@
 
 #include "LoginLayer.h"
 #include "CryptoLibrary.h"
-#include "RegCloud.h"
 #include <vector>
 #include "MainMenuScene.h"
 #include "EventHub.h"
 #include "utf8.h"
-
+#include "API.h"
 
 
 bool LoginLayer::init()
@@ -19,9 +18,10 @@ bool LoginLayer::init()
 
 	// Calculate sizes/positions
 	auto layerSize = Director::getInstance()->getVisibleSize();
+    auto layerPos = Director::getInstance()->getVisibleOrigin();
 	int fontSize = layerSize.width / 1920.f * 65;
-	float thisX = layerSize.width * 0.2f;
-	float thisY = layerSize.height * 0.25f;
+	float thisX = layerPos.x + layerSize.width * 0.2f;
+	float thisY = layerPos.y + layerSize.height * 0.25f;
 	float thisW = layerSize.width * 0.6f;
 	float thisH = layerSize.height * 0.5f;
 
@@ -255,97 +255,6 @@ void LoginLayer::OnLoginClick( Ref* Caller )
     Username->setEnabled( false );
     Password->setEnabled( false );
     
-    // Validate Input Format
-    if( !utf8::is_valid( UserStr.begin(), UserStr.end() ) ||
-        !utf8::is_valid( PassStr.begin(), PassStr.end() ) )
-    {
-        ShowError( "Invalid Username/Password. Please check input and try again." );
-        return;
-    }
-    
-    auto UserLen = utf8::distance( UserStr.begin(), UserStr.end() );
-    auto PassLen = utf8::distance( PassStr.begin(), PassStr.end() );
-    
-    // Check input lengths
-    if( UserLen < Regicide::REG_USERNAME_MINLEN || UserLen > Regicide::REG_USERNAME_MAXLEN )
-    {
-        ShowError( "Invalid Username/Password. Please check input and try again." );
-        return;
-    }
-    else if( PassLen < Regicide::REG_PASSWORD_MINLEN )
-    {
-        ShowError( "Invalid Username/Password. Please check input and try again." );
-        return;
-    }
-    
-    // Check for invalid characters
-    // First, check username for invalid characters
-    typedef utf8::iterator< std::string::iterator > UTFIter;
-    UTFIter UserIt( UserStr.begin(), UserStr.begin(), UserStr.end() );
-    UTFIter UserItEnd( UserStr.end(), UserStr.begin(), UserStr.end() );
-    UTFIter PassIt( PassStr.begin(), PassStr.begin(), PassStr.end() );
-    UTFIter PassItEnd( PassStr.end(), PassStr.begin(), PassStr.end() );
-    
-    for( auto Iter = UserIt; Iter != UserItEnd; Iter++ )
-    {
-        if(( *Iter < 0x0030 ) ||
-           ( *Iter > 0x0039 && *Iter < 0x0041 ) ||
-           ( *Iter > 0x005A && *Iter < 0x0061 ) ||
-           ( *Iter > 0x007A ) )
-        {
-            ShowError( "Invalid Username/Password. Please check input and try again." );
-            return;
-        }
-    }
-    
-    bool bUppercase = false;
-    bool bLowercase = false;
-    bool bSymbol = false;
-    bool bNumber = false;
-    
-    for( auto Iter = PassIt; Iter != PassItEnd; Iter++ )
-    {
-        if( *Iter < 0x0030 ||
-           ( *Iter > 0x007E && *Iter < 0x00A1 ) )
-        {
-            ShowError( "Invalid Username/Password. Please check input and try again." );
-            return;
-        }
-        
-        if( !bSymbol &&
-           ( *Iter < 0x0030 ||
-           ( *Iter > 0x0039 && *Iter < 0x0041 ) ||
-           ( *Iter > 0x005A && *Iter < 0x0061 ) ||
-           ( *Iter > 0x007A && *Iter < 0x007F ) ) )
-        {
-            bSymbol = true;
-        }
-        else if( !bNumber &&
-           ( *Iter > 0x002F && *Iter < 0x003A ) )
-        {
-            bNumber = true;
-        }
-        else if( !bLowercase &&
-                ( *Iter > 0x0040 && *Iter < 0x005B ) )
-        {
-            bLowercase = true;
-        }
-        else if( !bUppercase &&
-                ( *Iter > 0x0060 && *Iter < 0x007B ) )
-        {
-            bUppercase = true;
-        }
-        
-        if( bNumber && bLowercase && bUppercase )
-            break;
-    }
-    
-    if( !bNumber || !bLowercase || !bUppercase )
-    {
-        ShowError( "Invalid Username/Password. Please check input and try again." );
-        return;
-    }
-    
 	// Call login and wait for the callback event
     MainMenu* Menu = static_cast< MainMenu* >( getParent() );
     if( !Menu )
@@ -402,6 +311,7 @@ void LoginLayer::Destroy()
     this->runAction( FadeOut );
 }
 
+/*
 void LoginLayer::OnLoginFailure( LoginResult ErrorCode )
 {
     if( ErrorCode == LoginResult::AlreadyLoggedIn )
@@ -421,6 +331,7 @@ void LoginLayer::OnLoginFailure( LoginResult ErrorCode )
         ShowError( "The login attempt timed-out. Please retry momentarily" );
     }
 }
+*/
 
 // EventBoxDelegate Implementation
 void LoginLayer::editBoxReturn( EditBox* Box )

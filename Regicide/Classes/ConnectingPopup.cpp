@@ -82,6 +82,7 @@ void ConnectingPopup::update( float Delta )
 	}
 }
 */
+/*
 void ConnectingPopup::PushResult( EConnectResult Result, std::string AdditionalInfo )
 {
 	//UpdateMutex.lock();
@@ -90,8 +91,10 @@ void ConnectingPopup::PushResult( EConnectResult Result, std::string AdditionalI
 	_resultVal = Result;
 	//UpdateMutex.unlock();
 }
+ */
 
-void ConnectingPopup::ShowResult( EConnectResult Result, std::string AdditionalInfo /* = nullptr */ )
+/*
+void ConnectingPopup::ShowResult( EConnectResult Result, std::string AdditionalInfo = nullptr )
 {
 	if( Message )
 	{
@@ -157,6 +160,7 @@ void ConnectingPopup::ShowResult( EConnectResult Result, std::string AdditionalI
 		log( "[UI ERROR] Failed to update popup text!" );
 	}
 }
+*/
 
 void ConnectingPopup::Shutdown()
 {

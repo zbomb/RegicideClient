@@ -6,7 +6,6 @@
 //
 #include "EventHub.h"
 #include "cocos/cocos2d.h"
-#include "RegCloud.h"
 
 EventId EventHub::LastUsedId( EVENT_INVALID );
 std::vector< GlobalListener > EventHub::GlobalListeners;
@@ -146,3 +145,4 @@ bool EventHub::GlobalExists( EventId Identifier )
     
     return false;
 }
+

@@ -4,7 +4,6 @@
 #include "cocos/2d/CCLayer.h"
 #include "cocos/ui/UIEditBox/UIEditBox.h"
 #include "cocos/ui/UIButton.h"
-#include "NetHeaders.h"
 
 using namespace cocos2d;
 using namespace cocos2d::ui;
@@ -18,8 +17,7 @@ public:
 	CREATE_FUNC( LoginLayer );
     
     void Destroy();
-    void OnLoginFailure( LoginResult ErrorCode );
-	
+
 	// EditBoxDelegate Implementation
 	virtual void editBoxEditingDidBegin( EditBox* Box ) override;
 	virtual void editBoxEditingDidEnd( EditBox* Box ) override;

@@ -8,7 +8,6 @@
 #ifndef EventDataTypes_h
 #define EventDataTypes_h
 
-#include "NetHeaders.h"
 
 struct EventData
 {
@@ -16,24 +15,6 @@ struct EventData
 
 struct NullEventData : EventData
 {};
-
-struct ConnectEventData : EventData
-{
-    ConnectResult Result;
-    
-    ConnectEventData( ConnectResult inRes )
-    : Result( inRes )
-    {}
-};
-
-struct LoginEventData : EventData
-{
-    LoginResult Result;
-    
-    LoginEventData( LoginResult inRes )
-        : Result( inRes )
-    {}
-};
 
 struct NumericEventData : EventData
 {
@@ -51,16 +32,6 @@ struct StringEventData : EventData
     StringEventData( std::string& inData )
         : Data( inData )
     {}
-};
-
-struct PacketEventData : EventData
-{
-    FIncomingPacket Packet;
-    
-    PacketEventData( FIncomingPacket& inPack )
-    : Packet( inPack )
-    {
-    }
 };
 
 #endif /* EventDataTypes_h */

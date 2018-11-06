@@ -4,7 +4,6 @@
 #include "cocos/2d/CCLayer.h"
 #include "cocos/ui/UIEditBox/UIEditBox.h"
 #include "cocos/ui/UIButton.h"
-#include "NetHeaders.h"
 
 
 using namespace cocos2d;

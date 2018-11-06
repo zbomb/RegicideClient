@@ -7,13 +7,16 @@
 
 #include "MainMenuScene.h"
 #include "SimpleAudioEngine.h"
-#include "RegCloud.h"
 #include "LoginLayer.h"
 #include "EventHub.h"
+#include "Utils.h"
+#include "API.h"
+#include "IContentSystem.hpp"
 
 
 using namespace cocos2d;
 using namespace cocos2d::ui;
+using namespace Regicide;
 
 
 Scene* MainMenu::createScene()
@@ -267,92 +270,21 @@ bool MainMenu::init()
 		log( "[UI ERROR] Failed to create menu container" );
 		return false;
 	}
-
-	RegCloud* RegSys = RegCloud::Get();
 	
-	// If we cant get a ref to RegSys, run in offline mode
-	if( !RegSys )
-	{
-        NumericEventData Data( (int) ConnectResult::OtherError );
-        OnLostConnection( &Data );
-		return true;
-	}
-	
-	// Based on the current status of RegSys, we will show different UI elements
-	ENodeProcessState ConnectionState = RegSys->GetConnectionState();
-
-	// Bind hooks right after checking state, so if we end up connecting before the menu is constructed, the state will be double
-	// checked after construction and the situation will be detected, and the same applies if the connection happens in between this line and the last line of code
-    using namespace std::placeholders;
-    
-    ConnectEndId    = EventHub::Bind( "ConnectResult", std::bind( &MainMenu::OnConnect, this, _1 ), CallbackThread::Game );
-    DisconnectId    = EventHub::Bind( "Disconnect", std::bind( &MainMenu::OnLostConnection, this, _1 ), CallbackThread::Game );
-    ConnectBeginId  = EventHub::Bind( "ConnectBegin", std::bind( &MainMenu::OnReconnectBegin, this, _1 ), CallbackThread::Game );
-    LoginId         = EventHub::Bind( "LoginResult", std::bind( &MainMenu::OnLogin, this, _1 ), CallbackThread::Game );
-    RegisterId      = EventHub::Bind( "RegisterResult", std::bind( &MainMenu::OnRegister, this, _1 ), CallbackThread::Game );
-    
-	if( ConnectionState == ENodeProcessState::InProgress || ConnectionState == ENodeProcessState::NotStarted )
-	{
-        SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-        ShowPopup( "Connecting...", Color4B( 240, 240, 240, 255 ), 1.f, false );
-	}
-	else if( ConnectionState == ENodeProcessState::Reset )
-	{
-		// Connection Error!
-        OnConnectFailure( (int) ConnectResult::ConnectionError );
-	}
-	else
-	{
-		// Already Connected!
-        SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-		StartLoginProcess();
-	}
-    
     BannerTouch = EventListenerTouchOneByOne::create();
     BannerTouch->onTouchEnded = CC_CALLBACK_2( MainMenu::HandleBannerTouch, this );
     BannerTouch->onTouchBegan = CC_CALLBACK_2( MainMenu::HandleBannerTouchBegin, this );
     _eventDispatcher->addEventListenerWithFixedPriority( BannerTouch, -10 );
     
-	return true;
-}
-
-bool MainMenu::OnReconnectBegin( EventData* inData )
-{
-    ShowPopup( "Connecting...", Color4B( 240, 240, 240, 255 ), 1.f, false );
-    
-    RegCloud* Cloud = RegCloud::Get();
-    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-    
-    return true;
-}
-
-bool MainMenu::OnConnect( EventData* inData )
-{
-    NumericEventData* numData = (NumericEventData*) inData;
-    RegCloud* Cloud = RegCloud::Get();
-    
-	// Check for failure
-	if( numData->Data != (int) ConnectResult::Success )
-	{
-        SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-        OnConnectFailure( numData->Data );
-        return true;
-	}
-    
-    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::LoggedIn : LoginState::LoggedOut );
-    
-    // Hide any popups
-    HidePopup();
-    HideDisconnectedBanner();
-    
-    // Check if we need to open the login menu
-    if( Cloud && !Cloud->IsLoggedIn() )
+    auto actmanager = IContentSystem::GetAccounts();
+    if( !actmanager->IsLoginStored() )
     {
         OpenLoginMenu();
     }
     
-    return true;
+	return true;
 }
+
 
 void MainMenu::ShowPopup( std::string inMessage, Color4B inColor, float inScale, bool bAllowClose )
 {
@@ -467,7 +399,10 @@ void MainMenu::ShowPopup( std::string inMessage, Color4B inColor, float inScale,
     }
     
     _eventDispatcher->addEventListenerWithFixedPriority( &(*TouchHandler), -100 );
+    
+
 }
+
 
 void MainMenu::HidePopup()
 {
@@ -495,44 +430,7 @@ void MainMenu::ShowError( std::string ErrorMessage )
     ShowPopup( ErrorMessage, Color4B( 240, 30, 30, 255 ), 0.65f, true );
 }
 
-void MainMenu::OnConnectFailure( int Parameter )
-{
-    std::string DetailedError;
-    if( Parameter == (int) ConnectResult::ConnectionError )
-        DetailedError = "check your internet connection";
-    else if( Parameter == (int) ConnectResult::KeyExchangeError )
-        DetailedError = "a crypto error occurred";
-    else
-        DetailedError = "an unknown error occurred";
-    
-    // Create popup error message
-    ShowError( "Failed to connect to cloud, " + DetailedError + "! The game will run in offline-mode until you reconnect. Tap anywhere to close" );
-    
-    // Show the disconnected banner
-    ShowDisconnectedBanner();
-}
 
-bool MainMenu::OnLostConnection( EventData* inData )
-{
-	log( "[UI] Connection to RegSys appears to be lost!" );
-    
-    // Check if were logged in still
-    RegCloud* Cloud = RegCloud::Get();
-    SetLoginState( Cloud && Cloud->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-    
-    // Close any open login or register menus
-    CloseLoginMenu();
-    CloseRegisterMenu();
-    HidePopup();
-    
-    // Create the disconnected banner
-    ShowDisconnectedBanner();
-    
-    // Show error message
-    ShowError( "Lost connection to the Regicide Network!" );
-    
-    return true;
-}
 
 void MainMenu::OnlineCallback( Ref* Caller )
 {
@@ -559,55 +457,115 @@ void MainMenu::OnOptionsCallback( Ref* Caller )
 
 }
 
-void MainMenu::StartLoginProcess()
-{
-	auto RegSys = RegCloud::Get();
-
-	if( !RegSys || !RegSys->IsSecure() )
-	{
-		// CRITICAL ERROR
-        NumericEventData Data( (int) ConnectResult::ConnectionError );
-        OnLostConnection( &Data );
-        return;
-	}
-
-	bool bIsAccountStored = false;
-	if( bIsAccountStored )
-	{
-
-	}
-	else
-	{
-        OpenLoginMenu();
-	}
-}
 
 bool MainMenu::PerformLogin( std::string Username, std::string Password )
 {
-    RegCloud* Cloud = RegCloud::Get();
+    auto Client = APIClient::GetInstance();
     
-    if( !Cloud )
+    if( !Client )
     {
-        log( "[RegLogin] Critical Error! RegCloud singleton is null!" );
+        log( "[Menu] Failed to get API Client! Login failed" );
         return false;
     }
     
-    Cloud->Login( Username, Password );
-    return true;
+    LoginRequest Request;
+    Request.Username = Username;
+    Request.Password = Password;
+    
+    return Client->LoginAsync( Request, [ this ]( LoginResponse Response )
+       {
+           if( Response.Result == LoginResult::BadRequest )
+           {
+               if( this ) this->ShowError( "Please check input and try again" );
+           }
+           else if( Response.Result == LoginResult::DatabaseError ||
+                   Response.Result == LoginResult::OtherError )
+           {
+               if( this ) this->ShowError( "An error has occured. Please retry momentarily" );
+           }
+           else if( Response.Result != LoginResult::Success )
+           {
+               if( this ) this->ShowError( "Invalid Username/Password. Please retry" );
+           }
+           else
+           {
+               // Login was successful
+               auto ActManager = IContentSystem::GetAccounts();
+               
+               // Update Stored Account and write to disk
+               auto& LocalAccount = ActManager->GetLocalAccount();
+               LocalAccount = Response.Account;
+               LocalAccount->AuthToken = Response.AuthToken;
+               
+               ActManager->WriteAccount();
+               
+               // Update Login Status
+               if( this ) { this->SetLoginState( LoginState::LoggedIn ); }
+               
+               // Close Login Panel
+               if( this ) { this->CloseLoginMenu(); }
+               
+           }
+       } );
 }
 
 bool MainMenu::PerformRegister( std::string Username, std::string Password, std::string DisplayName, std::string EmailAddress )
 {
-    RegCloud* Cloud = RegCloud::Get();
+    auto Client = APIClient::GetInstance();
     
-    if( !Cloud )
+    if( !Client )
     {
-        log( "[RegLogin] Critical Error! RegCloud singleton is null!" );
+        log( "[Menu] Failed to get API Client! Register failed" );
         return false;
     }
     
-    Cloud->Register( Username, Password, DisplayName, EmailAddress );
-    return true;
+    RegisterRequest Request;
+    Request.Username = Username;
+    Request.Password = Password;
+    Request.DispName = DisplayName;
+    Request.EmailAdr = EmailAddress;
+    
+    return Client->RegisterAsync( Request, [ this ]( RegisterResponse Response )
+         {
+             if( Response.Result == RegisterResult::BadPassHash ||
+                Response.Result == RegisterResult::Error )
+             {     if( this ) this->ShowError( "Please recheck input and try again!" ); }
+            else if( Response.Result == RegisterResult::EmailExists )
+            { if( this ) this->ShowError( "Email address already exists" ); }
+            else if( Response.Result == RegisterResult::InvalidDispName )
+            { if( this ) this->ShowError( "Invalid Display Name" ); }
+            else if( Response.Result == RegisterResult::InvalidEmail )
+            { if( this ) this->ShowError( "Invalid Email" ); }
+            else if( Response.Result == RegisterResult::InvalidUsername )
+            { if( this ) this->ShowError( "Invalid Username" ); }
+            else if( Response.Result == RegisterResult::SuccessBadResponse )
+            {
+                if( this )
+                {
+                    this->ShowError( "Account registered. But an error occurred. Please try to login to your new account" );
+                    this->CloseRegisterMenu();
+                    this->OpenLoginMenu();
+                }
+            }
+             else
+             {
+                 // Login was successful
+                 auto ActManager = IContentSystem::GetAccounts();
+                 
+                 // Update Stored Account and write to disk
+                 auto& LocalAccount = ActManager->GetLocalAccount();
+                 LocalAccount = Response.Account;
+                 LocalAccount->AuthToken = Response.AuthToken;
+                 
+                 ActManager->WriteAccount();
+                 
+                 // Update Login Status
+                 if( this ) { this->SetLoginState( LoginState::LoggedIn ); }
+                 
+                 // Close Login Panel
+                 if( this ) { this->CloseRegisterMenu(); }
+             }
+         });
 }
 
 void MainMenu::CloseLoginMenu()
@@ -627,13 +585,16 @@ void MainMenu::CloseLoginMenu()
 
 void MainMenu::CancelLogin()
 {
+    /*
     RegCloud* RegSys = RegCloud::Get();
     SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
+     */
     CloseLoginMenu();
 }
 
 bool MainMenu::OnLogin( EventData* inData )
 {
+    /*
     LoginEventData* Result = static_cast< LoginEventData* >( inData );
     
     if( !Result || Result->Result != LoginResult::Success )
@@ -647,12 +608,14 @@ bool MainMenu::OnLogin( EventData* inData )
         SetLoginState( LoginState::LoggedIn );
         CloseLoginMenu();
     }
-
+     */
+    
     return true;
 }
 
 bool MainMenu::OnRegister( EventData *inData )
 {
+    /*
     NumericEventData* Result = static_cast< NumericEventData* >( inData );
     
     if( !Result || Result->Data != (int) ERegisterResult::Success )
@@ -672,6 +635,7 @@ bool MainMenu::OnRegister( EventData *inData )
         SetLoginState( LoginState::LoggedIn );
         CloseRegisterMenu();
     }
+    */
     
     return true;
 }
@@ -840,6 +804,7 @@ void MainMenu::HandleBannerTouch( Touch* inTouch, Event *inEvent )
     
     if( touchLocation.y <= thisY + 52 )
     {
+        /*
         // Clicked on the banner!
         RegCloud* Cloud = RegCloud::Get();
         if( !Cloud )
@@ -854,6 +819,7 @@ void MainMenu::HandleBannerTouch( Touch* inTouch, Event *inEvent )
             log( "[RegSys] Failed to attempt reconnect with the Regicide Network. Restart game and try again" );
             ShowError( "Failed to start reconnect. Restart game and try again." );
         }
+         */
     }
 }
 

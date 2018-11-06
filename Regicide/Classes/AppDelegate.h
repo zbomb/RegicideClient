@@ -29,7 +29,7 @@
 #define USE_AUDIO_ENGINE true
 
 #include "cocos2d.h"
-#include <asio.hpp>
+#include "../Asio/include/asio.hpp"
 
 /**
 @brief    The cocos2d Application.
@@ -65,7 +65,10 @@ public:
 
 private:
 
-	void FinishIntro( float Delay );
+    void FinishIntro( float Delay, bool bUpdates, bool bError, std::string Message );
+    void OpenMainMenu( float Delay );
+    
+    bool bOpenUpdateMenu = true;
 
 };
 

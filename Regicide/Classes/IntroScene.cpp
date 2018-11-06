@@ -15,7 +15,9 @@ using namespace cocos2d::ui;
 
 Scene* IntroScene::createScene()
 {
-	return IntroScene::create();
+	auto ret = IntroScene::create();
+    ret->setName( "IntroScene" );
+    return ret;
 }
 
 bool IntroScene::init()

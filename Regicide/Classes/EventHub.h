@@ -6,11 +6,9 @@
 //
 #pragma once
 
-#include "NetHeaders.h"
 #include "EventDataTypes.h"
-#include "RegCloud.h"
 
-typedef uint32 EventId;
+typedef uint32_t EventId;
 #define EVENT_INVALID 0
 
 #define EVENT_SAFE_UNBIND( inEventId ) if( inEventId != EVENT_INVALID ) { EventHub::UnBind( inEventId ); }
@@ -75,7 +73,6 @@ bool EventHub::Execute( std::string inEvent, T& inData )
     using namespace cocos2d;
     Director* dir = Director::getInstance();
     Scheduler* sch = dir ? dir->getScheduler() : nullptr;
-    RegCloud* RegSys = RegCloud::Get();
     auto* async = AsyncTaskPool::getInstance();
     bool bRet = false;
     
@@ -101,19 +98,6 @@ bool EventHub::Execute( std::string inEvent, T& inData )
                     sch->performFunctionInCocosThread( [ &, inData ]()
                                                       { HookEntry.Callback( (EventData*) &inData ); }
                                                       );
-                    bRet = true;
-                }
-                else if( HookEntry.Thread == CallbackThread::Network )
-                {
-                    if( !RegSys )
-                    {
-                        log( "[RegEvent] Failed to execute an event hook on the network io thread! Invalid RegSys reference!" );
-                        continue;
-                    }
-                    
-                    RegSys->GetContext().post( [ &, inData ]()
-                                              { HookEntry.Callback( (EventData*) &inData ); }
-                                              );
                     bRet = true;
                 }
                 else if( HookEntry.Thread == CallbackThread::AsyncPool )
@@ -152,20 +136,6 @@ bool EventHub::Execute( std::string inEvent, T& inData )
                            {
                                Iter->Callback( inEvent, (EventData*) &inData );
                            });
-            bRet = true;
-        }
-        else if( Iter->Thread == CallbackThread::Network )
-        {
-            if( !RegSys )
-            {
-                log( "[RegEvent] Failed to execute callback for a global event listener on the network IO thread! RegSys reference invalid!" );
-                continue;
-            }
-            
-            RegSys->GetContext().post( [ &, inData ]
-                                      {
-                                          Iter->Callback( inEvent, (EventData*) &inData );
-                                      });
             bRet = true;
         }
         else if( Iter->Thread == CallbackThread::Game )

@@ -3,7 +3,6 @@
 #include "cocos/cocos2d.h"
 #include "cocos/2d/CCLayer.h"
 #include "cocos/ui/UILoadingBar.h"
-#include "NetHeaders.h"
 
 
 using namespace cocos2d;
@@ -19,7 +18,7 @@ public:
 	CREATE_FUNC( ConnectingPopup );
 
 	void Shutdown();
-	void PushResult( EConnectResult Result, std::string AdditionalInfo = nullptr );
+	//void PushResult( EConnectResult Result, std::string AdditionalInfo = nullptr );
 
 	//virtual void update( float delta ) override;
 
@@ -33,10 +32,10 @@ private:
 
 	bool _bResults				= false;
 	std::string _resultText		= nullptr;
-	EConnectResult _resultVal	= EConnectResult::ConnectionFailure;
+	//EConnectResult _resultVal	= EConnectResult::ConnectionFailure;
 
 	//std::mutex UpdateMutex;
 
-	void ShowResult( EConnectResult Result, std::string AdditionalInfo = nullptr );
+	//void ShowResult( EConnectResult Result, std::string AdditionalInfo = nullptr );
 
 };

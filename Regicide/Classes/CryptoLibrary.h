@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
-#include "NetHeaders.h"
+#include "Numeric.h"
+
 
 typedef std::vector< uint8 >::iterator ByteIter;
 
@@ -32,6 +33,11 @@ public:
 	static std::vector< uint8 > SHA256( std::vector< uint8 >& Data );
 
 	static void PrintVector( const std::vector< uint8 >& Data, std::string Name );
+    
+    static std::string Base64Encode( std::vector< uint8 > Input );
+    static std::vector< uint8 > Base64Decode( std::string Input );
+    
+    static std::string HashPassword( const std::string& Password, const std::string& Username );
 };
 
 

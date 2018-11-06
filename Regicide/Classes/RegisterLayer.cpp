@@ -1,7 +1,7 @@
 #include "RegisterLayer.h"
 #include "MainMenuScene.h"
-#include "RegCloud.h"
 #include "utf8.h"
+#include "API.h"
 
 
 bool RegisterLayer::init()
@@ -531,6 +531,7 @@ void RegisterLayer::ShowError( std::string inError )
 
 void RegisterLayer::OnRegisterFailure( int Result )
 {
+    /*
     if( Result == (int) ERegisterResult::ConnectionError )
     {
         ShowError( "Please check your internet connection and try again." );
@@ -555,4 +556,5 @@ void RegisterLayer::OnRegisterFailure( int Result )
     {
         ShowError( "An unknown error has occured. Please try again momentarily." );
     }
+     */
 }
