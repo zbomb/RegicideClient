@@ -7,7 +7,7 @@
 
 #include "Utils.h"
 #include <memory>
-#include "Account.h"
+#include "RegicideAPI/Account.h"
 #include "external/json/prettywriter.h"
 
 using namespace Regicide;

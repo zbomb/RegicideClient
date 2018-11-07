@@ -20,6 +20,8 @@ public:
     void Destroy();
     void OnRegisterFailure( int Result );
     
+    void ShowError( std::string ErrorMessage );
+    
 private:
     
     DrawNode* Draw  = nullptr;
@@ -45,6 +47,4 @@ private:
     void OnCancel( Ref* inRef );
     void OpenLogin( Ref* inRef );
     void DoRegister( Ref* inRef );
-    
-    void ShowError( std::string ErrorMessage );
 };

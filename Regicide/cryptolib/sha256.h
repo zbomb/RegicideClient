@@ -27,7 +27,7 @@
 #ifndef MBEDTLS_SHA256_H
 #define MBEDTLS_SHA256_H
 
-#define MBEDTLS_CONFIG_FILE "crypto_config.h"
+#define MBEDTLS_CONFIG_FILE "config.h"
 
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "config.h"

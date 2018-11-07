@@ -9,7 +9,6 @@ using namespace cocos2d::ui;
 
 bool ConnectingPopup::init()
 {
-	log( "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" );
 	// Initialize Parent
 	if( !LayerColor::initWithColor( Color4B( 0, 0, 0, 180 ) ) )
 	{

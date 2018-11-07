@@ -7,11 +7,11 @@
 
 #define API_DEV_MODE
 
-#include "API.h"
-#include "utf8.h"
+#include "RegicideAPI/API.h"
+#include "utf8/utf8.h"
 #include "CryptoLibrary.h"
 #include "cocos2d.h"
-#include "Types.h"
+#include "RegicideAPI/Types.h"
 #include "Numeric.h"
 #include "external/json/document.h"
 #include "external/json/prettywriter.h"
@@ -22,8 +22,8 @@
 #include <thread>
 #include <future>
 #include <chrono>
-
-
+#include "gzip/decompress.hpp"
+#include "CMS/IContentSystem.hpp"
 
 using namespace Regicide;
 using namespace cocos2d;
@@ -43,21 +43,15 @@ typedef std::function< void( HttpClient*, HttpResponse* ) > APICallback;
 
 bool APIClient::IsAuthorized()
 {
-    // Authorized in this context means, we have an AuthToken, were not reffering
-    // to being 'logged in'
-    return AuthToken.size() > 0;
+    return IContentSystem::GetAccounts()->IsLoginStored();
 }
 
-void APIClient::ClearAuthToken()
-{
-    AuthToken.clear();
-}
-
-std::vector< std::string > APIClient::BuildRequestHeader( bool bRequireAuth /* = true */, ContentType Content /* = ContentType::Json */ )
+std::vector< std::string > APIClient::BuildRequestHeader( bool bRequireAuth /* = true */, ContentType Content /* = ContentType::Json */, bool bCompress /* = false */ )
 {
     if( bRequireAuth && !IsAuthorized() )
     {
         // Return an empty vector to indicate that we cant make the request
+        cocos2d::log( "[API] API call will fail, local user is not authorized to run it!" );
         return std::vector< std::string >();
     }
     
@@ -65,10 +59,10 @@ std::vector< std::string > APIClient::BuildRequestHeader( bool bRequireAuth /* =
     std::vector< std::string > Output;
     
     std::stringstream KeyBuilder;
-    KeyBuilder << "x-api-key: " << API_KEY;
+    KeyBuilder << "x-api-key:" << API_KEY;
     
     std::stringstream ContentTypeBuilder;
-    ContentTypeBuilder << "Content-Type: ";
+    ContentTypeBuilder << "Content-Type:";
     
     if( Content == ContentType::Json )
         ContentTypeBuilder << "application/json";
@@ -85,9 +79,14 @@ std::vector< std::string > APIClient::BuildRequestHeader( bool bRequireAuth /* =
     if( bRequireAuth )
     {
         std::stringstream AuthBuilder;
-        AuthBuilder << "regicide-auth: " << AuthToken;
+        AuthBuilder << "regicide-auth:" << IContentSystem::GetAccounts()->GetAuthToken();
         
         Output.push_back( AuthBuilder.str() );
+    }
+    
+    if( bCompress )
+    {
+        Output.push_back( "Accept-Encoding:gzip" );
     }
     
     return Output;
@@ -97,8 +96,10 @@ std::vector< std::string > APIClient::BuildRequestHeader( bool bRequireAuth /* =
 HttpRequest* APIClient::BuildRequest( const std::string& MethodPath, const std::vector<std::string>& Headers, const std::string& Content, HttpRequest::Type RequestType /* = HttpRequest::Type::POST */  )
 {
     // Validate Parameters
-    if( MethodPath.size() == 0 || Headers.size() < 2 || Content.size() == 0 )
+    if( MethodPath.size() == 0 || Headers.size() < 2 )
+    {
         return nullptr;
+    }
     
     std::stringstream PathBuilder;
     PathBuilder << API_URL << MethodPath;
@@ -162,22 +163,10 @@ ExecuteResult APIClient::ExecuteBlockingRequest( HttpRequest* Request, const uin
 }
 
 
-ExecuteResult APIClient::ExecutePostMethod( const std::string& Function, Document& Content, Document& Response, long& StatusCode, bool bIncludeAuth /* = true */ )
+ExecuteResult APIClient::Internal_Post( const std::string &Function, HttpRequest *Request, bool bUseGZip, long& StatusCode, Document& Response )
 {
-    // Stringify input json
-    StringBuffer Buffer;
-    PrettyWriter< StringBuffer > Writer( Buffer );
-    Content.Accept( Writer );
-    
-    std::string Body = Buffer.GetString();
-    StatusCode = 0;
-    
-    // Build Http Request
-    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json );
-    auto HttpReq = BuildRequest( Function, Headers, Body, HttpRequest::Type::POST );
-    
     // Check if the request was built successfully
-    if( !HttpReq )
+    if( !Request )
     {
         log( "[RegAPI] Failed to build API call request '%s'", Function.c_str() );
         return ExecuteResult::BadRequest;
@@ -185,7 +174,7 @@ ExecuteResult APIClient::ExecutePostMethod( const std::string& Function, Documen
     
     // Execute Syncronously
     HttpResponse* Res = nullptr;
-    auto Result = ExecuteBlockingRequest( HttpReq, 8, Res );
+    auto Result = ExecuteBlockingRequest( Request, 8, Res );
     
     if( Res )
         StatusCode = Res->getResponseCode();
@@ -200,41 +189,80 @@ ExecuteResult APIClient::ExecutePostMethod( const std::string& Function, Documen
     if( Result != ExecuteResult::Success )
     {
         log( "[RegAPI] API call failed! Error code: %ld. Error Message: %s", Res->getResponseCode(), Res->getErrorBuffer() );
-        HttpReq->release();
+        Request->release();
         return Result;
+    }
+    
+    // Check if the response is compressed
+    auto HeaderData = Res->getResponseHeader();
+    bool bCompressed = false;
+    
+    if( HeaderData )
+    {
+        std::string HeaderStr( HeaderData->begin(), HeaderData->end() );
+        if( HeaderStr.find( "gzip" ) != std::string::npos )
+            bCompressed = true;
     }
     
     // Parse response body
     auto ResponseData = Res->getResponseData();
     log( "%s", Res->getResponseData()->data() );
+    
     if( Response.Parse( ResponseData->data(), ResponseData->size() ).HasParseError() )
     {
         log( "[RegAPI] API call failed! Couldnt parse json response from the server. Code: %d  Offset: %d", Response.GetParseError(), (int)Response.GetErrorOffset() );
-        HttpReq->release();
+        Request->release();
         return ExecuteResult::BadResponse;
     }
     
     // Release initial request, and return
-    HttpReq->release();
+    Request->release();
     return ExecuteResult::Success;
 }
 
 
-bool APIClient::ExecutePostMethodAsync( const std::string &Function, Document &Content, bool bIncludeAuth, std::function<void (long, Document*, std::string, void*)> Callback, const uint32_t Timeout /* = 8 */, void* AsyncState )
+ExecuteResult APIClient::ExecutePostMethod( const std::string &Function, Document &Response, long &StatusCode, bool bIncludeAuth, bool bUseGZip )
 {
-    // Validate
-    if( Function.empty() || ( bIncludeAuth && IsAuthorized() ) )
-        return false;
+    if( bIncludeAuth && !IsAuthorized() )
+    {
+        cocos2d::log( "[API] Failed to execute '%s' because it requires login!", Function.c_str() );
+        return ExecuteResult::AuthError;
+    }
     
+    StatusCode = 0;
+    
+    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json, bUseGZip );
+    auto Request = BuildRequest( Function, Headers, "", HttpRequest::Type::POST );
+    
+    return Internal_Post( Function, Request, bUseGZip, StatusCode, Response );
+}
+
+ExecuteResult APIClient::ExecutePostMethod( const std::string& Function, Document& Content, Document& Response, long& StatusCode, bool bIncludeAuth /* = true */, bool bUseGZip /* = false */ )
+{
+    if( bIncludeAuth && !IsAuthorized() )
+    {
+        cocos2d::log( "[API] Failed to execute '%s' because it requires login!", Function.c_str() );
+        return ExecuteResult::AuthError;
+    }
+
     // Stringify input json
     StringBuffer Buffer;
     PrettyWriter< StringBuffer > Writer( Buffer );
     Content.Accept( Writer );
     
-    std::string RequestBody = Buffer.GetString();
-    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json );
-    auto Request = BuildRequest( Function, Headers, RequestBody, HttpRequest::Type::POST );
+    std::string Body = Buffer.GetString();
+    StatusCode = 0;
     
+    // Build Http Request
+    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json, bUseGZip );
+    auto HttpReq = BuildRequest( Function, Headers, Body, HttpRequest::Type::POST );
+    
+    return Internal_Post( Function, HttpReq, bUseGZip, StatusCode, Response );
+}
+
+
+bool APIClient::Internal_PostAsync( const std::string& Function, HttpRequest *Request, PostCallback &Callback, bool bUseGZip )
+{
     if( !Request )
     {
         cocos2d::log( "[RegAPI] Failed to build async API request '%s'", Function.c_str() );
@@ -249,12 +277,14 @@ bool APIClient::ExecutePostMethodAsync( const std::string &Function, Document &C
         return false;
     }
     
-    Request->setResponseCallback( [ this, Callback, AsyncState ]( HttpClient* outClient, HttpResponse* Response )
+    Request->setResponseCallback( [ this, Callback, bUseGZip ]( HttpClient* outClient, HttpResponse* Response )
                                  {
+                                     cocos2d::log( "==========> ASYNC RESPONSE" );
+                                     
                                      if( !Response )
                                      {
                                          cocos2d::log( "[RegAPI] Response from API call is null!" );
-                                         Callback( API_STATUS_NO_RESPONSE, nullptr, std::string(), AsyncState );
+                                         Callback( API_STATUS_NO_RESPONSE, nullptr, std::string() );
                                      }
                                      
                                      auto InitialRequest = Response->getHttpRequest();
@@ -263,7 +293,6 @@ bool APIClient::ExecutePostMethodAsync( const std::string &Function, Document &C
                                      
                                      auto Headers = Response->getResponseHeader();
                                      std::string HeaderStr( Headers->begin(), Headers->end() );
-                                     
                                      auto Data = Response->getResponseData();
 #ifdef API_DEV_MODE
                                      if( Data )
@@ -279,22 +308,66 @@ bool APIClient::ExecutePostMethodAsync( const std::string &Function, Document &C
                                          {
                                              cocos2d::log( "[RegAPI] Response from API call is invalid json!" );
                                              delete ResponseBody;
-                                             Callback( API_STATUS_BAD_RESPONSE, nullptr, std::string(), AsyncState );
+                                             Callback( API_STATUS_BAD_RESPONSE, nullptr, std::string() );
                                              return;
                                          }
                                          
-                                         Callback( StatusCode, ResponseBody, HeaderStr, AsyncState );
+                                         Callback( StatusCode, ResponseBody, HeaderStr );
                                      }
                                      else
                                      {
-                                         Callback( StatusCode, nullptr, HeaderStr, AsyncState );
+                                         Callback( StatusCode, nullptr, HeaderStr );
                                      }
                                  } );
     
     Client->setTimeoutForConnect( API_CONNECT_TIMEOUT );
-    Client->setTimeoutForRead( Timeout );
+    Client->setTimeoutForRead( 8 );
     
     // Send Request
     Client->sendImmediate( Request );
     return true;
+}
+
+bool APIClient::ExecutePostMethodAsync( const std::string &Function, Document &Content, bool bIncludeAuth, PostCallback Callback, const uint32_t Timeout /* = 8 */, bool bUseGZip /* = false */ )
+{
+    if( Function.empty() )
+        return false;
+    
+    // Validate
+    if( bIncludeAuth && !IsAuthorized() )
+    {
+        cocos2d::log( "[API] Failed to execute '%s' because it requires login!", Function.c_str() );
+        return false;
+    }
+    
+    // Stringify input json
+    StringBuffer Buffer;
+    PrettyWriter< StringBuffer > Writer( Buffer );
+    Content.Accept( Writer );
+    
+    std::string RequestBody = Buffer.GetString();
+    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json, bUseGZip );
+    auto Request = BuildRequest( Function, Headers, RequestBody, HttpRequest::Type::POST );
+    
+    return Internal_PostAsync( Function, Request, Callback, bUseGZip );
+}
+
+// Version without payload
+bool APIClient::ExecutePostMethodAsync( const std::string &Function, bool bIncludeAuth, PostCallback Callback, uint32_t Timeout, bool bUseGZip )
+{
+    if( Function.empty() )
+        return false;
+    
+    // Validate
+    if( bIncludeAuth && !IsAuthorized() )
+    {
+        cocos2d::log( "[API] Failed to execute '%s' because it requires login!", Function.c_str() );
+        return false;
+    }
+    
+    std::string RequestBody = "";
+    auto Headers = BuildRequestHeader( bIncludeAuth, ContentType::Json, bUseGZip );
+    auto Request = BuildRequest( Function, Headers, RequestBody, HttpRequest::Type::POST );
+    
+    return Internal_PostAsync( Function, Request, Callback, bUseGZip );
 }

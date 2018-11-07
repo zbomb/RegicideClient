@@ -105,7 +105,7 @@ LoginResponse APIClient::Login( const LoginRequest& Request )
     Document Response;
     
     // Perform API Call
-    auto Result = ExecutePostMethod( "account/login", Body, Response, Output.StatusCode, false );
+    auto Result = ExecutePostMethod( "account/login", Body, Response, Output.StatusCode, false, true );
     
     if( Result != ExecuteResult::Success )
     {
@@ -125,20 +125,7 @@ LoginResponse APIClient::Login( const LoginRequest& Request )
 
 bool APIClient::LoginAsync( const LoginRequest &Request, std::function<void (LoginResponse)> Callback )
 {
-    // Validate Parameters
-    auto UsernameLen = utf8::distance( Request.Username.begin(), Request.Username.end() );
-    auto PasswordLen = utf8::distance( Request.Password.begin(), Request.Password.end() );
-    
-    if( UsernameLen < Regicide::REG_USERNAME_MINLEN || UsernameLen > Regicide::REG_USERNAME_MAXLEN || PasswordLen < Regicide::REG_PASSWORD_MINLEN )
-    {
-        LoginResponse Response;
-        Response.Result = LoginResult::InvalidCredentials;
-        
-        Callback( Response );
-        return true;
-    }
-    
-    if( Request.Password.size() < Regicide::REG_PASSWORD_MINLEN )
+    if( !ValidateParameters( Request.Username, Request.Password ) )
     {
         LoginResponse Response;
         Response.Result = LoginResult::InvalidCredentials;
@@ -157,25 +144,25 @@ bool APIClient::LoginAsync( const LoginRequest &Request, std::function<void (Log
     Body.AddMember( "PassHash", StringRef( FinalPass ), Body.GetAllocator() );
     
     return ExecutePostMethodAsync( "account/login", Body, false,
-              [ this, Callback ]( long StatusCode, Document* ResponseBody, std::string Headers , void* AsyncState )
+              [ this, Callback ]( long StatusCode, Document* ResponseBody, std::string Headers )
               {
                   LoginResponse Response;
                   if( StatusCode != API_STATUS_SUCCESS )
                   {
-                      if( ResponseBody ) { delete ResponseBody; }
                       cocos2d::log( "[RegAPI] Async Login API call failed! StatusCode: %ld", StatusCode );
                       Response.Result = LoginResult::OtherError;
-                      Callback( Response );
-                      return;
                   }
-                  
-                  // Parse Response
-                  if( ReadLoginResponse( ResponseBody, Response ) )
+                  else
                   {
-                      AuthToken = Response.AuthToken;
+                      if( ReadLoginResponse( ResponseBody, Response ) )
+                      {
+                          AuthToken = Response.AuthToken;
+                      }
                   }
-                  
+
                   if( ResponseBody ) { delete ResponseBody; }
+                  Response.StatusCode = StatusCode;
                   Callback( Response );
-              } );
+                  
+              }, 8, true );
 }

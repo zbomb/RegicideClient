@@ -23,13 +23,16 @@
  ****************************************************************************/
 
 #include "AppDelegate.h"
-#include "HelloWorldScene.h"
-#include "MainMenuScene.h"
-#include "IntroScene.h"
-#include <asio.hpp>
-#include "IContentSystem.hpp"
-#include "UpdateScene.hpp"
+#include "Scenes/HelloWorldScene.h"
+#include "Scenes/MainMenuScene.h"
+#include "Scenes/IntroScene.h"
+#include "CMS/IContentSystem.hpp"
+#include "Scenes/UpdateScene.hpp"
 #include <chrono>
+#include "RegicideAPI/API.h"
+#include "Utils.h"
+#include "LuaEngine.hpp"
+
 
 using namespace Regicide;
 
@@ -62,8 +65,11 @@ static cocos2d::Size smallResolutionSize = cocos2d::Size(480, 320);
 static cocos2d::Size mediumResolutionSize = cocos2d::Size(1024, 768);
 static cocos2d::Size largeResolutionSize = cocos2d::Size(2048, 1536);
 
+AppDelegate* sharedDelegate = nullptr;
 AppDelegate::AppDelegate()
 {
+    CC_ASSERT( !sharedDelegate ); // Double Init Guard
+    sharedDelegate = this;
 }
 
 AppDelegate::~AppDelegate() 
@@ -73,7 +79,15 @@ AppDelegate::~AppDelegate()
 #elif USE_SIMPLE_AUDIO_ENGINE
     SimpleAudioEngine::end();
 #endif
-	//RegCloud::Shutdown();
+    
+    CC_ASSERT( sharedDelegate == this );
+    sharedDelegate = nullptr;
+}
+
+AppDelegate* AppDelegate::GetInstance()
+{
+    CC_ASSERT( sharedDelegate );
+    return sharedDelegate;
 }
 
 // if you want a different context, modify the value of glContextAttrs
@@ -111,15 +125,48 @@ bool AppDelegate::applicationDidFinishLaunching() {
         director->setOpenGLView(glview);
     }
     
+    // Load file paths
+    auto file = FileUtils::getInstance();
+    auto paths = file->getSearchPaths();
+    paths.push_back( "Resource" );
+    paths.push_back( "LuaScripts" );
+    file->setSearchPaths( paths );
+    
+    
     // Initialize Content System
     Regicide::IContentSystem::Init();
     
     // Check if theres an account stored locally
     auto ActManager = Regicide::IContentSystem::GetAccounts();
+    
+    VerifyFuture = VerifyPromise.get_future();
     if( ActManager->IsLoginStored() )
     {
         // TODO: Call API Method 'ValidateToken'
+        auto api = Regicide::APIClient::GetInstance();
+        if( !api->VerifyTokenAsync( [ this ]( VerifyResponse Response )
+                              {
+                                  if( Response.StatusCode == API_STATUS_NO_RESPONSE )
+                                  {
+                                      // Bad connection usually
+                                      this->VerifyPromise.set_value( Verified::Offline );
+                                  }
+                                  else
+                                  {
+                                      this->VerifyPromise.set_value( Response.Result ? Verified::Success : Verified::Failed );
+                                  }
+                              } ) )
+        {
+            this->VerifyPromise.set_value( Verified::Failed );
+        }
     }
+    else
+    {
+        VerifyPromise.set_value( Verified::NoAccount );
+    }
+    
+    // Initialize Lua Engine
+    LuaEngine::GetInstance()->Init();
     
     // turn on display FPS
     director->setDisplayStats(true);
@@ -187,21 +234,42 @@ void AppDelegate::FinishIntro( float Delay, bool bNeedUpdates, bool bErrors, std
     
     if( bNeedUpdates )
     {
+        // Open the update scene, which will process the update automatically and call back
+        // once the update is complete
+        
         auto upd = UpdateScene::createScene();
-        // TODO: Pass message to update scene
         dir->replaceScene( TransitionFade::create( 1.2f, upd, Color3B( 0, 0, 0 ) ) );
     }
     else
     {
-        auto mm = MainMenu::createScene();
-        // TODO: Pass message along to main menu
-        dir->replaceScene( TransitionFade::create( 1.2f, mm, Color3B( 0, 0, 0 ) ) );
+        UpdateFinished( true );
     }
 }
 
 void AppDelegate::OpenMainMenu( float Delay )
 {
     auto dir = Director::getInstance();
+    
+    // Wait for API VerifyToken to complete, timeout of 6 seconds,
+    auto VerifyState = VerifyFuture.get();
+    
+    if( VerifyState == Verified::Failed )
+    {
+        // Clear locally stored account, this will cause the login menu to
+        // appear once the main menu is created
+        cocos2d::log( "[Regicide] You have been logged out!" );
+        auto act = IContentSystem::GetAccounts();
+        act->GetLocalAccount().reset();
+        act->WriteAccount();
+    }
+    else if( VerifyState == Verified::Offline )
+    {
+        cocos2d::log( "[Regicide] Failed to contact Regicide Cloud to verify login, please check connection" );
+    }
+    else if( VerifyState == Verified::Success )
+    {
+        cocos2d::log( "[Regicide] Login confirmed. Welcome back!" );
+    }
     
     if( dir->getRunningScene() )
         dir->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
@@ -231,4 +299,11 @@ void AppDelegate::applicationWillEnterForeground() {
     SimpleAudioEngine::getInstance()->resumeBackgroundMusic();
     SimpleAudioEngine::getInstance()->resumeAllEffects();
 #endif
+}
+
+
+void AppDelegate::UpdateFinished( bool bSuccess )
+{
+    // Open main menu
+    OpenMainMenu( 0.f );
 }

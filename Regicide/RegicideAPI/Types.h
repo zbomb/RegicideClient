@@ -81,13 +81,18 @@ namespace Regicide
         Success = 2
     };
     
-    struct LogoutRequest
-    {
-        std::string AuthToken;
-    };
-    
     struct LogoutResponse
     {
         LogoutResult Result;
+        long StatusCode;
+    };
+    
+    /*========================================
+            Verify
+     ========================================*/
+    struct VerifyResponse
+    {
+        bool Result;
+        long StatusCode;
     };
 }

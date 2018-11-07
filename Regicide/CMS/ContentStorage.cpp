@@ -23,6 +23,10 @@ ContentStorage* ContentStorage::GetInstance()
     return s_Singleton;
 }
 
+ContentStorage::~ContentStorage()
+{
+    s_Singleton = nullptr;
+}
 
 void ContentStorage::ForceInit()
 {

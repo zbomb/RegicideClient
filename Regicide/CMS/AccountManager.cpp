@@ -25,6 +25,11 @@ AccountManager* AccountManager::GetInstance()
     return s_Singleton;
 }
 
+AccountManager::~AccountManager()
+{
+    s_Singleton = nullptr;
+}
+
 void AccountManager::ForceInit()
 {
     if( !s_Singleton )

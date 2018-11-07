@@ -5,7 +5,7 @@
 //  Created by Zachary Berry on 10/13/18.
 //
 #include "EventHub.h"
-#include "cocos/cocos2d.h"
+#include "cocos2d.h"
 
 EventId EventHub::LastUsedId( EVENT_INVALID );
 std::vector< GlobalListener > EventHub::GlobalListeners;

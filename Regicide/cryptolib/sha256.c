@@ -24,7 +24,7 @@
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
-#define MBEDTLS_CONFIG_FILE "crypto_config.h"
+#define MBEDTLS_CONFIG_FILE "config.h"
 
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
@@ -35,7 +35,7 @@
 #if defined(MBEDTLS_SHA256_C)
 
 #include "sha256.h"
-#include "crypto_platform_util.h"
+#include "platform_util.h"
 
 #include <string.h>
 

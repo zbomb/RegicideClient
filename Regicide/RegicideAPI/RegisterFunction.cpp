@@ -281,26 +281,27 @@ bool APIClient::RegisterAsync( const RegisterRequest &Request, std::function<voi
     RequestBody.AddMember( "Email", StringRef( Request.EmailAdr ), RequestBody.GetAllocator() );
     
     return ExecutePostMethodAsync( "account/register", RequestBody, false,
-                                  [ this, Callback ]( long StatusCode, Document* ResponseBody, std::string Headers, void* AsyncState )
+                                  [ this, Callback ]( long StatusCode, Document* ResponseBody, std::string Headers )
                                   {
                                       // Check Http Status Code
                                       RegisterResponse Response;
                                       if( StatusCode != API_STATUS_SUCCESS )
                                       {
-                                          if( ResponseBody ) { delete ResponseBody; }
+                                          cocos2d::log( "[API] Register Async API call failed! Code: %ld", StatusCode );
                                           Response.Result = RegisterResult::Error;
-                                          Callback( Response );
-                                          return;
                                       }
-                                      
-                                      // Read Response
-                                      if( ReadRegisterResponse( ResponseBody, Response ) )
+                                      else
                                       {
-                                          AuthToken = Response.AuthToken;
+                                          // Read Response
+                                          if( ReadRegisterResponse( ResponseBody, Response ) )
+                                          {
+                                              AuthToken = Response.AuthToken;
+                                          }
                                       }
                                       
                                       // Execute callback and cleanup
                                       if( ResponseBody ) { delete ResponseBody; }
+                                      Response.ResponseCode = StatusCode;
                                       Callback( Response );
                                       
                                   } );

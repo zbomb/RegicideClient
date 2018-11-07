@@ -474,37 +474,39 @@ bool MainMenu::PerformLogin( std::string Username, std::string Password )
     
     return Client->LoginAsync( Request, [ this ]( LoginResponse Response )
        {
-           if( Response.Result == LoginResult::BadRequest )
+           if( this )
            {
-               if( this ) this->ShowError( "Please check input and try again" );
-           }
-           else if( Response.Result == LoginResult::DatabaseError ||
-                   Response.Result == LoginResult::OtherError )
-           {
-               if( this ) this->ShowError( "An error has occured. Please retry momentarily" );
-           }
-           else if( Response.Result != LoginResult::Success )
-           {
-               if( this ) this->ShowError( "Invalid Username/Password. Please retry" );
-           }
-           else
-           {
-               // Login was successful
-               auto ActManager = IContentSystem::GetAccounts();
+               if( Response.Result == LoginResult::BadRequest )
+               {
+                   if( this->LoginPanel ) this->LoginPanel->ShowError( "Please check input and try again" );
+               }
+               else if( Response.Result == LoginResult::DatabaseError ||
+                       Response.Result == LoginResult::OtherError )
+               {
+                   if( this->LoginPanel ) this->LoginPanel->ShowError( "An error has occured. Please retry momentarily" );
+               }
+               else if( Response.Result != LoginResult::Success )
+               {
+                   if( this->LoginPanel ) this->LoginPanel->ShowError( "Invalid Username/Password. Please retry" );
+               }
+               else
+               {
+                   // Update Login Status
+                   this->SetLoginState( LoginState::LoggedIn );
+                   
+                   // Close Login Panel
+                   this->CloseLoginMenu();
+               }
                
-               // Update Stored Account and write to disk
-               auto& LocalAccount = ActManager->GetLocalAccount();
-               LocalAccount = Response.Account;
-               LocalAccount->AuthToken = Response.AuthToken;
-               
-               ActManager->WriteAccount();
-               
-               // Update Login Status
-               if( this ) { this->SetLoginState( LoginState::LoggedIn ); }
-               
-               // Close Login Panel
-               if( this ) { this->CloseLoginMenu(); }
-               
+               if( Response.Result == LoginResult::Success )
+               {
+                   auto ActManager = IContentSystem::GetAccounts();
+                   auto& LocalAccount = ActManager->GetLocalAccount();
+                   LocalAccount = Response.Account;
+                   LocalAccount->AuthToken = Response.AuthToken;
+                   
+                   ActManager->WriteAccount();
+               }
            }
        } );
 }
@@ -527,43 +529,45 @@ bool MainMenu::PerformRegister( std::string Username, std::string Password, std:
     
     return Client->RegisterAsync( Request, [ this ]( RegisterResponse Response )
          {
-             if( Response.Result == RegisterResult::BadPassHash ||
-                Response.Result == RegisterResult::Error )
-             {     if( this ) this->ShowError( "Please recheck input and try again!" ); }
-            else if( Response.Result == RegisterResult::EmailExists )
-            { if( this ) this->ShowError( "Email address already exists" ); }
-            else if( Response.Result == RegisterResult::InvalidDispName )
-            { if( this ) this->ShowError( "Invalid Display Name" ); }
-            else if( Response.Result == RegisterResult::InvalidEmail )
-            { if( this ) this->ShowError( "Invalid Email" ); }
-            else if( Response.Result == RegisterResult::InvalidUsername )
-            { if( this ) this->ShowError( "Invalid Username" ); }
-            else if( Response.Result == RegisterResult::SuccessBadResponse )
-            {
-                if( this )
-                {
-                    this->ShowError( "Account registered. But an error occurred. Please try to login to your new account" );
-                    this->CloseRegisterMenu();
-                    this->OpenLoginMenu();
-                }
-            }
-             else
+             if( this )
              {
-                 // Login was successful
+                 if( Response.Result == RegisterResult::BadPassHash ||
+                    Response.Result == RegisterResult::Error )
+                 {     if( RegisterPanel ) RegisterPanel->ShowError( "Please recheck input and try again!" ); }
+                else if( Response.Result == RegisterResult::EmailExists )
+                { if( RegisterPanel ) RegisterPanel->ShowError( "Email address already exists" ); }
+                else if( Response.Result == RegisterResult::InvalidDispName )
+                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Display Name" ); }
+                else if( Response.Result == RegisterResult::InvalidEmail )
+                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Email" ); }
+                else if( Response.Result == RegisterResult::InvalidUsername )
+                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Username" ); }
+                else if( Response.Result == RegisterResult::SuccessBadResponse )
+                {
+                        this->CloseRegisterMenu();
+                        this->OpenLoginMenu();
+                        if( this->LoginPanel )
+                            this->LoginPanel->ShowError( "Account was registered, but an error occured. Please manually log in" );
+                }
+                 else
+                 {
+                    // Update Login Status
+                     this->SetLoginState( LoginState::LoggedIn );
+                     
+                     // Close Login Panel
+                     this->CloseRegisterMenu();
+                 }
+             }
+             
+             // Save account in AccountManager
+             if( Response.Result == RegisterResult::Success )
+             {
                  auto ActManager = IContentSystem::GetAccounts();
-                 
-                 // Update Stored Account and write to disk
                  auto& LocalAccount = ActManager->GetLocalAccount();
                  LocalAccount = Response.Account;
                  LocalAccount->AuthToken = Response.AuthToken;
                  
                  ActManager->WriteAccount();
-                 
-                 // Update Login Status
-                 if( this ) { this->SetLoginState( LoginState::LoggedIn ); }
-                 
-                 // Close Login Panel
-                 if( this ) { this->CloseRegisterMenu(); }
              }
          });
 }
@@ -691,8 +695,6 @@ void MainMenu::OpenRegisterMenu()
 
 void MainMenu::OpenLoginMenu()
 {
-    log( "ASDASDADSASDASDASDASDASDASDASDASDASDASD" );
-    
     // Close Menus
     CloseRegisterMenu();
     

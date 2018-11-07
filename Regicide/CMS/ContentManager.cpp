@@ -28,6 +28,11 @@ ContentManager* ContentManager::GetInstance()
     return s_Singleton;
 }
 
+ContentManager::~ContentManager()
+{
+    s_Singleton = nullptr;
+}
+
 void ContentManager::ForceInit()
 {
     if( !s_Singleton )
@@ -149,8 +154,7 @@ void ContentManager::CheckForUpdates()
         if( ++FailureCount >= 5 )
         {
             cocos2d::log( "[CMS] Failed to download manifest after 5 tries! Aborting" );
-
-            this->Internal_OnComplete( false );
+            this->Internal_OnUpdateChecked( false, true, "Failed to download manifest" );
         }
         else
         {

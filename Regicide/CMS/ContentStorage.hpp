@@ -31,6 +31,8 @@ namespace Regicide
         virtual bool ReadLocalBlocks( std::vector< LocalBlock >& Output );
         virtual bool WriteLocalBlock( LocalBlock& Input );
         
+        ~ContentStorage();
+        
     private:
         
         void Init();

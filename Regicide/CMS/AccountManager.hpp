@@ -30,6 +30,7 @@ namespace Regicide
         bool IsLoginStored();
         void WriteAccount();
         
+        ~AccountManager();
         
     private:
         

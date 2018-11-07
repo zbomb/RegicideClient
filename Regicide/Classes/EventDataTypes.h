@@ -5,8 +5,7 @@
 //  Created by Zachary Berry on 10/14/18.
 //
 
-#ifndef EventDataTypes_h
-#define EventDataTypes_h
+#pragma once
 
 
 struct EventData
@@ -34,4 +33,3 @@ struct StringEventData : EventData
     {}
 };
 
-#endif /* EventDataTypes_h */

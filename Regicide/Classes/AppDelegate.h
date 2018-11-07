@@ -29,7 +29,7 @@
 #define USE_AUDIO_ENGINE true
 
 #include "cocos2d.h"
-#include "../Asio/include/asio.hpp"
+#include <future>
 
 /**
 @brief    The cocos2d Application.
@@ -41,7 +41,8 @@ class  AppDelegate : private cocos2d::Application
 public:
     AppDelegate();
     virtual ~AppDelegate();
-
+    static AppDelegate* GetInstance();
+    
     virtual void initGLContextAttrs();
 
     /**
@@ -62,6 +63,8 @@ public:
     @param  the pointer of the application
     */
     virtual void applicationWillEnterForeground();
+    
+    void UpdateFinished( bool bSuccess );
 
 private:
 
@@ -69,7 +72,18 @@ private:
     void OpenMainMenu( float Delay );
     
     bool bOpenUpdateMenu = true;
-
+    
+    // Future/Promise to wait for api account validations
+    enum Verified
+    {
+        Offline,
+        Failed,
+        NoAccount,
+        Success
+    };
+    
+    std::future< Verified > VerifyFuture;
+    std::promise< Verified > VerifyPromise;
 };
 
 #endif // _APP_DELEGATE_H_

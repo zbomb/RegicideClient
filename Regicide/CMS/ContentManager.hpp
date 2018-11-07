@@ -75,6 +75,8 @@ namespace Regicide
         inline void ListenForUpdate( std::function< void( bool, bool, std::string ) > Callback ) { UpdateCallback = Callback; }
         inline void StopListening() { ProgressCallback = nullptr; CompleteCallback = nullptr; UpdateCallback = nullptr; }
         
+        ~ContentManager();
+        
     private:
         
         void Init();

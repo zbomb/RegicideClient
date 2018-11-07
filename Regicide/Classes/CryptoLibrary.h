@@ -19,18 +19,10 @@ public:
 	template< typename T >
 	static bool DeserializeCopy( ByteIter Start, ByteIter End, T& Output );
 
-private:
-
-	enum AES_OPERATION { ENCRYPT, DECRYPT };
-	static bool AesOperation( std::vector< uint8 >& Data, const uint8 Key[ 32 ], const uint8 IV[ 16 ], AES_OPERATION Operation );
-	static bool AesError( std::string FailurePoint );
-
 public:
 
-	static bool AesEncrypt( std::vector< uint8 >& Data, const uint8 Key[ 32 ], const uint8 IV[ 16 ] );
-	static bool AesDecrypt( std::vector< uint8 >& Data, const uint8 Key[ 32 ], const uint8 IV[ 16 ] );
-
 	static std::vector< uint8 > SHA256( std::vector< uint8 >& Data );
+    static std::string SHA256( std::string& Data );
 
 	static void PrintVector( const std::vector< uint8 >& Data, std::string Name );
     
@@ -38,6 +30,8 @@ public:
     static std::vector< uint8 > Base64Decode( std::string Input );
     
     static std::string HashPassword( const std::string& Password, const std::string& Username );
+    
+    static void LuaBind( class lua_State* L );
 };
 
 

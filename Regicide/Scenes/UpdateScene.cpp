@@ -9,6 +9,7 @@
 #include "IContentSystem.hpp"
 #include "MainMenuScene.h"
 #include "Utils.h"
+#include "AppDelegate.h"
 
 using namespace cocos2d;
 
@@ -29,10 +30,11 @@ bool UpdateScene::init()
     if( !Scene::init() )
     {
         cocos2d::log( "[UpdateScene] Parent scene failed to init!" );
-        // Were going to transition to main menu, and inform it of an update failure
-        auto Menu = MainMenu::createScene();
-        // TODO: Pass mainmenu a message
-        Director::getInstance()->replaceScene( TransitionFade::create( 1.5f, Menu, Color3B( 0, 0, 0 ) ) );
+        
+        // Let application know that updates failed
+        auto app = AppDelegate::GetInstance();
+        app->UpdateFinished( false );
+        
         return false;
     }
     
@@ -113,10 +115,7 @@ void UpdateScene::UpdateProgress( uint64 Downloaded, uint64 Total, std::string B
 
 void UpdateScene::Internal_Exit( float Delay, bool bSuccess, uint64 Bytes )
 {
-    auto dir = Director::getInstance();
-    auto menu = MainMenu::createScene();
-    
-    // TODO: Inform menu of errors?
-    
-    dir->replaceScene( TransitionFade::create( 1.5f, menu, Color3B( 0, 0, 0 ) ) );
+    // Inform application that the updates are complete, and full initialization can begin
+    auto app = AppDelegate::GetInstance();
+    app->UpdateFinished( bSuccess );
 }

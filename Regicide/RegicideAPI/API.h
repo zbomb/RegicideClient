@@ -65,29 +65,43 @@ namespace Regicide
             return s_Singleton;
         }
         
+        ~APIClient()
+        {
+            LastHttpResponse.reset();
+            s_Singleton = nullptr;
+        }
+        
         LoginResponse Login( const LoginRequest& Request );
         bool LoginAsync( const LoginRequest& Request, std::function<void( LoginResponse )> Callback );
         
         RegisterResponse Register( const RegisterRequest& Request );
         bool RegisterAsync( const RegisterRequest& Request, std::function< void( RegisterResponse )> Callback );
         
-        LogoutResponse Logout( const LogoutRequest& Request );
+        LogoutResponse Logout();
+        bool LogoutAsync( std::function< void( LogoutResponse )> Callback );
+        
+        VerifyResponse VerifyToken();
+        bool VerifyTokenAsync( std::function< void( VerifyResponse )> Callback );
         
         bool IsAuthorized();
-        void ClearAuthToken();
         
-        ExecuteResult ExecutePostMethod( const std::string& Function, Document& Content, Document& Response, long& StatusCode, bool bIncludeAuth = true );
-        bool ExecutePostMethodAsync( const std::string& Function, Document& Content, bool bIncludeAuth, std::function<void( long, Document*, std::string, void* )> Callback, const uint32_t Timeout = 8, void* AsyncState = nullptr );
+        typedef std::function< void( long, Document*, std::string ) > PostCallback;
         
-        ~APIClient()
-        {
-            LastHttpResponse.reset();
-        }
+        ExecuteResult ExecutePostMethod( const std::string& Function, Document& Content, Document& Response, long& StatusCode, bool bIncludeAuth = true, bool bUseGZip = false );
+        ExecuteResult ExecutePostMethod( const std::string& Function, Document& Response, long& StatusCode, bool bIncludeAuth = true, bool bUseGZip = false );
+        
+        bool ExecutePostMethodAsync( const std::string& Function, Document& Content, bool bIncludeAuth, PostCallback Callback, const uint32_t Timeout = 8, bool bUseGZip = false );
+        bool ExecutePostMethodAsync( const std::string& Function, bool bIncludeAuth, PostCallback Callback, const uint32_t Timeout = 8, bool bUseGZip = false );
+        
+    private:
+        
+        bool Internal_PostAsync( const std::string& Function, HttpRequest* Request, PostCallback& Callback, bool bUseGZip );
+        ExecuteResult Internal_Post( const std::string& Function, HttpRequest* Request, bool bUseGZip, long& StatusCode, Document& Response );
         
     private:
         
         std::string AuthToken;
-        std::vector< std::string > BuildRequestHeader( bool bRequireAuth = true, ContentType Content = ContentType::Json );
+        std::vector< std::string > BuildRequestHeader( bool bRequireAuth = true, ContentType Content = ContentType::Json, bool bCompress = false );
         
         HttpRequest* BuildRequest( const std::string& MethodPath, const std::vector< std::string >& Header, const std::string& Content, HttpRequest::Type RequestType = HttpRequest::Type::POST );
         
