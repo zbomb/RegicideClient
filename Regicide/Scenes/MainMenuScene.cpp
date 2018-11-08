@@ -12,6 +12,7 @@
 #include "Utils.h"
 #include "API.h"
 #include "IContentSystem.hpp"
+#include "OptionsScene.hpp"
 
 
 using namespace cocos2d;
@@ -276,13 +277,27 @@ bool MainMenu::init()
     BannerTouch->onTouchBegan = CC_CALLBACK_2( MainMenu::HandleBannerTouchBegin, this );
     _eventDispatcher->addEventListenerWithFixedPriority( BannerTouch, -10 );
     
-    auto actmanager = IContentSystem::GetAccounts();
-    if( !actmanager->IsLoginStored() )
-    {
-        OpenLoginMenu();
-    }
-    
 	return true;
+}
+
+void MainMenu::onEnterTransitionDidFinish()
+{
+    // First, check if the content was cleared manually
+    auto storage = IContentSystem::GetStorage();
+    if( storage->WasContentCleared() && !updPrompt )
+    {
+        updPrompt = UpdatePrompt::create();
+        this->addChild( updPrompt, 100 );
+    }
+    else
+    {
+        // Check if the login menu needs to be opened
+        auto act = IContentSystem::GetAccounts();
+        if( !act->IsLoginStored() )
+        {
+            OpenLoginMenu();
+        }
+    }
 }
 
 
@@ -454,7 +469,8 @@ void MainMenu::OnAccountCallback( Ref* Caller )
 
 void MainMenu::OnOptionsCallback( Ref* Caller )
 {
-
+    auto dir = Director::getInstance();
+    dir->pushScene( TransitionSlideInL::create( 0.5f, OptionsScene::createScene() ) );
 }
 
 
@@ -496,16 +512,6 @@ bool MainMenu::PerformLogin( std::string Username, std::string Password )
                    
                    // Close Login Panel
                    this->CloseLoginMenu();
-               }
-               
-               if( Response.Result == LoginResult::Success )
-               {
-                   auto ActManager = IContentSystem::GetAccounts();
-                   auto& LocalAccount = ActManager->GetLocalAccount();
-                   LocalAccount = Response.Account;
-                   LocalAccount->AuthToken = Response.AuthToken;
-                   
-                   ActManager->WriteAccount();
                }
            }
        } );

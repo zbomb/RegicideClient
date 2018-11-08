@@ -8,10 +8,9 @@
 #include "cocos2d.h"
 
 EventId EventHub::LastUsedId( EVENT_INVALID );
-std::vector< GlobalListener > EventHub::GlobalListeners;
 std::map< std::string, std::vector< EventHook > > EventHub::HookedEvents;
 
-EventHook* EventHub::LookupHook( EventId Identifier, std::string EventName /* = nullptr */ )
+EventHook* EventHub::LookupHook( EventId Identifier, const std::string& EventName /* = nullptr */ )
 {
     // Check if we were given an EventType
     if( !EventName.empty() )
@@ -44,12 +43,12 @@ EventHook* EventHub::LookupHook( EventId Identifier, std::string EventName /* = 
     return nullptr;
 }
 
-bool EventHub::EventExists( EventId Identifier, std::string EventName /* = nullptr */ )
+bool EventHub::EventExists( EventId Identifier, const std::string& EventName /* = nullptr */ )
 {
     return LookupHook( Identifier, EventName ) != nullptr;
 }
 
-EventId EventHub::Bind( std::string inEvent, std::function< bool( EventData* ) > inFunc, CallbackThread inThread /* = CallbackThread::EventOrigin */ )
+EventId EventHub::Bind( const std::string& inEvent, std::function< bool( EventData* ) > inFunc, CallbackThread inThread /* = CallbackThread::EventOrigin */ )
 {
     if( inEvent.empty() || inFunc == nullptr )
     {
@@ -62,7 +61,7 @@ EventId EventHub::Bind( std::string inEvent, std::function< bool( EventData* ) >
     return NewHook.Identifier;
 }
 
-bool EventHub::UnBind( EventId Identifier, std::string CheckFirst /* = nullptr */ )
+bool EventHub::UnBind( EventId Identifier, const std::string& CheckFirst /* = nullptr */ )
 {
     if( !CheckFirst.empty() )
     {
@@ -100,49 +99,3 @@ bool EventHub::UnBind( EventId Identifier, std::string CheckFirst /* = nullptr *
     
     return false;
 }
-
-EventId EventHub::BindGlobal( std::function< bool( std::string, EventData* ) > inFunc, CallbackThread inThread /* = CallbackThread::EventOrigin */ )
-{
-    if( !inFunc )
-    {
-        return EVENT_INVALID;
-    }
-    
-    GlobalListener newGlobal;
-    newGlobal.Callback = inFunc;
-    newGlobal.Identifier = ++LastUsedId;
-    newGlobal.Thread = inThread;
-    GlobalListeners.push_back( newGlobal );
-    
-    return newGlobal.Identifier;
-}
-
-bool EventHub::UnBindGlobal( EventId Identifier )
-{
-    for( std::vector< GlobalListener >::iterator Iter = GlobalListeners.begin(); Iter != GlobalListeners.end(); )
-    {
-        if( Iter->Identifier == Identifier )
-        {
-            GlobalListeners.erase( Iter );
-            return true;
-        }
-        
-        Iter++;
-    }
-    
-    return false;
-}
-
-bool EventHub::GlobalExists( EventId Identifier )
-{
-    for( auto Iter = GlobalListeners.begin(); Iter != GlobalListeners.end(); Iter++ )
-    {
-        if( Iter->Identifier == Identifier )
-        {
-            return true;
-        }
-    }
-    
-    return false;
-}
-

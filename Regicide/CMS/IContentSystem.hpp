@@ -59,6 +59,10 @@ namespace Regicide
         virtual bool ReadLocalBlock( const std::string& Identifier, LocalBlock& Output ) = 0;
         virtual bool ReadLocalBlocks( std::vector< LocalBlock >& Output ) = 0;
         virtual bool WriteLocalBlock( LocalBlock& Input ) = 0;
+        
+        virtual uint32 ClearLocalContent() = 0;
+        virtual void SetContentCleared( bool bCleared ) = 0;
+        virtual bool WasContentCleared() = 0;
     };
     
     class IAccountManager

@@ -1,36 +1,33 @@
--- Test file
--- Regicide Mobile
-include( "core/globals.lua" );
+/*==========================================================================
+        Regicide Mobile - Script System
+        © 2018 Zachary Berry
+===========================================================================*/
+__require( "core/globals.lua" );
 
-print( "=======> LUA ENTRY POINT <=========" );
+REGMOBILE_VERSION = 0.1;
+REGMOBILE_RELEASE = "Beta";
+REGMOBILE_UPDATED = "11.7.18";
 
-local account = reg.cms.GetAccount();
-if( account == nil ) then
-    prin( "====> No local account!" );
-else
-    print( "====> Account: %s", account.Username );
-    print( "====> Coins: %s", tostring( account.Coins ) );
-    print( "====> Email: %s", account.Email );
-    print( "====> Verified: %s", tostring( account.Verified ) );
+print( "======================== Regicide Script System ========================" );
+print( "=> Initialized!" );
+print( "=> Version: %s (%s) - %s", tostring( REGMOBILE_VERSION ), REGMOBILE_RELEASE, REGMOBILE_UPDATED );
 
-    for Id, Ct in pairs( account.Cards ) do
-        print( "====> Card: %s", tostring( Id ) .. " " .. tostring( Ct ) );
-    end
+hook.Add( "OnLogin", "LoginTest", function( Username )
 
-    for i, Deck in pairs( account.Decks ) do
-        print( "===> Deck: %s", Deck.Name );
-        print( "===> Id: %s", tostring( Deck.Id ) );
+    print( "The username is %s", Username );
 
-        for Id, Ct in pairs( Deck.Cards ) do
-            print( "=======> Card: %s", tostring( Id ) .. " " .. tostring( Ct ) );
-        end
-    end
+end )
 
-    for i, Achv in pairs( account.Achievements ) do
-        print( "===> Achv: %s", tostring( Achv.Id ) );
-        print( "=======> State: %s", Achv.State );
-        print( "=======> Complete: %s", tostring( Achv.Complete ) );
-    end
+hook.Add( "MainMenuOpen", "InitTest", function()
 
-    print( "====== Finish Account ========" );
-end
+    print( "Init Test 1!" );
+
+end )
+
+hook.Add( "MainMenuOpen", "InitOther", function()
+
+    print( "Init Test 2!" );
+
+end )
+
+hook.CallEngine( "MainMenuOpen" );

@@ -239,3 +239,40 @@ bool ContentStorage::WriteLocalBlock( LocalBlock &Input )
     auto file = FileUtils::getInstance();
     return file->writeStringToFile( InfoStr, Utils::GetContentDir() + "/blocks/" + Input.Identifier + ".block" );
 }
+
+uint32 ContentStorage::ClearLocalContent()
+{
+    // We need to delete everything except the locally stored account
+    auto file = FileUtils::getInstance();
+    
+    std::vector< std::string > Files;
+    file->listFilesRecursively( Utils::GetContentDir() + "/", &Files );
+    
+    uint32 Count = 0;
+    for( auto& F : Files )
+    {
+        // Dont delete directories
+        if( F.back() == '/' )
+            continue;
+        
+        // Dont delete user account
+        if( F.substr( F.length() - 16 ) == "data/account.dat" )
+            continue;
+        
+        file->removeFile( F );
+        Count++;
+    }
+    
+    SetContentCleared( true );
+    return Count;
+}
+
+void ContentStorage::SetContentCleared( bool bCleared )
+{
+    bWasContentCleared = bCleared;
+}
+
+bool ContentStorage::WasContentCleared()
+{
+    return bWasContentCleared;
+}

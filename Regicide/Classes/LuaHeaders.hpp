@@ -8,8 +8,9 @@
 #ifndef LuaHeaders_h
 #define LuaHeaders_h
 
-#include "lua.hpp"
-#include "lauxlib.h"
-#include "LuaBridge/LuaBridge.h"
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#include <LuaBridge/LuaBridge.h>
 
 #endif /* LuaHeaders_h */

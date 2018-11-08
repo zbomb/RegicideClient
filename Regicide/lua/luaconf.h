@@ -282,7 +282,7 @@
 #define LUAI_FUNC	__attribute__((visibility("hidden"))) extern
 #else				/* }{ */
 // Below was extern
-#define LUAI_FUNC
+#define LUAI_FUNC extern
 #endif				/* } */
 
 #define LUAI_DDEC	LUAI_FUNC
@@ -785,7 +785,7 @@
 ** without modifying the main part of the file.
 */
 
-
+#define LUA_USE_POSIX 1
 
 
 

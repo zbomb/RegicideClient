@@ -84,6 +84,7 @@ private:
     
     std::future< Verified > VerifyFuture;
     std::promise< Verified > VerifyPromise;
+    bool bStartupComplete = false;
 };
 
 #endif // _APP_DELEGATE_H_

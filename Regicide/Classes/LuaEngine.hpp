@@ -8,6 +8,7 @@
 #pragma once
 
 #include "LuaHeaders.hpp"
+#include "LuaBridge/LuaBridge.h"
 
 
 LUALIB_API void luaL_openlibs (lua_State *L);
@@ -28,6 +29,7 @@ namespace Regicide
         ~LuaEngine();
         
         bool RunScript( const std::string& Path );
+        bool ExecuteHook( const std::string& Name, luabridge::LuaRef& Data );
         
     private:
         
@@ -35,4 +37,5 @@ namespace Regicide
         bool _bIsInit;
         
     };
+    
 }

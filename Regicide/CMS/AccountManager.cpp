@@ -94,7 +94,12 @@ void AccountManager::WriteAccount()
 {
     if( !LocalAccount )
     {
-        cocos2d::log( "[AccountManager] Attempt to write local account, but no account data is present!" );
+        // Delete locally store account info
+        auto cs = IContentSystem::GetStorage();
+        if( !cs->DeleteFile( "data/account.dat" ) )
+        {
+            cocos2d::log( "[ERROR] Failed to clear local account from device!" );
+        }
         return;
     }
     

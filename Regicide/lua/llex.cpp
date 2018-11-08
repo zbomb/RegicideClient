@@ -44,7 +44,8 @@ static const char *const luaX_tokens [] = {
     "return", "then", "true", "until", "while",
     "//", "..", "...", "==", ">=", "<=", "~=",
     "<<", ">>", "::", "<eof>",
-    "<number>", "<integer>", "<name>", "<string>"
+    "<number>", "<integer>", "<name>", "<string>",
+    "!=", "!", "/$", "/*", "*/"  // Custom tokens
 };
 
 
@@ -251,8 +252,13 @@ static int read_numeral (LexState *ls, SemInfo *seminfo) {
 static int skip_sep (LexState *ls) {
   int count = 0;
   int s = ls->current;
-  lua_assert(s == '[' || s == ']');
+  lua_assert(s == '[' || s == ']' || s == '*');
   save_and_next(ls);
+if( ls->current == '/' )
+{
+    save_and_next(ls);
+    count++;
+}
   while (ls->current == '=') {
     save_and_next(ls);
     count++;
@@ -261,9 +267,10 @@ static int skip_sep (LexState *ls) {
 }
 
 
-static void read_long_string (LexState *ls, SemInfo *seminfo, int sep) {
+static void read_long_string (LexState *ls, SemInfo *seminfo, int sep = 0, bool bCStyle = false ) {
   int line = ls->linenumber;  /* initial line (for error message) */
-  save_and_next(ls);  /* skip 2nd '[' */
+    if( !bCStyle )
+        save_and_next(ls);  /* skip 2nd '[' */
   if (currIsNewline(ls))  /* string starts with a newline? */
     inclinenumber(ls);  /* skip it */
   for (;;) {
@@ -281,6 +288,26 @@ static void read_long_string (LexState *ls, SemInfo *seminfo, int sep) {
           goto endloop;
         }
         break;
+      }
+      case '*': {
+         if( bCStyle )
+         {
+             // We need to check if the next character is a '/'
+             save_and_next(ls);
+             if( ls->current == '/' )
+             {
+                 save_and_next(ls); // Skip comment end slash
+                 goto endloop;
+             }
+             
+             break;
+         }
+         else
+         {
+             if( seminfo ) save_and_next(ls);
+             else next(ls);
+             break;
+         }
       }
       case '\n': case '\r': {
         save(ls, '\n');
@@ -457,6 +484,24 @@ static int llex (LexState *ls, SemInfo *seminfo) {
           next(ls);  /* skip until end of line (or end of file) */
         break;
       }
+      case '/': {
+        next(ls);
+          if( check_next1( ls, '$' ) ) return TK_IDIV; // Reassign int division
+          if( ls->current != '/' && ls->current != '*' ) return '/';
+          // Else is comment
+          //next(ls);
+          if(ls->current == '*' ) // Long Comment
+          {
+              next(ls);
+              read_long_string( ls, NULL, 0, true ); // Skip comment
+              luaZ_resetbuffer( ls->buff );
+              break;
+          }
+          // else short comment
+          while( !currIsNewline( ls ) && ls->current != EOZ )
+              next( ls ); // Skip until end of line
+          break;
+      }
       case '[': {  /* long string or simply '[' */
         int sep = skip_sep(ls);
         if (sep >= 0) {
@@ -484,15 +529,15 @@ static int llex (LexState *ls, SemInfo *seminfo) {
         else if (check_next1(ls, '>')) return TK_SHR;
         else return '>';
       }
-      case '/': {
-        next(ls);
-        if (check_next1(ls, '/')) return TK_IDIV;
-        else return '/';
-      }
       case '~': {
         next(ls);
         if (check_next1(ls, '=')) return TK_NE;
         else return '~';
+      }
+      case '!': {
+        next(ls);
+        if( check_next1( ls, '=' ) ) return TK_NE;
+        else return '!';
       }
       case ':': {
         next(ls);

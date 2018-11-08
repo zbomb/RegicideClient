@@ -31,6 +31,7 @@
 #include <chrono>
 #include "RegicideAPI/API.h"
 #include "Utils.h"
+#include "EventHub.h"
 #include "LuaEngine.hpp"
 
 
@@ -200,6 +201,9 @@ bool AppDelegate::applicationDidFinishLaunching() {
     else
         director->runWithScene( IntroScene::createScene() );
     
+    // Call Init Hook
+    EventHub::Execute<>( "Init" );
+    
     auto start = std::chrono::steady_clock::now();
     
     // Begin Update
@@ -231,6 +235,7 @@ bool AppDelegate::applicationDidFinishLaunching() {
 void AppDelegate::FinishIntro( float Delay, bool bNeedUpdates, bool bErrors, std::string ErrorMessage )
 {
     auto dir = Director::getInstance();
+    EventHub::Execute<>( "FinishIntro" );
     
     if( bNeedUpdates )
     {
@@ -251,30 +256,38 @@ void AppDelegate::OpenMainMenu( float Delay )
     auto dir = Director::getInstance();
     
     // Wait for API VerifyToken to complete, timeout of 6 seconds,
-    auto VerifyState = VerifyFuture.get();
+    if( !bStartupComplete )
+    {
+        auto VerifyState = VerifyFuture.get();
+        
+        if( VerifyState == Verified::Failed )
+        {
+            // Clear locally stored account, this will cause the login menu to
+            // appear once the main menu is created
+            cocos2d::log( "[Regicide] You have been logged out!" );
+            auto act = IContentSystem::GetAccounts();
+            act->GetLocalAccount().reset();
+            act->WriteAccount();
+        }
+        else if( VerifyState == Verified::Offline )
+        {
+            cocos2d::log( "[Regicide] Failed to contact Regicide Cloud to verify login, please check connection" );
+        }
+        else if( VerifyState == Verified::Success )
+        {
+            cocos2d::log( "[Regicide] Login confirmed. Welcome back!" );
+            EventHub::Execute( "OnLogin", StringEventData( IContentSystem::GetAccounts()->GetLocalAccount()->Info.Username ) );
+        }
+    }
     
-    if( VerifyState == Verified::Failed )
-    {
-        // Clear locally stored account, this will cause the login menu to
-        // appear once the main menu is created
-        cocos2d::log( "[Regicide] You have been logged out!" );
-        auto act = IContentSystem::GetAccounts();
-        act->GetLocalAccount().reset();
-        act->WriteAccount();
-    }
-    else if( VerifyState == Verified::Offline )
-    {
-        cocos2d::log( "[Regicide] Failed to contact Regicide Cloud to verify login, please check connection" );
-    }
-    else if( VerifyState == Verified::Success )
-    {
-        cocos2d::log( "[Regicide] Login confirmed. Welcome back!" );
-    }
+    bStartupComplete = true;
     
     if( dir->getRunningScene() )
         dir->replaceScene( TransitionFade::create( 2, MainMenu::createScene(), Color3B( 0, 0, 0 ) ) );
     else
         dir->runWithScene( MainMenu::createScene() );
+    
+    EventHub::Execute<>( "MainMenuOpen" );
 }
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.

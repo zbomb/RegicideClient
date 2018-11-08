@@ -14,6 +14,8 @@
 #include "network/HttpClient.h"
 #include "network/HttpResponse.h"
 #include "network/HttpRequest.h"
+#include "EventHub.h"
+#include "CMS/IContentSystem.hpp"
 
 
 using namespace Regicide;
@@ -231,7 +233,14 @@ RegisterResponse APIClient::Register( const RegisterRequest &Request )
     // Read the response
     if( ReadRegisterResponse( &ResponseBody, Output ) )
     {
-        AuthToken = Output.AuthToken;
+        auto ActManager = IContentSystem::GetAccounts();
+        auto& LocalAccount = ActManager->GetLocalAccount();
+        LocalAccount = Output.Account;
+        LocalAccount->AuthToken = Output.AuthToken;
+        
+        ActManager->WriteAccount();
+        
+        EventHub::Execute( "OnRegister", StringEventData( Output.Account->Info.Username ) );
     }
     
     return Output;
@@ -295,7 +304,14 @@ bool APIClient::RegisterAsync( const RegisterRequest &Request, std::function<voi
                                           // Read Response
                                           if( ReadRegisterResponse( ResponseBody, Response ) )
                                           {
-                                              AuthToken = Response.AuthToken;
+                                              auto ActManager = IContentSystem::GetAccounts();
+                                              auto& LocalAccount = ActManager->GetLocalAccount();
+                                              LocalAccount = Response.Account;
+                                              LocalAccount->AuthToken = Response.AuthToken;
+                                              
+                                              ActManager->WriteAccount();
+                                              
+                                              EventHub::Execute( "OnRegister", StringEventData( Response.Account->Info.Username ) );
                                           }
                                       }
                                       

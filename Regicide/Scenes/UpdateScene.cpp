@@ -51,7 +51,7 @@ bool UpdateScene::init()
     addChild( Header, 10 );
     
     ////////////// Progress Bar //////////////////
-    Progress = LoadingBar::create();
+    Progress = LoadingBar::create( "loading_bar.png" );
     Progress->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
     Progress->setPosition( Vec2( SceneOrigin.x + SceneSize.width / 2.f, SceneOrigin.y + SceneSize.height / 2.f ) );
     Progress->setDirection( ui::LoadingBar::Direction::RIGHT );
@@ -88,6 +88,8 @@ void UpdateScene::UpdateComplete( bool bSuccess, uint64 Bytes )
     {
         if( bSuccess )
         {
+            // Inform CMS so we dont get prompted for updates
+            Regicide::IContentSystem::GetStorage()->SetContentCleared( false );
             CurrentFile->setString( Regicide::Utils::FormatString( "Update complete! %s", Regicide::Utils::ByteString( Bytes ).c_str() ) );
         }
         else
@@ -116,6 +118,9 @@ void UpdateScene::UpdateProgress( uint64 Downloaded, uint64 Total, std::string B
 void UpdateScene::Internal_Exit( float Delay, bool bSuccess, uint64 Bytes )
 {
     // Inform application that the updates are complete, and full initialization can begin
-    auto app = AppDelegate::GetInstance();
-    app->UpdateFinished( bSuccess );
+    Director::getInstance()->getScheduler()->performFunctionInCocosThread( [ bSuccess ] ()
+              {
+                  auto app = AppDelegate::GetInstance();
+                  app->UpdateFinished( bSuccess );
+              } );
 }

@@ -12,6 +12,7 @@
 #include "RegisterLayer.h"
 #include "EventHub.h"
 #include "Numeric.h"
+#include "UI/UpdatePrompt.hpp"
 
 using namespace cocos2d;
 
@@ -47,6 +48,8 @@ public:
     void OpenRegisterMenu();
     void OpenLoginMenu();
     
+    virtual void onEnterTransitionDidFinish();
+    
 private:
     
     EventId DisconnectId    = EVENT_INVALID;
@@ -65,6 +68,8 @@ private:
 	MenuItemLabel* StoreButton			= nullptr;
 	MenuItemLabel* AccountButton		= nullptr;
 	MenuItemLabel* OptionsButton		= nullptr;
+    
+    UpdatePrompt* updPrompt = nullptr;
 
 	void OnlineCallback( Ref* Caller );
 	void OnSingleplayerCallback( Ref* Caller );

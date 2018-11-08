@@ -31,10 +31,15 @@ namespace Regicide
         virtual bool ReadLocalBlocks( std::vector< LocalBlock >& Output );
         virtual bool WriteLocalBlock( LocalBlock& Input );
         
+        virtual uint32 ClearLocalContent();
+        virtual bool WasContentCleared();
+        virtual void SetContentCleared( bool bCleared );
+        
         ~ContentStorage();
         
     private:
         
+        bool bWasContentCleared = false;
         void Init();
         bool ParseBlock( uint8* Data, ssize_t DataSize, LocalBlock& Output );
         static ContentStorage* GetInstance();

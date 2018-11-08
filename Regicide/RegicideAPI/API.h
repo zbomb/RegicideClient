@@ -100,7 +100,6 @@ namespace Regicide
         
     private:
         
-        std::string AuthToken;
         std::vector< std::string > BuildRequestHeader( bool bRequireAuth = true, ContentType Content = ContentType::Json, bool bCompress = false );
         
         HttpRequest* BuildRequest( const std::string& MethodPath, const std::vector< std::string >& Header, const std::string& Content, HttpRequest::Type RequestType = HttpRequest::Type::POST );

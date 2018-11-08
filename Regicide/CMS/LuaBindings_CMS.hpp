@@ -95,6 +95,55 @@ luabridge::LuaRef __lua_cms_GetAccount( lua_State* L )
     return Output;
 }
 
+// Account accessors
+luabridge::LuaRef __lua_GetUsername( lua_State* L )
+{
+    luabridge::LuaRef Output( L );
+    auto act = Regicide::IContentSystem::GetAccounts();
+    
+    if( !act->IsLoginStored() )
+        return Output;
+    
+    Output = act->GetLocalAccount()->Info.Username;
+    return Output;
+}
+
+luabridge::LuaRef __lua_GetEmail( lua_State* L )
+{
+    luabridge::LuaRef Output( L );
+    auto act = Regicide::IContentSystem::GetAccounts();
+    
+    if( !act->IsLoginStored() )
+        return Output;
+    
+    Output = act->GetLocalAccount()->Info.Email;
+    return Output;
+}
+
+luabridge::LuaRef __lua_GetCoins( lua_State* L )
+{
+    luabridge::LuaRef Output( L );
+    auto act = Regicide::IContentSystem::GetAccounts();
+    
+    if( !act->IsLoginStored() )
+        return Output;
+    
+    Output = act->GetLocalAccount()->Info.Coins;
+    return Output;
+}
+
+luabridge::LuaRef __lua_GetDispName( lua_State* L )
+{
+    luabridge::LuaRef Output( L );
+    auto act = Regicide::IContentSystem::GetAccounts();
+    
+    if( !act->IsLoginStored() )
+        return Output;
+    
+    Output = act->GetLocalAccount()->Info.DisplayName;
+    return Output;
+}
+
 
 namespace Regicide
 {
@@ -112,6 +161,10 @@ namespace Regicide
             .addFunction( "DeleteFile", &__lua_cms_DeleteFile )
             .addFunction( "IsLoggedIn", &__lua_cms_IsLoggedIn )
             .addFunction( "GetAccount", &__lua_cms_GetAccount )
+            .addFunction( "GetUsername", &__lua_GetUsername )
+            .addFunction( "GetEmail", &__lua_GetEmail )
+            .addFunction( "GetDisplayName", &__lua_GetDispName )
+            .addFunction( "GetCoins", &__lua_GetCoins )
         .endNamespace().endNamespace();
     }
 }

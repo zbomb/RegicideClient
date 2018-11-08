@@ -7,13 +7,15 @@
 
 #include "API.h"
 #include "Utils.h"
-#include "utf8.h"
+#include "utf8/utf8.h"
 #include "CryptoLibrary.h"
 #include "external/json/document.h"
 #include "external/json/prettywriter.h"
 #include "network/HttpClient.h"
 #include "network/HttpResponse.h"
 #include "network/HttpRequest.h"
+#include "EventHub.h"
+#include "CMS/IContentSystem.hpp"
 
 
 using namespace Regicide;
@@ -116,7 +118,14 @@ LoginResponse APIClient::Login( const LoginRequest& Request )
     // Process Results
     if( ReadLoginResponse( &Response, Output ) )
     {
-        AuthToken = Output.AuthToken;
+        auto ActManager = IContentSystem::GetAccounts();
+        auto& LocalAccount = ActManager->GetLocalAccount();
+        LocalAccount = Output.Account;
+        LocalAccount->AuthToken = Output.AuthToken;
+        
+        ActManager->WriteAccount();
+        
+        EventHub::Execute( "OnLogin", StringEventData( Output.Account->Info.Username ) );
     }
     
     return Output;
@@ -156,7 +165,14 @@ bool APIClient::LoginAsync( const LoginRequest &Request, std::function<void (Log
                   {
                       if( ReadLoginResponse( ResponseBody, Response ) )
                       {
-                          AuthToken = Response.AuthToken;
+                          auto ActManager = IContentSystem::GetAccounts();
+                          auto& LocalAccount = ActManager->GetLocalAccount();
+                          LocalAccount = Response.Account;
+                          LocalAccount->AuthToken = Response.AuthToken;
+                          
+                          ActManager->WriteAccount();
+
+                          EventHub::Execute( "OnLogin", StringEventData( Response.Account->Info.Username ) );
                       }
                   }
 
