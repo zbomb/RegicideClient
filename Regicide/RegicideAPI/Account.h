@@ -40,6 +40,10 @@ namespace Regicide
             Id = 0;
             Ct = 0;
         }
+        
+        Card( uint16 inId, uint16 inCt )
+        : Id( inId ), Ct( inCt )
+        {}
     };
     
     struct Deck

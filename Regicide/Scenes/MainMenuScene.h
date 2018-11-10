@@ -36,9 +36,6 @@ public:
     inline LoginState GetLoginState() const { return CurrentState; }
     void SetLoginState( LoginState inState );
     
-    bool OnLogin( EventData* inData );
-    bool OnRegister( EventData* inData );
-    
     bool PerformLogin( std::string Username, std::string Password );
     bool PerformRegister( std::string Username, std::string Password, std::string DisplayName, std::string EmailAddress );
     
@@ -104,5 +101,6 @@ private:
     DrawNode* PopupNode     = nullptr;
     Label* PopupLabel       = nullptr;
     std::shared_ptr< EventListenerTouchOneByOne > TouchHandler;
+    
 
 };

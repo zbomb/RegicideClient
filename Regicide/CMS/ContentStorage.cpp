@@ -57,6 +57,11 @@ void ContentStorage::Init()
     if( !file->isDirectoryExist( ContentRoot + "/data" ) )
     {
         file->createDirectory( ContentRoot + "/data" );
+        file->createDirectory( ContentRoot + "/data/cards" );
+    }
+    else if( !file->isDirectoryExist( ContentRoot + "/data/cards" ) )
+    {
+        file->createDirectory( ContentRoot + "/data/cards" );
     }
     
     if( !file->isDirectoryExist( ContentRoot + "/blocks" ) )

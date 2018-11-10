@@ -13,6 +13,8 @@
 #include "API.h"
 #include "IContentSystem.hpp"
 #include "OptionsScene.hpp"
+#include "SingleplayerLauncher.hpp"
+#include "OnlineLauncher.hpp"
 
 
 using namespace cocos2d;
@@ -277,6 +279,17 @@ bool MainMenu::init()
     BannerTouch->onTouchBegan = CC_CALLBACK_2( MainMenu::HandleBannerTouchBegin, this );
     _eventDispatcher->addEventListenerWithFixedPriority( BannerTouch, -10 );
     
+    // Were going to check if the user is already logged in
+    auto act = IContentSystem::GetAccounts();
+    if( act->IsLoginStored() )
+    {
+        SetLoginState( LoginState::LoggedIn );
+    }
+    else
+    {
+        SetLoginState( LoginState::LoggedOut );
+    }
+    
 	return true;
 }
 
@@ -296,6 +309,11 @@ void MainMenu::onEnterTransitionDidFinish()
         if( !act->IsLoginStored() )
         {
             OpenLoginMenu();
+            SetLoginState( LoginState::LoggedOut );
+        }
+        else
+        {
+            SetLoginState( LoginState::LoggedIn );
         }
     }
 }
@@ -449,7 +467,7 @@ void MainMenu::ShowError( std::string ErrorMessage )
 
 void MainMenu::OnlineCallback( Ref* Caller )
 {
-
+    Director::getInstance()->pushScene( TransitionSlideInL::create( 0.5f, OnlineLauncherScene::createScene() ) );
 }
 
 void MainMenu::OnStoreCallback( Ref* Caller )
@@ -459,7 +477,7 @@ void MainMenu::OnStoreCallback( Ref* Caller )
 
 void MainMenu::OnSingleplayerCallback( Ref* Caller )
 {
-
+    Director::getInstance()->pushScene( TransitionSlideInL::create( 0.5f, SingleplayerLauncherScene::createScene() ) );
 }
 
 void MainMenu::OnAccountCallback( Ref* Caller )
@@ -469,8 +487,7 @@ void MainMenu::OnAccountCallback( Ref* Caller )
 
 void MainMenu::OnOptionsCallback( Ref* Caller )
 {
-    auto dir = Director::getInstance();
-    dir->pushScene( TransitionSlideInL::create( 0.5f, OptionsScene::createScene() ) );
+    Director::getInstance()->pushScene( TransitionSlideInL::create( 0.5f, OptionsScene::createScene() ) );
 }
 
 
@@ -564,17 +581,6 @@ bool MainMenu::PerformRegister( std::string Username, std::string Password, std:
                      this->CloseRegisterMenu();
                  }
              }
-             
-             // Save account in AccountManager
-             if( Response.Result == RegisterResult::Success )
-             {
-                 auto ActManager = IContentSystem::GetAccounts();
-                 auto& LocalAccount = ActManager->GetLocalAccount();
-                 LocalAccount = Response.Account;
-                 LocalAccount->AuthToken = Response.AuthToken;
-                 
-                 ActManager->WriteAccount();
-             }
          });
 }
 
@@ -595,60 +601,9 @@ void MainMenu::CloseLoginMenu()
 
 void MainMenu::CancelLogin()
 {
-    /*
-    RegCloud* RegSys = RegCloud::Get();
-    SetLoginState( RegSys->IsLoggedIn() ? LoginState::OfflineLogin : LoginState::LoggedOut );
-     */
     CloseLoginMenu();
 }
 
-bool MainMenu::OnLogin( EventData* inData )
-{
-    /*
-    LoginEventData* Result = static_cast< LoginEventData* >( inData );
-    
-    if( !Result || Result->Result != LoginResult::Success )
-    {
-        SetLoginState( LoginState::LoggedOut );
-        if( _bLoginOpen && LoginPanel )
-            LoginPanel->OnLoginFailure( Result->Result );
-    }
-    else
-    {
-        SetLoginState( LoginState::LoggedIn );
-        CloseLoginMenu();
-    }
-     */
-    
-    return true;
-}
-
-bool MainMenu::OnRegister( EventData *inData )
-{
-    /*
-    NumericEventData* Result = static_cast< NumericEventData* >( inData );
-    
-    if( !Result || Result->Data != (int) ERegisterResult::Success )
-    {        if( _bRegisterOpen && RegisterPanel )
-            RegisterPanel->OnRegisterFailure( Result->Data );
-    }
-    else if( Result->Data == (int) ERegisterResult::SuccessWithInvalidPacket )
-    {
-        // This means that the account was created, but we didnt download it properly,
-        // so we will force the user to relogin
-        OpenLoginMenu();
-        if( LoginPanel )
-            LoginPanel->ShowError( "Account was created.. but the new account couldnt be downloaded. Please login to your new account to continue" );
-    }
-    else
-    {
-        SetLoginState( LoginState::LoggedIn );
-        CloseRegisterMenu();
-    }
-    */
-    
-    return true;
-}
 
 void MainMenu::SetLoginState( LoginState inState )
 {

@@ -28,8 +28,22 @@
 #define SDKBOX_ENABLED
 #define USE_AUDIO_ENGINE true
 
+#include "Numeric.h"
 #include "cocos2d.h"
 #include <future>
+#include "RegicideAPI/Account.h"
+
+#define REG_TAG_LAUNCHER 1010
+
+
+enum class GameState
+{
+    MainMenu,
+    Store,
+    Singleplayer,
+    Multiplayer
+};
+
 
 /**
 @brief    The cocos2d Application.
@@ -65,8 +79,11 @@ public:
     virtual void applicationWillEnterForeground();
     
     void UpdateFinished( bool bSuccess );
-
+    inline GameState GetState() const { return State; }
+    
 private:
+    
+    void DebugBuildAIDeck( Regicide::Deck& outDeck );
 
     void FinishIntro( float Delay, bool bUpdates, bool bError, std::string Message );
     void OpenMainMenu( float Delay );
@@ -85,6 +102,9 @@ private:
     std::future< Verified > VerifyFuture;
     std::promise< Verified > VerifyPromise;
     bool bStartupComplete = false;
+    
+    GameState State;
+
 };
 
 #endif // _APP_DELEGATE_H_

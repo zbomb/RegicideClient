@@ -33,6 +33,8 @@
 #include "Utils.h"
 #include "EventHub.h"
 #include "LuaEngine.hpp"
+#include "Game/CardEntity.hpp"
+#include "Game/SingleplayerLauncher.hpp"
 
 
 using namespace Regicide;
@@ -288,6 +290,34 @@ void AppDelegate::OpenMainMenu( float Delay )
         dir->runWithScene( MainMenu::createScene() );
     
     EventHub::Execute<>( "MainMenuOpen" );
+    
+    // DEBUG
+    auto& Launcher = Game::SingleplayerLauncher::GetInstance();
+    Launcher.ListenForError( [&] ( std::string ErrMessage )
+                            {
+                                cocos2d::log( "[APP] ERROR CALLBACK: %s", ErrMessage.c_str() );
+                            });
+    Launcher.ListenForSuccess( [] () { cocos2d::log( "[APP] LAUNCH SUCCESS" ); });
+    
+    auto Args = Game::QuickMatchArguments();
+    Args.PlayerName = "Butthole Pussy Player";
+    Args.OpponentName = "Butthole Pussy Opponent";
+    Args.PlayerDeck.Id = 1;
+    Args.OpponentDeck.Id = 1;
+    
+    for( int i = 1; i < 25; i++ )
+    {
+        auto card = Regicide::Card();
+        card.Id = i;
+        card.Ct = 2;
+        Args.PlayerDeck.Cards.push_back( card );
+        Args.OpponentDeck.Cards.push_back( card );
+    }
+    
+    Args.LevelBackground = 10;
+    Args.Difficulty = Game::AIDifficulty::Normal;
+    
+    Launcher.LaunchQuickMatch( Args );
 }
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.
@@ -320,3 +350,25 @@ void AppDelegate::UpdateFinished( bool bSuccess )
     // Open main menu
     OpenMainMenu( 0.f );
 }
+
+
+/*========================================================================================
+    Match Launching
+========================================================================================*/
+void AppDelegate::DebugBuildAIDeck( Regicide::Deck &outDeck )
+{
+    outDeck.Name = "AI Deck";
+    outDeck.Id = 0;
+    
+    outDeck.Cards.push_back( Card( 3, 2 ) );
+    outDeck.Cards.push_back( Card( 50, 2 ) );
+    outDeck.Cards.push_back( Card( 22, 4 ) );
+    outDeck.Cards.push_back( Card( 85, 3 ) );
+    outDeck.Cards.push_back( Card( 66, 2 ) );
+    outDeck.Cards.push_back( Card( 99, 2 ) );
+    outDeck.Cards.push_back( Card( 101, 2 ) );
+    outDeck.Cards.push_back( Card( 232, 1 ) );
+    outDeck.Cards.push_back( Card( 173, 2 ) );
+    
+}
+

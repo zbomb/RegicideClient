@@ -79,6 +79,13 @@
 		D02C114421804977009A8DFD /* snappy-stubs-internal.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113A21804977009A8DFD /* snappy-stubs-internal.cc */; };
 		D02C114521804977009A8DFD /* snappy-stubs-public.h in Resources */ = {isa = PBXBuildFile; fileRef = D02C113C21804977009A8DFD /* snappy-stubs-public.h */; };
 		D02C114721804977009A8DFD /* snappy.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113F21804977009A8DFD /* snappy.cc */; };
+		D02F8DC621974CFD00B5C65A /* GameModeBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */; };
+		D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DC821974DE300B5C65A /* Player.cpp */; };
+		D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */; };
+		D02F8DD021974F7D00B5C65A /* World.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DCE21974F7D00B5C65A /* World.cpp */; };
+		D02F8DD32197509F00B5C65A /* SingleplayerLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */; };
+		D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */; };
+		D0414B762195DF7100D0BA2F /* OnlineLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */; };
 		D05E9BC12189C27A0026E33A /* API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BBE2189C27A0026E33A /* API.cpp */; };
 		D05E9BC22189C27A0026E33A /* API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BBE2189C27A0026E33A /* API.cpp */; };
 		D05E9BC5218AB7EF0026E33A /* Utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BC4218AB7EF0026E33A /* Utils.cpp */; };
@@ -95,6 +102,8 @@
 		D0947ADA21916DE40097F326 /* VerifyFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947AD921916DE40097F326 /* VerifyFunction.cpp */; };
 		D0947ADD21916DFA0097F326 /* LogoutFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */; };
 		D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */; };
+		D0B12CFD2196A45100B7C674 /* EntityBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B12CFB2196A45100B7C674 /* EntityBase.cpp */; };
+		D0B12D002196B05F00B7C674 /* CardEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */; };
 		D0B2724F2192BF3900073264 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */; };
 		D0B272502192BF3900073264 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */; };
 		D0B2725C2192C2E300073264 /* LuaScripts in Resources */ = {isa = PBXBuildFile; fileRef = D0B2725B2192C2E300073264 /* LuaScripts */; };
@@ -297,6 +306,20 @@
 		D02C113F21804977009A8DFD /* snappy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = snappy.cc; sourceTree = "<group>"; };
 		D02C114021804977009A8DFD /* snappy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = snappy.h; sourceTree = "<group>"; };
 		D02C114921804A19009A8DFD /* snappy-config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "snappy-config.h"; sourceTree = "<group>"; };
+		D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameModeBase.cpp; sourceTree = "<group>"; };
+		D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GameModeBase.hpp; sourceTree = "<group>"; };
+		D02F8DC821974DE300B5C65A /* Player.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Player.cpp; sourceTree = "<group>"; };
+		D02F8DC921974DE300B5C65A /* Player.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Player.hpp; sourceTree = "<group>"; };
+		D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerGameMode.cpp; sourceTree = "<group>"; };
+		D02F8DCC21974E9600B5C65A /* SingleplayerGameMode.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerGameMode.hpp; sourceTree = "<group>"; };
+		D02F8DCE21974F7D00B5C65A /* World.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = World.cpp; sourceTree = "<group>"; };
+		D02F8DCF21974F7D00B5C65A /* World.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = World.hpp; sourceTree = "<group>"; };
+		D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerLauncher.cpp; sourceTree = "<group>"; };
+		D02F8DD22197509F00B5C65A /* SingleplayerLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerLauncher.hpp; sourceTree = "<group>"; };
+		D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerLauncher.cpp; sourceTree = "<group>"; };
+		D0414B712195DF5600D0BA2F /* SingleplayerLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerLauncher.hpp; sourceTree = "<group>"; };
+		D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OnlineLauncher.cpp; sourceTree = "<group>"; };
+		D0414B752195DF7100D0BA2F /* OnlineLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = OnlineLauncher.hpp; sourceTree = "<group>"; };
 		D058CB6E217592160074ECB7 /* checked.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = checked.h; sourceTree = "<group>"; };
 		D058CB6F217592160074ECB7 /* core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = core.h; sourceTree = "<group>"; };
 		D058CB70217592160074ECB7 /* unchecked.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unchecked.h; sourceTree = "<group>"; };
@@ -324,6 +347,10 @@
 		D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LogoutFunction.cpp; sourceTree = "<group>"; };
 		D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ContentStorage.cpp; sourceTree = "<group>"; };
 		D0A5CDAC218D60CD004AC648 /* ContentStorage.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ContentStorage.hpp; sourceTree = "<group>"; };
+		D0B12CFB2196A45100B7C674 /* EntityBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EntityBase.cpp; sourceTree = "<group>"; };
+		D0B12CFC2196A45100B7C674 /* EntityBase.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EntityBase.hpp; sourceTree = "<group>"; };
+		D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardEntity.cpp; sourceTree = "<group>"; };
+		D0B12CFF2196B05F00B7C674 /* CardEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardEntity.hpp; sourceTree = "<group>"; };
 		D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D0B2725B2192C2E300073264 /* LuaScripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LuaScripts; path = ../LuaScripts; sourceTree = "<group>"; };
 		D0B2725D2192C38A00073264 /* Resource */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resource; path = ../Resource; sourceTree = "<group>"; };
@@ -447,6 +474,7 @@
 		29B97314FDCFA39411CA2CEA /* CustomTemplate */ = {
 			isa = PBXGroup;
 			children = (
+				D0414BA02195EDFA00D0BA2F /* Game */,
 				D0B2725D2192C38A00073264 /* Resource */,
 				D0B2725B2192C2E300073264 /* LuaScripts */,
 				D0189B972192877A007A8BD6 /* lua */,
@@ -666,6 +694,28 @@
 			path = ../snappy;
 			sourceTree = "<group>";
 		};
+		D0414BA02195EDFA00D0BA2F /* Game */ = {
+			isa = PBXGroup;
+			children = (
+				D0B12CFB2196A45100B7C674 /* EntityBase.cpp */,
+				D0B12CFC2196A45100B7C674 /* EntityBase.hpp */,
+				D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */,
+				D0B12CFF2196B05F00B7C674 /* CardEntity.hpp */,
+				D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */,
+				D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */,
+				D02F8DC821974DE300B5C65A /* Player.cpp */,
+				D02F8DC921974DE300B5C65A /* Player.hpp */,
+				D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */,
+				D02F8DCC21974E9600B5C65A /* SingleplayerGameMode.hpp */,
+				D02F8DCE21974F7D00B5C65A /* World.cpp */,
+				D02F8DCF21974F7D00B5C65A /* World.hpp */,
+				D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */,
+				D02F8DD22197509F00B5C65A /* SingleplayerLauncher.hpp */,
+			);
+			name = Game;
+			path = ../Game;
+			sourceTree = "<group>";
+		};
 		D058CB6C217592160074ECB7 /* utf8 */ = {
 			isa = PBXGroup;
 			children = (
@@ -732,6 +782,10 @@
 				D0CC20632190B76500B01994 /* UpdateScene.hpp */,
 				D0E6C81521940B7C00064670 /* OptionsScene.cpp */,
 				D0E6C81621940B7C00064670 /* OptionsScene.hpp */,
+				D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */,
+				D0414B712195DF5600D0BA2F /* SingleplayerLauncher.hpp */,
+				D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */,
+				D0414B752195DF7100D0BA2F /* OnlineLauncher.hpp */,
 			);
 			name = Scenes;
 			path = ../Scenes;
@@ -927,7 +981,10 @@
 				D082EBDF218BC445004CD6DE /* iOSUtil.mm in Sources */,
 				D0189BF92192877A007A8BD6 /* Makefile in Sources */,
 				D082EBE6218C1BE4004CD6DE /* AccountManager.cpp in Sources */,
+				D02F8DD021974F7D00B5C65A /* World.cpp in Sources */,
+				D02F8DC621974CFD00B5C65A /* GameModeBase.cpp in Sources */,
 				D0189BE62192877A007A8BD6 /* lmathlib.cpp in Sources */,
+				D02F8DD32197509F00B5C65A /* SingleplayerLauncher.cpp in Sources */,
 				D0B9FD6D217128ED0097E97B /* CryptoLibrary.cpp in Sources */,
 				D02C114221804977009A8DFD /* snappy-c.cc in Sources */,
 				D0189BE42192877A007A8BD6 /* liolib.cpp in Sources */,
@@ -937,6 +994,7 @@
 				D0E6C81B2194218A00064670 /* UpdatePrompt.cpp in Sources */,
 				D0947ADA21916DE40097F326 /* VerifyFunction.cpp in Sources */,
 				D0189BD92192877A007A8BD6 /* lbitlib.cpp in Sources */,
+				D0B12CFD2196A45100B7C674 /* EntityBase.cpp in Sources */,
 				D0B9FD69217128ED0097E97B /* ConnectingPopup.cpp in Sources */,
 				1AF87B781F6F77F7007BE51C /* AppController.mm in Sources */,
 				D0189BEB2192877A007A8BD6 /* loslib.cpp in Sources */,
@@ -955,7 +1013,9 @@
 				D0189BED2192877A007A8BD6 /* lstate.cpp in Sources */,
 				D082EBD9218B5DBF004CD6DE /* sha256.c in Sources */,
 				D0189BD72192877A007A8BD6 /* lauxlib.cpp in Sources */,
+				D0414B762195DF7100D0BA2F /* OnlineLauncher.cpp in Sources */,
 				46880B8819C43A87006E1F66 /* AppDelegate.cpp in Sources */,
+				D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */,
 				D0CC206821910FB000B01994 /* IContentSystem.cpp in Sources */,
 				1AF87B8A1F6F7822007BE51C /* main.m in Sources */,
 				D0189BE02192877A007A8BD6 /* ldump.cpp in Sources */,
@@ -963,15 +1023,18 @@
 				D0189BF22192877A007A8BD6 /* ltm.cpp in Sources */,
 				D0189BDD2192877A007A8BD6 /* ldblib.cpp in Sources */,
 				D082EBE9218C47FA004CD6DE /* ContentManager.cpp in Sources */,
+				D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */,
 				46880B8A19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */,
 				D082EBDB218B5E3E004CD6DE /* RegisterFunction.cpp in Sources */,
 				D0189BF72192877A007A8BD6 /* lvm.cpp in Sources */,
+				D0B12D002196B05F00B7C674 /* CardEntity.cpp in Sources */,
 				D0189BD82192877A007A8BD6 /* lbaselib.cpp in Sources */,
 				D0189BE82192877A007A8BD6 /* loadlib.cpp in Sources */,
 				D0189BDA2192877A007A8BD6 /* lcode.cpp in Sources */,
 				D0189BF52192877A007A8BD6 /* lundump.cpp in Sources */,
 				D0CC20642190B76500B01994 /* UpdateScene.cpp in Sources */,
 				D0189BDC2192877A007A8BD6 /* lctype.cpp in Sources */,
+				D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */,
 				D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */,
 				D0189BE72192877A007A8BD6 /* lmem.cpp in Sources */,
 				D05E9BC5218AB7EF0026E33A /* Utils.cpp in Sources */,

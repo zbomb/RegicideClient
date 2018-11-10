@@ -14,7 +14,7 @@ typedef uint32_t EventId;
 
 #define EVENT_SAFE_UNBIND( inEventId ) if( inEventId != EVENT_INVALID ) { EventHub::UnBind( inEventId ); }
 
-enum CallbackThread
+enum class CallbackThread
 {
     Game,
     Network,
