@@ -8,6 +8,7 @@
 #include "SingleplayerLauncher.hpp"
 #include "PopTransition.hpp"
 #include "AppDelegate.h"
+#include "CMS/IContentSystem.hpp"
 
 USING_NS_CC;
 
@@ -68,6 +69,7 @@ bool SingleplayerLauncherScene::init()
             }
             
         } );
+    addChild( LaunchButton, 20 );
     
     
     return true;
@@ -81,5 +83,33 @@ void SingleplayerLauncherScene::OnBackClicked( Ref* Caller )
 
 void SingleplayerLauncherScene::OnLaunchClicked( cocos2d::Ref *Caller )
 {
-
+    auto app = AppDelegate::GetInstance();
+    PracticeArguments Args;
+    
+    auto act = Regicide::IContentSystem::GetAccounts();
+    auto Pl = act->GetLocalAccount();
+    
+    Args.PlayerName = Pl->Info.DisplayName;
+    Args.OpponentName = "Test Bot";
+    
+    Regicide::Deck TestDeck;
+    TestDeck.Name = "Test Deck";
+    TestDeck.Id = 1;
+    
+    for( int i = 0; i < 1; i++ )
+    {
+        Regicide::Card newCard;
+        newCard.Id = i + 5;
+        newCard.Ct = 30;
+        
+        TestDeck.Cards.push_back( newCard );
+    }
+    
+    Args.PlayerDeck = TestDeck;
+    Args.OpponentDeck = TestDeck;
+    
+    Args.Difficulty = AIDifficulty::Normal;
+    Args.LevelBackground = 5;
+    
+    app->LaunchPractice( Args );
 }

@@ -51,6 +51,10 @@ bool MainMenu::init()
 	{
 		return false;
 	}
+    
+    // Free unused textures
+    auto Cache = Director::getInstance()->getTextureCache();
+    Cache->removeUnusedTextures();
 
 	auto sceneSize = Director::getInstance()->getVisibleSize();
 	auto sceneOrigin = Director::getInstance()->getVisibleOrigin();

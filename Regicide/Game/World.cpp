@@ -15,17 +15,21 @@ World* World::CurrentInstance( nullptr );
 World::World()
 : EntityBase( "World" )
 {
-    
+    CC_ASSERT( !CurrentInstance );
+    CurrentInstance = this;
 }
 
 World::~World()
 {
+    CC_ASSERT( this == CurrentInstance );
     
+    CurrentInstance     = nullptr;
+    GM                  = nullptr;
+    Auth                = nullptr;
 }
 
 void World::Cleanup()
 {
-    
 }
 
 
@@ -33,5 +37,3 @@ World* World::GetWorld()
 {
     return CurrentInstance;
 }
-
-

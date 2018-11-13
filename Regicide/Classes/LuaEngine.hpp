@@ -28,6 +28,7 @@ namespace Regicide
         LuaEngine();
         ~LuaEngine();
         
+        bool RunString( const std::string& Code );
         bool RunScript( const std::string& Path );
         bool ExecuteHook( const std::string& Name, luabridge::LuaRef& Data );
         

@@ -74,6 +74,11 @@
 		D0189BF72192877A007A8BD6 /* lvm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0189BD12192877A007A8BD6 /* lvm.cpp */; };
 		D0189BF82192877A007A8BD6 /* lzio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0189BD32192877A007A8BD6 /* lzio.cpp */; };
 		D0189BF92192877A007A8BD6 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = D0189BD52192877A007A8BD6 /* Makefile */; };
+		D01B61BC2197EE0F00D77D43 /* DeckEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61BA2197EE0F00D77D43 /* DeckEntity.cpp */; };
+		D01B61C22198124700D77D43 /* HandEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61C02198124700D77D43 /* HandEntity.cpp */; };
+		D01B61C5219815C600D77D43 /* FieldEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61C3219815C600D77D43 /* FieldEntity.cpp */; };
+		D01B61C82198167700D77D43 /* GraveyardEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61C62198167700D77D43 /* GraveyardEntity.cpp */; };
+		D024C5B6219AAB640024968E /* CardLayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D024C5B4219AAB640024968E /* CardLayer.cpp */; };
 		D02C114221804977009A8DFD /* snappy-c.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113521804977009A8DFD /* snappy-c.cc */; };
 		D02C114321804977009A8DFD /* snappy-sinksource.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113821804977009A8DFD /* snappy-sinksource.cc */; };
 		D02C114421804977009A8DFD /* snappy-stubs-internal.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113A21804977009A8DFD /* snappy-stubs-internal.cc */; };
@@ -108,6 +113,8 @@
 		D0B272502192BF3900073264 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */; };
 		D0B2725C2192C2E300073264 /* LuaScripts in Resources */ = {isa = PBXBuildFile; fileRef = D0B2725B2192C2E300073264 /* LuaScripts */; };
 		D0B2725E2192C38A00073264 /* Resource in Resources */ = {isa = PBXBuildFile; fileRef = D0B2725D2192C38A00073264 /* Resource */; };
+		D0B75D262198E66300EC80F5 /* AuthorityBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B75D242198E66300EC80F5 /* AuthorityBase.cpp */; };
+		D0B75D2A2198E6CD00EC80F5 /* SingleplayerAuthority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B75D282198E6CD00EC80F5 /* SingleplayerAuthority.cpp */; };
 		D0B9FD69217128ED0097E97B /* ConnectingPopup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */; };
 		D0B9FD6A217128ED0097E97B /* ConnectingPopup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */; };
 		D0B9FD6D217128ED0097E97B /* CryptoLibrary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD5D217128ED0097E97B /* CryptoLibrary.cpp */; };
@@ -125,6 +132,9 @@
 		D0E6C81721940B7C00064670 /* OptionsScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0E6C81521940B7C00064670 /* OptionsScene.cpp */; };
 		D0E6C81B2194218A00064670 /* UpdatePrompt.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0E6C8192194218A00064670 /* UpdatePrompt.cpp */; };
 		D0E6C81D2194314B00064670 /* LaunchScreenBackground2.png in Resources */ = {isa = PBXBuildFile; fileRef = D0E6C81C2194314B00064670 /* LaunchScreenBackground2.png */; };
+		D0E894EF2199E4E30095F842 /* CardAnimations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0E894ED2199E4E30095F842 /* CardAnimations.cpp */; };
+		D0FCB83221990D3B00FC1277 /* LoadingScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0FCB83021990D3B00FC1277 /* LoadingScene.cpp */; };
+		D0FCB83621990DAD00FC1277 /* GameScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0FCB83421990DAD00FC1277 /* GameScene.cpp */; };
 		D44C620C132DFF330009C878 /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D44C620B132DFF330009C878 /* OpenAL.framework */; };
 		D44C620E132DFF430009C878 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D44C620D132DFF430009C878 /* AVFoundation.framework */; };
 		D44C6210132DFF4E0009C878 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D44C620F132DFF4E0009C878 /* AudioToolbox.framework */; };
@@ -295,6 +305,17 @@
 		D0189BFC219291C1007A8BD6 /* APILuaBindings.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = APILuaBindings.hpp; sourceTree = "<group>"; };
 		D0189BFD21929B1A007A8BD6 /* LuaBindings_CMS.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LuaBindings_CMS.hpp; sourceTree = "<group>"; };
 		D0189BFE21929ECE007A8BD6 /* LuaHeaders.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LuaHeaders.hpp; sourceTree = "<group>"; };
+		D01B61BA2197EE0F00D77D43 /* DeckEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DeckEntity.cpp; sourceTree = "<group>"; };
+		D01B61BB2197EE0F00D77D43 /* DeckEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DeckEntity.hpp; sourceTree = "<group>"; };
+		D01B61BF2197FE8A00D77D43 /* Random.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Random.hpp; sourceTree = "<group>"; };
+		D01B61C02198124700D77D43 /* HandEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = HandEntity.cpp; sourceTree = "<group>"; };
+		D01B61C12198124700D77D43 /* HandEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = HandEntity.hpp; sourceTree = "<group>"; };
+		D01B61C3219815C600D77D43 /* FieldEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FieldEntity.cpp; sourceTree = "<group>"; };
+		D01B61C4219815C600D77D43 /* FieldEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = FieldEntity.hpp; sourceTree = "<group>"; };
+		D01B61C62198167700D77D43 /* GraveyardEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GraveyardEntity.cpp; sourceTree = "<group>"; };
+		D01B61C72198167700D77D43 /* GraveyardEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GraveyardEntity.hpp; sourceTree = "<group>"; };
+		D024C5B4219AAB640024968E /* CardLayer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardLayer.cpp; sourceTree = "<group>"; };
+		D024C5B5219AAB640024968E /* CardLayer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardLayer.hpp; sourceTree = "<group>"; };
 		D02C113521804977009A8DFD /* snappy-c.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snappy-c.cc"; sourceTree = "<group>"; };
 		D02C113621804977009A8DFD /* snappy-c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-c.h"; sourceTree = "<group>"; };
 		D02C113721804977009A8DFD /* snappy-internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-internal.h"; sourceTree = "<group>"; };
@@ -356,6 +377,10 @@
 		D0B2725D2192C38A00073264 /* Resource */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resource; path = ../Resource; sourceTree = "<group>"; };
 		D0B4C6552191DBEF00DC4155 /* libluajit.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libluajit.a; path = "../../../cocos2d-x-3.17/external/lua/luajit/prebuilt/ios/libluajit.a"; sourceTree = "<group>"; };
 		D0B4C6572191DC4000DC4155 /* liblua.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblua.a; path = "../../../cocos2d-x-3.17/external/lua/lua/prebuilt/ios/liblua.a"; sourceTree = "<group>"; };
+		D0B75D242198E66300EC80F5 /* AuthorityBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AuthorityBase.cpp; sourceTree = "<group>"; };
+		D0B75D252198E66300EC80F5 /* AuthorityBase.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AuthorityBase.hpp; sourceTree = "<group>"; };
+		D0B75D282198E6CD00EC80F5 /* SingleplayerAuthority.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerAuthority.cpp; sourceTree = "<group>"; };
+		D0B75D292198E6CD00EC80F5 /* SingleplayerAuthority.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerAuthority.hpp; sourceTree = "<group>"; };
 		D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ConnectingPopup.cpp; sourceTree = "<group>"; };
 		D0B9FD59217128EC0097E97B /* MainMenuScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainMenuScene.h; sourceTree = "<group>"; };
 		D0B9FD5B217128ED0097E97B /* RegisterLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RegisterLayer.h; sourceTree = "<group>"; };
@@ -378,11 +403,18 @@
 		D0E6C8192194218A00064670 /* UpdatePrompt.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = UpdatePrompt.cpp; sourceTree = "<group>"; };
 		D0E6C81A2194218A00064670 /* UpdatePrompt.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = UpdatePrompt.hpp; sourceTree = "<group>"; };
 		D0E6C81C2194314B00064670 /* LaunchScreenBackground2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = LaunchScreenBackground2.png; sourceTree = "<group>"; };
+		D0E894EB2199C9A60095F842 /* ICardContainer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ICardContainer.hpp; sourceTree = "<group>"; };
+		D0E894ED2199E4E30095F842 /* CardAnimations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardAnimations.cpp; sourceTree = "<group>"; };
+		D0E894EE2199E4E30095F842 /* CardAnimations.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardAnimations.hpp; sourceTree = "<group>"; };
 		D0EBDFA42190140400F452B7 /* compress.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = compress.hpp; sourceTree = "<group>"; };
 		D0EBDFA52190145C00F452B7 /* config.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = config.hpp; sourceTree = "<group>"; };
 		D0EBDFA62190147900F452B7 /* decompress.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = decompress.hpp; sourceTree = "<group>"; };
 		D0EBDFA72190149500F452B7 /* utils.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = utils.hpp; sourceTree = "<group>"; };
 		D0EBDFA8219014B600F452B7 /* version.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = version.hpp; sourceTree = "<group>"; };
+		D0FCB83021990D3B00FC1277 /* LoadingScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LoadingScene.cpp; sourceTree = "<group>"; };
+		D0FCB83121990D3B00FC1277 /* LoadingScene.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LoadingScene.hpp; sourceTree = "<group>"; };
+		D0FCB83421990DAD00FC1277 /* GameScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameScene.cpp; sourceTree = "<group>"; };
+		D0FCB83521990DAD00FC1277 /* GameScene.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GameScene.hpp; sourceTree = "<group>"; };
 		D44C620B132DFF330009C878 /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 		D44C620D132DFF430009C878 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		D44C620F132DFF4E0009C878 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
@@ -711,6 +743,21 @@
 				D02F8DCF21974F7D00B5C65A /* World.hpp */,
 				D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */,
 				D02F8DD22197509F00B5C65A /* SingleplayerLauncher.hpp */,
+				D01B61BA2197EE0F00D77D43 /* DeckEntity.cpp */,
+				D01B61BB2197EE0F00D77D43 /* DeckEntity.hpp */,
+				D01B61C02198124700D77D43 /* HandEntity.cpp */,
+				D01B61C12198124700D77D43 /* HandEntity.hpp */,
+				D01B61C3219815C600D77D43 /* FieldEntity.cpp */,
+				D01B61C4219815C600D77D43 /* FieldEntity.hpp */,
+				D01B61C62198167700D77D43 /* GraveyardEntity.cpp */,
+				D01B61C72198167700D77D43 /* GraveyardEntity.hpp */,
+				D0B75D242198E66300EC80F5 /* AuthorityBase.cpp */,
+				D0B75D252198E66300EC80F5 /* AuthorityBase.hpp */,
+				D0B75D282198E6CD00EC80F5 /* SingleplayerAuthority.cpp */,
+				D0B75D292198E6CD00EC80F5 /* SingleplayerAuthority.hpp */,
+				D0E894EB2199C9A60095F842 /* ICardContainer.hpp */,
+				D0E894ED2199E4E30095F842 /* CardAnimations.cpp */,
+				D0E894EE2199E4E30095F842 /* CardAnimations.hpp */,
 			);
 			name = Game;
 			path = ../Game;
@@ -764,6 +811,8 @@
 				D0B9FD5B217128ED0097E97B /* RegisterLayer.h */,
 				D0E6C8192194218A00064670 /* UpdatePrompt.cpp */,
 				D0E6C81A2194218A00064670 /* UpdatePrompt.hpp */,
+				D024C5B4219AAB640024968E /* CardLayer.cpp */,
+				D024C5B5219AAB640024968E /* CardLayer.hpp */,
 			);
 			name = UI;
 			path = ../UI;
@@ -786,6 +835,10 @@
 				D0414B712195DF5600D0BA2F /* SingleplayerLauncher.hpp */,
 				D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */,
 				D0414B752195DF7100D0BA2F /* OnlineLauncher.hpp */,
+				D0FCB83021990D3B00FC1277 /* LoadingScene.cpp */,
+				D0FCB83121990D3B00FC1277 /* LoadingScene.hpp */,
+				D0FCB83421990DAD00FC1277 /* GameScene.cpp */,
+				D0FCB83521990DAD00FC1277 /* GameScene.hpp */,
 			);
 			name = Scenes;
 			path = ../Scenes;
@@ -799,6 +852,7 @@
 				D082EBB0218B5DBE004CD6DE /* config.h */,
 				D082EBC6218B5DBE004CD6DE /* sha256.c */,
 				D082EBC7218B5DBE004CD6DE /* sha256.h */,
+				D01B61BF2197FE8A00D77D43 /* Random.hpp */,
 			);
 			name = cryptolib;
 			path = ../cryptolib;
@@ -989,9 +1043,11 @@
 				D02C114221804977009A8DFD /* snappy-c.cc in Sources */,
 				D0189BE42192877A007A8BD6 /* liolib.cpp in Sources */,
 				D0189BEA2192877A007A8BD6 /* lopcodes.cpp in Sources */,
+				D0B75D262198E66300EC80F5 /* AuthorityBase.cpp in Sources */,
 				D0189BF82192877A007A8BD6 /* lzio.cpp in Sources */,
 				D0189BEC2192877A007A8BD6 /* lparser.cpp in Sources */,
 				D0E6C81B2194218A00064670 /* UpdatePrompt.cpp in Sources */,
+				D01B61C82198167700D77D43 /* GraveyardEntity.cpp in Sources */,
 				D0947ADA21916DE40097F326 /* VerifyFunction.cpp in Sources */,
 				D0189BD92192877A007A8BD6 /* lbitlib.cpp in Sources */,
 				D0B12CFD2196A45100B7C674 /* EntityBase.cpp in Sources */,
@@ -1006,6 +1062,7 @@
 				D05E9BC9218AD1EE0026E33A /* LoginFunction.cpp in Sources */,
 				D0189BEF2192877A007A8BD6 /* lstrlib.cpp in Sources */,
 				D0189BE32192877A007A8BD6 /* linit.cpp in Sources */,
+				D01B61BC2197EE0F00D77D43 /* DeckEntity.cpp in Sources */,
 				D0189BE92192877A007A8BD6 /* lobject.cpp in Sources */,
 				D0189BDF2192877A007A8BD6 /* ldo.cpp in Sources */,
 				1AF87B8B1F6F782A007BE51C /* RootViewController.mm in Sources */,
@@ -1013,6 +1070,7 @@
 				D0189BED2192877A007A8BD6 /* lstate.cpp in Sources */,
 				D082EBD9218B5DBF004CD6DE /* sha256.c in Sources */,
 				D0189BD72192877A007A8BD6 /* lauxlib.cpp in Sources */,
+				D0FCB83621990DAD00FC1277 /* GameScene.cpp in Sources */,
 				D0414B762195DF7100D0BA2F /* OnlineLauncher.cpp in Sources */,
 				46880B8819C43A87006E1F66 /* AppDelegate.cpp in Sources */,
 				D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */,
@@ -1024,19 +1082,24 @@
 				D0189BDD2192877A007A8BD6 /* ldblib.cpp in Sources */,
 				D082EBE9218C47FA004CD6DE /* ContentManager.cpp in Sources */,
 				D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */,
+				D01B61C5219815C600D77D43 /* FieldEntity.cpp in Sources */,
 				46880B8A19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */,
 				D082EBDB218B5E3E004CD6DE /* RegisterFunction.cpp in Sources */,
 				D0189BF72192877A007A8BD6 /* lvm.cpp in Sources */,
 				D0B12D002196B05F00B7C674 /* CardEntity.cpp in Sources */,
 				D0189BD82192877A007A8BD6 /* lbaselib.cpp in Sources */,
 				D0189BE82192877A007A8BD6 /* loadlib.cpp in Sources */,
+				D01B61C22198124700D77D43 /* HandEntity.cpp in Sources */,
 				D0189BDA2192877A007A8BD6 /* lcode.cpp in Sources */,
 				D0189BF52192877A007A8BD6 /* lundump.cpp in Sources */,
 				D0CC20642190B76500B01994 /* UpdateScene.cpp in Sources */,
 				D0189BDC2192877A007A8BD6 /* lctype.cpp in Sources */,
 				D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */,
+				D024C5B6219AAB640024968E /* CardLayer.cpp in Sources */,
 				D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */,
 				D0189BE72192877A007A8BD6 /* lmem.cpp in Sources */,
+				D0B75D2A2198E6CD00EC80F5 /* SingleplayerAuthority.cpp in Sources */,
+				D0E894EF2199E4E30095F842 /* CardAnimations.cpp in Sources */,
 				D05E9BC5218AB7EF0026E33A /* Utils.cpp in Sources */,
 				D0189B33219272E4007A8BD6 /* LuaEngine.cpp in Sources */,
 				D0189BF12192877A007A8BD6 /* ltablib.cpp in Sources */,
@@ -1046,6 +1109,7 @@
 				D0B9FD73217128ED0097E97B /* MainMenuScene.cpp in Sources */,
 				D02C114421804977009A8DFD /* snappy-stubs-internal.cc in Sources */,
 				D0189BF02192877A007A8BD6 /* ltable.cpp in Sources */,
+				D0FCB83221990D3B00FC1277 /* LoadingScene.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

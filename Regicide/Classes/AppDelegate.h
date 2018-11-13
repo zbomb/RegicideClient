@@ -44,6 +44,47 @@ enum class GameState
     Multiplayer
 };
 
+enum class AIDifficulty
+{
+    VeryEasy,
+    Easy,
+    Normal,
+    Hard,
+    VeryHard
+};
+
+struct QuickMatchArguments
+{
+    std::string PlayerName;
+    std::string OpponentName;
+    
+    Regicide::Deck PlayerDeck;
+    Regicide::Deck OpponentDeck;
+    
+    AIDifficulty Difficulty;
+    
+    uint32 LevelBackground;
+};
+
+struct StoryArguments
+{
+    std::string LocalPlayerName;
+    uint32 StoryIdentifier;
+    
+    Regicide::Deck CustomDeck;
+};
+
+struct PracticeArguments : public QuickMatchArguments
+{
+};
+
+enum class SingleplayerType
+{
+    QuickMatch,
+    Story,
+    Practice
+};
+
 
 /**
 @brief    The cocos2d Application.
@@ -81,6 +122,22 @@ public:
     void UpdateFinished( bool bSuccess );
     inline GameState GetState() const { return State; }
     
+    // Launching Singleplayer
+    // Were going to access the Launcher through AppDelegate
+    void LaunchQuickMatch( const QuickMatchArguments& Args );
+    void LaunchStoryMode( const StoryArguments& Args );
+    void LaunchPractice( const PracticeArguments& Args );
+    
+    void ExitToMenu();
+    
+    void update( float Delta );
+    
+private:
+    
+    void SingleplayerLaunchError( std::string ErrMessage );
+    void SingleplayerLaunchSuccess();
+    void LauncherProgress( float Percent );
+    
 private:
     
     void DebugBuildAIDeck( Regicide::Deck& outDeck );
@@ -102,6 +159,9 @@ private:
     std::future< Verified > VerifyFuture;
     std::promise< Verified > VerifyPromise;
     bool bStartupComplete = false;
+    
+    bool bUpdateComplete = false;
+    bool bVerifyComplete = false;
     
     GameState State;
 

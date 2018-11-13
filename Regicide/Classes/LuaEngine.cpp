@@ -141,6 +141,14 @@ bool LuaEngine::RunScript( const std::string& Path )
     return true;
 }
 
+bool LuaEngine::RunString( const std::string& Code )
+{
+    if( Code.empty() || !luaState )
+        return false;
+    
+    return luaL_dostring( luaState, Code.c_str() ) == 0;
+}
+
 int lua_HandleError( lua_State* L )
 {
     cocos2d::log( "[Lua] Error: %s", lua_tostring( L, -1 ) );

@@ -33,9 +33,14 @@
 #include "Utils.h"
 #include "EventHub.h"
 #include "LuaEngine.hpp"
+#include "Game/EntityBase.hpp"
 #include "Game/CardEntity.hpp"
 #include "Game/SingleplayerLauncher.hpp"
-
+#include "Scenes/LoadingScene.hpp"
+#include "Scenes/GameScene.hpp"
+#include "Game/World.hpp"
+#include "Game/SingleplayerAuthority.hpp"
+#include <future>
 
 using namespace Regicide;
 
@@ -145,7 +150,6 @@ bool AppDelegate::applicationDidFinishLaunching() {
     VerifyFuture = VerifyPromise.get_future();
     if( ActManager->IsLoginStored() )
     {
-        // TODO: Call API Method 'ValidateToken'
         auto api = Regicide::APIClient::GetInstance();
         if( !api->VerifyTokenAsync( [ this ]( VerifyResponse Response )
                               {
@@ -153,19 +157,37 @@ bool AppDelegate::applicationDidFinishLaunching() {
                                   {
                                       // Bad connection usually
                                       this->VerifyPromise.set_value( Verified::Offline );
+                                      cocos2d::log( "[API] Failed to contact Cloud to verify account!" );
                                   }
                                   else
                                   {
-                                      this->VerifyPromise.set_value( Response.Result ? Verified::Success : Verified::Failed );
+                                      if( Response.Result )
+                                      {
+                                          cocos2d::log( "[API] Account verified! Welcome back" );
+                                      }
+                                      else
+                                      {
+                                          cocos2d::log( "[API] You have been logged out!" );
+                                          auto act = IContentSystem::GetAccounts();
+                                          act->GetLocalAccount().reset();
+                                          act->WriteAccount();
+                                      }
                                   }
+                                  bVerifyComplete = true;
                               } ) )
         {
-            this->VerifyPromise.set_value( Verified::Failed );
+            cocos2d::log( "[API] You have been logged out!" );
+            auto act = IContentSystem::GetAccounts();
+            act->GetLocalAccount().reset();
+            act->WriteAccount();
+            
+            bVerifyComplete = true;
         }
     }
     else
     {
-        VerifyPromise.set_value( Verified::NoAccount );
+        cocos2d::log( "[API] User is not logged in" );
+        bVerifyComplete = true;
     }
     
     // Initialize Lua Engine
@@ -230,6 +252,7 @@ bool AppDelegate::applicationDidFinishLaunching() {
                              } );
     
     Manager->CheckForUpdates();
+    director->getScheduler()->scheduleUpdate( this, -5, false );
     
     return true;
 }
@@ -253,35 +276,22 @@ void AppDelegate::FinishIntro( float Delay, bool bNeedUpdates, bool bErrors, std
     }
 }
 
+void AppDelegate::update( float Delta )
+{
+    if( bUpdateComplete && bVerifyComplete )
+    {
+        bUpdateComplete = false;
+        bVerifyComplete = false;
+        
+        Director::getInstance()->getScheduler()->unscheduleUpdate( this );
+        
+        OpenMainMenu( 0.f );
+    }
+}
+
 void AppDelegate::OpenMainMenu( float Delay )
 {
     auto dir = Director::getInstance();
-    
-    // Wait for API VerifyToken to complete, timeout of 6 seconds,
-    if( !bStartupComplete )
-    {
-        auto VerifyState = VerifyFuture.get();
-        
-        if( VerifyState == Verified::Failed )
-        {
-            // Clear locally stored account, this will cause the login menu to
-            // appear once the main menu is created
-            cocos2d::log( "[Regicide] You have been logged out!" );
-            auto act = IContentSystem::GetAccounts();
-            act->GetLocalAccount().reset();
-            act->WriteAccount();
-        }
-        else if( VerifyState == Verified::Offline )
-        {
-            cocos2d::log( "[Regicide] Failed to contact Regicide Cloud to verify login, please check connection" );
-        }
-        else if( VerifyState == Verified::Success )
-        {
-            cocos2d::log( "[Regicide] Login confirmed. Welcome back!" );
-            EventHub::Execute( "OnLogin", StringEventData( IContentSystem::GetAccounts()->GetLocalAccount()->Info.Username ) );
-        }
-    }
-    
     bStartupComplete = true;
     
     if( dir->getRunningScene() )
@@ -291,33 +301,6 @@ void AppDelegate::OpenMainMenu( float Delay )
     
     EventHub::Execute<>( "MainMenuOpen" );
     
-    // DEBUG
-    auto& Launcher = Game::SingleplayerLauncher::GetInstance();
-    Launcher.ListenForError( [&] ( std::string ErrMessage )
-                            {
-                                cocos2d::log( "[APP] ERROR CALLBACK: %s", ErrMessage.c_str() );
-                            });
-    Launcher.ListenForSuccess( [] () { cocos2d::log( "[APP] LAUNCH SUCCESS" ); });
-    
-    auto Args = Game::QuickMatchArguments();
-    Args.PlayerName = "Butthole Pussy Player";
-    Args.OpponentName = "Butthole Pussy Opponent";
-    Args.PlayerDeck.Id = 1;
-    Args.OpponentDeck.Id = 1;
-    
-    for( int i = 1; i < 25; i++ )
-    {
-        auto card = Regicide::Card();
-        card.Id = i;
-        card.Ct = 2;
-        Args.PlayerDeck.Cards.push_back( card );
-        Args.OpponentDeck.Cards.push_back( card );
-    }
-    
-    Args.LevelBackground = 10;
-    Args.Difficulty = Game::AIDifficulty::Normal;
-    
-    Launcher.LaunchQuickMatch( Args );
 }
 
 // This function will be called when the app is inactive. Note, when receiving a phone call it is invoked.
@@ -347,8 +330,7 @@ void AppDelegate::applicationWillEnterForeground() {
 
 void AppDelegate::UpdateFinished( bool bSuccess )
 {
-    // Open main menu
-    OpenMainMenu( 0.f );
+    bUpdateComplete = true;
 }
 
 
@@ -372,3 +354,139 @@ void AppDelegate::DebugBuildAIDeck( Regicide::Deck &outDeck )
     
 }
 
+
+
+void AppDelegate::LaunchPractice( const PracticeArguments &Args )
+{
+    auto& Launcher = Game::SingleplayerLauncher::GetInstance();
+    
+    // Setup callbacks from launcher
+    Launcher.ClearCallbacks();
+    Launcher.ListenForError( std::bind( &AppDelegate::SingleplayerLaunchError, this, std::placeholders::_1 ) );
+    Launcher.ListenForProgress( std::bind( &AppDelegate::LauncherProgress, this, std::placeholders::_1 ) );
+    Launcher.ListenForSuccess( std::bind( &AppDelegate::SingleplayerLaunchSuccess, this ) );
+    
+    // Update State
+    State = GameState::Singleplayer;
+    
+    // Open Launch Scene
+    auto dir = Director::getInstance();
+    dir->replaceScene( LoadingScene::create() );
+    
+    // TODO: Build arguments in a bettery way, instead of reqiuring everything to be specified
+    Launcher.Launch( Args.PlayerName, Args.OpponentName, Args.PlayerDeck, Args.OpponentDeck, SingleplayerType::Practice, Args.LevelBackground, Args.Difficulty );
+}
+
+void AppDelegate::LaunchStoryMode( const StoryArguments &Args )
+{
+    auto& Launcher = Game::SingleplayerLauncher::GetInstance();
+    
+    // Setup callbacks from launcher
+    Launcher.ClearCallbacks();
+    Launcher.ListenForError( std::bind( &AppDelegate::SingleplayerLaunchError, this, std::placeholders::_1 ) );
+    Launcher.ListenForProgress( std::bind( &AppDelegate::LauncherProgress, this, std::placeholders::_1 ) );
+    Launcher.ListenForSuccess( std::bind( &AppDelegate::SingleplayerLaunchSuccess, this ) );
+    
+    
+}
+
+void AppDelegate::LaunchQuickMatch( const QuickMatchArguments &Args )
+{
+    
+}
+
+void AppDelegate::SingleplayerLaunchError( std::string ErrMessage )
+{
+    // Update State
+    State = GameState::MainMenu;
+    
+    // Display Error
+    cocos2d::log( "[App] Error while launching singleplayer. %s", ErrMessage.c_str() );
+    
+    auto CurrentScene = Director::getInstance()->getRunningScene();
+    auto Loading = static_cast< LoadingScene* >( CurrentScene );
+    if( Loading )
+    {
+        Loading->UpdateProgress( 100.f, "ERRROR: " + ErrMessage );
+    }
+}
+
+void AppDelegate::LauncherProgress( float Percent )
+{
+    auto CurrentScene = Director::getInstance()->getRunningScene();
+    if( CurrentScene && CurrentScene->getTag() == TAG_LOADING )
+    {
+        auto Loading = static_cast< LoadingScene* >( CurrentScene );
+        if( Loading )
+            Loading->UpdateProgress( Percent );
+    }
+        
+}
+
+void AppDelegate::SingleplayerLaunchSuccess()
+{
+    // Update State
+    State = GameState::Singleplayer;
+    
+    cocos2d::log( "[App] Singleplayer opened!" );
+    
+    // Transition into the game scene
+    auto dir = Director::getInstance();
+    
+    auto* gameScene = GameScene::create();
+    gameScene->setonEnterTransitionDidFinishCallback( [=]()
+     {
+         
+         // Call SceneInit hooks
+         auto* world = Game::World::GetWorld();
+         if( world )
+         {
+             world->SceneInit( gameScene );
+         }
+         
+     } );
+    
+    // Add all entities to the scene
+    auto& Ent = Game::IEntityManager::GetInstance();
+    auto* CardLayer = gameScene->GetCardLayer();
+    
+    CC_ASSERT( CardLayer );
+    
+    for( auto It = Ent.Begin(); It != Ent.End(); It++ )
+    {
+        if( It->second )
+        {
+            It->second->AddToScene( CardLayer );
+        }
+    }
+    
+    Game::World::GetWorld()->PostInit();
+    
+    dir->replaceScene( TransitionFade::create( 1.f, gameScene ) );
+    
+}
+
+void AppDelegate::ExitToMenu()
+{
+    if( State == GameState::MainMenu )
+    {
+        cocos2d::log( "[App] WARNING: Attempt to exit to menu, but already in menu!" );
+    }
+    
+    State = GameState::MainMenu;
+    auto dir = Director::getInstance();
+    dir->replaceScene( TransitionFade::create( 1.f, MainMenu::create() ) );
+    
+    
+    // All game entities are children of the Game World
+    // So destroying the world causes everything to also be destroyed
+    auto& EntManager    = Game::IEntityManager::GetInstance();
+    auto* world         = Game::World::GetWorld();
+    
+    if( world )
+    {
+        EntManager.DestroyEntity( world );
+    }
+    
+    
+}

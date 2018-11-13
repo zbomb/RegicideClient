@@ -8,6 +8,7 @@
 #pragma once
 #include <functional>               // For std::function
 #include "RegicideAPI/Account.h"    // For Regicide::Card, Regicide::Deck
+#include "AppDelegate.h"
 #include <thread>
 
 
@@ -15,47 +16,8 @@ namespace Game
 {
     // Forward Declaration
     class World;
-    
-    enum class AIDifficulty
-    {
-        VeryEasy,
-        Easy,
-        Normal,
-        Hard,
-        VeryHard
-    };
-    
-    struct QuickMatchArguments
-    {
-        std::string PlayerName;
-        std::string OpponentName;
-        
-        Regicide::Deck PlayerDeck;
-        Regicide::Deck OpponentDeck;
-        
-        AIDifficulty Difficulty;
-        
-        uint32 LevelBackground;
-    };
-    
-    struct StoryArguments
-    {
-        std::string LocalPlayerName;
-        uint32 StoryIdentifier;
-        
-        Regicide::Deck CustomDeck;
-    };
-    
-    struct PracticeArguments : public QuickMatchArguments
-    {
-    };
-    
-    enum class SingleplayerType
-    {
-        QuickMatch,
-        Story,
-        Practive
-    };
+    class Player;
+
     
     class SingleplayerLauncher
     {
@@ -64,9 +26,8 @@ namespace Game
         
         static SingleplayerLauncher& GetInstance();
         
-        bool LaunchPractice( const PracticeArguments& Args );
-        bool LaunchStory( const StoryArguments& Args );
-        bool LaunchQuickMatch( const QuickMatchArguments& Args );
+        void Launch( const std::string& PlayerName, const std::string& OpponentName, const Regicide::Deck& PlayerDeck,
+                    const Regicide::Deck& OpponentDeck, SingleplayerType, uint32 LevelId, AIDifficulty Difficulty, uint32 StoryId = 0 );
         
         inline void ListenForProgress( const std::function< void( float ) >& Callback ) { OnProgress = Callback; }
         inline void ListenForSuccess( const std::function< void() >& Callback ) { OnSuccess = Callback; }
@@ -93,6 +54,12 @@ namespace Game
         void Success();
         
         World* CreateWorld();
+        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, cocos2d::TextureCache* inCache );
+        
+        void BeginLoadingTextures();
+        int TextureCount = 0;
+        int LoadedTextures = 0;
+        bool bTexturesChecked = false;
         
     };
 }

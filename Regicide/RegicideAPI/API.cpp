@@ -261,7 +261,7 @@ ExecuteResult APIClient::ExecutePostMethod( const std::string& Function, Documen
 }
 
 
-bool APIClient::Internal_PostAsync( const std::string& Function, HttpRequest *Request, PostCallback &Callback, bool bUseGZip )
+bool APIClient::Internal_PostAsync( const std::string& Function, HttpRequest *Request, PostCallback Callback, bool bUseGZip )
 {
     if( !Request )
     {
@@ -279,8 +279,6 @@ bool APIClient::Internal_PostAsync( const std::string& Function, HttpRequest *Re
     
     Request->setResponseCallback( [ this, Callback, bUseGZip ]( HttpClient* outClient, HttpResponse* Response )
                                  {
-                                     cocos2d::log( "==========> ASYNC RESPONSE" );
-                                     
                                      if( !Response )
                                      {
                                          cocos2d::log( "[RegAPI] Response from API call is null!" );

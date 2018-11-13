@@ -125,5 +125,34 @@ function hook.CallEngine( hookEvent, Data )
 
 end
 
+/////////////////////////////////////////////////////////////////////////
+/////// Table Copying
+/////////////////////////////////////////////////////////////////////////
 
+-- DeepCopy
+-- Supports both metatables and nested tables
+-- When calling, ignore the 'seen' parameter, its used for recursion
+function DeepCopy( obj, seen )
 
+    if type(obj) ~= 'table' then return obj end
+    if seen and seen[obj] then return seen[obj] end
+
+    local s = seen or {}
+    local res = setmetatable({}, getmetatable(obj))
+    s[obj] = res
+
+    for k, v in pairs(obj) do res[DeepCopy(k, s)] = DeepCopy(v, s) end
+    return res
+
+end
+
+-- ShallowCopy
+-- Doenst support nested tables, or metatables
+function ShallowCopy( obj )
+
+  if type(obj) ~= 'table' then return obj end
+  local res = {}
+  for k, v in pairs(obj) do res[ShallowCopy(k)] = ShallowCopy(v) end
+  return res
+
+end

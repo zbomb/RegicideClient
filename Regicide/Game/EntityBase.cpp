@@ -6,6 +6,7 @@
 //
 
 #include "EntityBase.hpp"
+#include "Scenes/GameScene.hpp"
 
 using namespace Game;
 
@@ -17,7 +18,7 @@ bool IEntityManager::EntityExists( uint32 EntityId )
 }
 
 
-bool IEntityManager::DestroyEntity( uint32 EntityId )
+bool IEntityManager::DestroyEntity( uint32 EntityId, bool bIncludeChildren /* = true */ )
 {
     auto Result = EntityStore.find( EntityId );
     if( Result == EntityStore.end() )
@@ -27,6 +28,16 @@ bool IEntityManager::DestroyEntity( uint32 EntityId )
     
     if( Result->second )
     {
+        auto Target = Result->second;
+        
+        // Recursivley destroy children entities
+        for( auto It = Target->Children.begin(); It != Target->Children.end(); It++ )
+        {
+            if( *It )
+                DestroyEntity( (*It)->EID );
+        }
+        
+        // Cleanup and delete this entitiy
         Result->second->Cleanup();
         Result->second.reset();
     }
@@ -36,9 +47,9 @@ bool IEntityManager::DestroyEntity( uint32 EntityId )
 }
 
 
-bool IEntityManager::DestroyEntity( EntityBase *EntityRef )
+bool IEntityManager::DestroyEntity( EntityBase *EntityRef, bool bIncludeChildren /* = true */ )
 {
-    return EntityRef ? DestroyEntity( EntityRef->GetEntityId() ) : false;
+    return EntityRef ? DestroyEntity( EntityRef->GetEntityId(), bIncludeChildren ) : false;
 }
 
 
@@ -92,11 +103,170 @@ void EntityBase::Cleanup()
 EntityBase::EntityBase( const std::string& Name )
 {
     EName = Name;
+    
+    Position = cocos2d::Vec2::ZERO;
+    Rotation = 0.f;
 }
 
 // Destructor
 EntityBase::~EntityBase()
 {
+    cocos2d::log( "[DEBUG] DESTROYING: %s", EName.c_str() );
     EName.clear();
-    EID = 0;
+}
+
+void EntityBase::AddChild( EntityBase* inChild )
+{
+    if( inChild && !HasChild( inChild ) )
+    {
+        // Check if this entity is already owned somewhere else, and remove
+        if( inChild->Owner )
+        {
+            inChild->Owner->RemoveChild( inChild, false );
+        }
+        
+        inChild->Owner = this;
+        Children.push_back( inChild );
+    }
+}
+
+bool EntityBase::HasChild( EntityBase* inChild )
+{
+    if( inChild )
+    {
+        for( auto It = Children.begin(); It != Children.end(); It++ )
+        {
+            if( *It == inChild )
+            {
+                // While were here, ensure Owner is set properly
+                if( (*It)->Owner != this )
+                {
+                    if( (*It)->Owner )
+                        (*It)->Owner->RemoveChild( *It, false );
+                    
+                    (*It)->Owner = this;
+                }
+                
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// Returns false if this entity isnt actually a child, or invalid
+bool EntityBase::RemoveChild( EntityBase* inChild, bool bDestroy /* = true */ )
+{
+    if( inChild )
+    {
+        for( auto It = Children.begin(); It != Children.end(); It++ )
+        {
+            if( (*It) == inChild )
+            {
+                inChild->Owner = nullptr;
+                Children.erase( It );
+                
+                if( bDestroy )
+                {
+                    IEntityManager::GetInstance().DestroyEntity( inChild );
+                }
+                
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+void EntityBase::AddToScene( cocos2d::Node* inNode )
+{
+
+}
+
+void EntityBase::Initialize()
+{
+    cocos2d::log( "[DEBUG] INIT HOOK RAN: %s", EName.c_str() );
+    // Pass hook to children
+    for( auto It = Children.begin(); It != Children.end(); It++ )
+    {
+        if( *It )
+            (*It)->Initialize();
+    }
+    
+}
+
+void EntityBase::SceneInit( cocos2d::Scene* inScene )
+{
+    CC_ASSERT( inScene );
+    
+    cocos2d::log( "[DEBUG] SCENE INIT HOOK RAN: %s", EName.c_str() );
+    // Pass hook to children
+    for( auto It = Children.begin(); It != Children.end(); It++ )
+    {
+        if( *It )
+            (*It)->SceneInit( inScene );
+    }
+    
+    // Link scene
+    LinkedScene = inScene;
+}
+
+void EntityBase::PostInit()
+{
+    cocos2d::log( "[DEBUG] POST INIT HOOK RAN: %s", EName.c_str() );
+    
+    for( auto It = Children.begin(); It != Children.end(); It++ )
+    {
+        if( *It )
+            (*It)->PostInit();
+    }
+}
+
+void EntityBase::SetPosition( const cocos2d::Vec2& inPos )
+{
+    Position = inPos;
+    Invalidate();
+}
+
+void EntityBase::SetRotation( float inRot )
+{
+    Rotation = inRot;
+    Invalidate();
+}
+
+cocos2d::Vec2 EntityBase::GetAbsolutePosition() const
+{
+    // Local Position + Parent Position
+    auto owner = GetOwner();
+    if( owner )
+        return owner->GetAbsolutePosition() + Position;
+    else
+        return Position;
+}
+
+float EntityBase::GetAbsoluteRotation() const
+{
+    auto owner = GetOwner();
+    if( owner )
+        return owner->GetAbsoluteRotation() + Rotation;
+    else
+        return Rotation;
+}
+
+void EntityBase::Invalidate()
+{
+    // Invalidate Children
+    for( auto It = Children.begin(); It != Children.end(); It++ )
+    {
+        if( *It )
+            (*It)->Invalidate();
+    }
+}
+
+int EntityBase::LoadResources( const std::function<void ()> &Callback )
+{
+    // Return the number of times the callback will be executed
+    return 0;
 }

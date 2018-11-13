@@ -6,34 +6,53 @@
 //
 
 #include "CardEntity.hpp"
+#include "Player.hpp"
+#include "CardAnimations.hpp"
 
 using namespace Game;
 
 
 
 CardEntity::CardEntity()
-    : EntityBase( "card" )
+    : EntityBase( "card" ), Sprite( nullptr ), OwningPlayer( nullptr ), Container( nullptr )
 {
 }
 
 CardEntity::~CardEntity()
 {
+    if( Sprite && Sprite != NULL )
+    {
+        /*
+        auto dir = cocos2d::Director::getInstance();
+        auto sch = dir ? dir->getScheduler() : nullptr;
+        
+        if( sch )
+        {
+            sch->performFunctionInCocosThread( [ = ]()
+                  {
+                      if( Sprite )
+                          Sprite->removeFromParent();
+                  } );
+        }
+         */
+        
+        Sprite->removeFromParent();
+    }
     
+    OwningPlayer    = nullptr;
+    Container       = nullptr;
+    
+    FrontTexture    = nullptr;
+    BackTexture     = nullptr;
+    Sprite          = nullptr;
 }
 
 void CardEntity::Cleanup()
 {
-    bAllowDeckHooks     = false;
-    bAllowHandHooks     = false;
-    bAllowPlayHooks     = false;
-    bAllowDeadHooks     = false;
-    
-    Power       = 0;
-    Stamina     = 0;
-    Location    = CardLocation::Deck;
+    EntityBase::Cleanup();
 }
 
-bool CardEntity::Load( luabridge::LuaRef& inLua, bool Authority /* = false */ )
+bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache, bool Authority /* = false */ )
 {
     if( !inLua.isTable() )
     {
@@ -42,7 +61,7 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, bool Authority /* = false */ )
     }
     
     // Check validity of the hook table
-    if( !inLua[ "Power" ].isNumber() || !inLua[ "Stamina" ].isNumber() || !inLua[ "Name" ].isString() || !inLua[ "Hooks" ].isTable() )
+    if( !inLua[ "Power" ].isNumber() || !inLua[ "Stamina" ].isNumber() || !inLua[ "Name" ].isString() || !inLua[ "Texture" ].isString() )
     {
         cocos2d::log( "[Card] ERROR: Failed to load, card table passed into load was missing values" );
         return false;
@@ -52,34 +71,124 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, bool Authority /* = false */ )
     DisplayName     = inLua[ "Name" ].tostring();
     Power           = (uint16) int( inLua[ "Power" ] );
     Stamina         = (uint16) int( inLua[ "Stamina" ] );
+
+    FrontTextureName = inLua[ "Texture" ].tostring();
+    
+    if( inLua[ "BackTexture" ].isString() )
+    {
+        BackTextureName = inLua[ "BackTexture" ].tostring();
+    }
     
     bAllowDeckHooks = inLua[ "EnableDeckHooks" ];
     bAllowHandHooks = inLua[ "EnableHandHooks" ];
-    bAllowPlayHooks = inLua[ "EnableHandHooks" ];
+    bAllowPlayHooks = inLua[ "EnablePlayHooks" ];
     bAllowDeadHooks = inLua[ "EnableDeadHooks" ];
     
+    OwningPlayer = inOwner;
+    
     // Store Hooks
-    *Hooks = inLua[ "Hooks" ];
+    if( inLua[ "Hooks" ].isTable() )
+        Hooks = std::make_shared< luabridge::LuaRef >( inLua[ "Hooks" ] );
+    else
+        Hooks = std::make_shared< luabridge::LuaRef >( luabridge::newTable( inLua.state() ) );
     
     // Set Authority Flag
     (*Hooks)[ "Authority" ] = Authority;
     
+
     return true;
     
 }
 
+int CardEntity::LoadResources( const std::function< void() >& Callback )
+{
+    auto Cache = cocos2d::Director::getInstance()->getTextureCache();
+    int Output = 1;
+    
+    if( FrontTextureName.empty() )
+    {
+        cocos2d::log( "[Card] ERROR! Failed to load front-texture!" );
+    }
+    else
+    {
+        Cache->addImageAsync( FrontTextureName, [ = ]( cocos2d::Texture2D* t )
+        {
+            if( !t )
+            {
+                cocos2d::log( "[Card] ERROR: Failed to load front-side texture! %s", FrontTextureName.c_str() );
+                this->FrontTexture = nullptr;
+            }
+            else
+            {
+                this->FrontTexture = t;
+            }
+            
+            Callback();
+        } );
+        
+        Output++;
+    }
+    
+    if( BackTextureName.empty() )
+    {
+        BackTextureName = "CardBack.png";
+        Cache->addImageAsync( BackTextureName, [ = ] ( cocos2d::Texture2D* t )
+        {
+            if( !t )
+            {
+                cocos2d::log( "[Card] ERROR! Failed to load default back-side texture! %s", BackTextureName.c_str() );
+            }
+            else
+            {
+                this->BackTexture = t;
+            }
+            
+            Callback();
+            
+        } );
+    }
+    else
+    {
+        Cache->addImageAsync( BackTextureName, [ = ] ( cocos2d::Texture2D* t )
+        {
+            if( !t )
+            {
+                cocos2d::log( "[Card] ERROR! Failed to load specified back-side texture (%s) falling back to default", BackTextureName.c_str() );
+                auto c = cocos2d::Director::getInstance()->getTextureCache();
+                
+                this->BackTextureName = "CardBack.png";
+                c->addImageAsync( this->BackTextureName, [ = ] ( cocos2d::Texture2D* t )
+                {
+                    if( !t )
+                    {
+                        cocos2d::log( "[Card] ERROR! Failed to load default back-side texture! %s", BackTextureName.c_str() );
+                    }
+                    else
+                    {
+                        this->BackTexture = t;
+                    }
+                    
+                    Callback();
+                } );
+                
+                return;
+            }
+            else
+            {
+                this->BackTexture = t;
+            }
+            
+            Callback();
+            
+        } );
+    }
+    
+    return Output;
+}
+
 bool CardEntity::ShouldCallHook() const
 {
-    if( Location == CardLocation::Deck && bAllowDeckHooks )
-        return true;
-    if( Location == CardLocation::Hand && bAllowHandHooks )
-        return true;
-    if( Location == CardLocation::Play && bAllowPlayHooks )
-        return true;
-    if( Location == CardLocation::Dead && bAllowDeadHooks )
-        return true;
-    
-    return false;
+    return true;
 }
 
 bool CardEntity::ShouldCallHook( const std::string& HookName )
@@ -104,4 +213,91 @@ bool CardEntity::GetHook( const std::string &HookName, luabridge::LuaRef& outFun
     }
     
     return false;
+}
+
+void CardEntity::AddToScene( cocos2d::Node* inNode )
+{
+    if( bSceneInit )
+        return;
+    
+    bSceneInit = true;
+    
+    CC_ASSERT( inNode );
+    
+    // Create sprite
+    // Defaults to back side visible
+    Sprite = cocos2d::Sprite::createWithTexture( BackTexture );
+    Sprite->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    Sprite->setScale( 0.7f );
+    Sprite->setName( "Card" );
+    
+    bFaceUp = false;
+    
+    inNode->addChild( Sprite );
+}
+
+
+void CardEntity::Invalidate()
+{
+    EntityBase::Invalidate();
+    
+    if( Sprite )
+    {
+        Sprite->setPosition( GetAbsolutePosition() );
+        Sprite->setRotation( GetAbsoluteRotation() );
+    }
+}
+
+
+void CardEntity::Flip( bool bInFaceUp, float Time )
+{
+    if( bInFaceUp == bFaceUp )
+        return;
+    
+    // Load correct texture
+    auto desired = bInFaceUp ? FrontTexture : BackTexture;
+    if( !desired )
+        cocos2d::log( "[Card] ERROR: Failed to flip card properly.. couldnt load texture" );
+    
+    if( Sprite && desired )
+        Sprite->runAction( cocos2d::Sequence::create( CardFlipY::Create( Time / 2.f, 0.f, 90.f ), CardFlipTex::Create( 0.f, desired ), CardFlipY::Create( Time / 2.f, -90.f, 0.f ), NULL ) );
+    
+    bFaceUp = bInFaceUp;
+}
+
+void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time )
+{
+    if( Sprite )
+    {
+        cocos2d::Vec2 FinalPosition = To;
+        if( GetOwner() )
+            FinalPosition += GetOwner()->GetAbsolutePosition();
+        
+        auto moveAction = cocos2d::MoveTo::create( Time, FinalPosition );
+        moveAction->setTag( ACTION_TAG_MOVE );
+        
+        Sprite->stopActionByTag( ACTION_TAG_MOVE );
+        Sprite->runAction( moveAction );
+    }
+    
+    // Update entity position
+    Position = To;
+}
+
+void CardEntity::RotateAnimation( float GlobalRot, float Time )
+{
+    if( Sprite )
+    {
+        auto rotAction = cocos2d::RotateTo::create( Time, GlobalRot );
+        rotAction->setTag( ACTION_TAG_ROTATE );
+        
+        Sprite->stopActionByTag( ACTION_TAG_ROTATE );
+        Sprite->runAction( rotAction );
+    }
+    
+    // Update entity rotation
+    if( GetOwner() )
+        GlobalRot -= GetOwner()->GetAbsoluteRotation();
+    
+    Rotation = GlobalRot;
 }

@@ -95,7 +95,7 @@ namespace Regicide
         
     private:
         
-        bool Internal_PostAsync( const std::string& Function, HttpRequest* Request, PostCallback& Callback, bool bUseGZip );
+        bool Internal_PostAsync( const std::string& Function, HttpRequest* Request, PostCallback Callback, bool bUseGZip );
         ExecuteResult Internal_Post( const std::string& Function, HttpRequest* Request, bool bUseGZip, long& StatusCode, Document& Response );
         
     private:

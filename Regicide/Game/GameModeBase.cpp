@@ -25,3 +25,11 @@ void GameModeBase::Cleanup()
 {
     
 }
+
+World* GameModeBase::GetWorld() const
+{
+    auto Ret = World::GetWorld();
+    CC_ASSERT( Ret );
+    
+    return Ret;
+}
