@@ -111,7 +111,6 @@ EntityBase::EntityBase( const std::string& Name )
 // Destructor
 EntityBase::~EntityBase()
 {
-    cocos2d::log( "[DEBUG] DESTROYING: %s", EName.c_str() );
     EName.clear();
 }
 
@@ -187,7 +186,6 @@ void EntityBase::AddToScene( cocos2d::Node* inNode )
 
 void EntityBase::Initialize()
 {
-    cocos2d::log( "[DEBUG] INIT HOOK RAN: %s", EName.c_str() );
     // Pass hook to children
     for( auto It = Children.begin(); It != Children.end(); It++ )
     {
@@ -200,8 +198,7 @@ void EntityBase::Initialize()
 void EntityBase::SceneInit( cocos2d::Scene* inScene )
 {
     CC_ASSERT( inScene );
-    
-    cocos2d::log( "[DEBUG] SCENE INIT HOOK RAN: %s", EName.c_str() );
+
     // Pass hook to children
     for( auto It = Children.begin(); It != Children.end(); It++ )
     {
@@ -215,8 +212,6 @@ void EntityBase::SceneInit( cocos2d::Scene* inScene )
 
 void EntityBase::PostInit()
 {
-    cocos2d::log( "[DEBUG] POST INIT HOOK RAN: %s", EName.c_str() );
-    
     for( auto It = Children.begin(); It != Children.end(); It++ )
     {
         if( *It )

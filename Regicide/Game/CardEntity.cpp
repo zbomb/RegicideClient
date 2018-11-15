@@ -8,14 +8,21 @@
 #include "CardEntity.hpp"
 #include "Player.hpp"
 #include "CardAnimations.hpp"
+#include "ICardContainer.hpp"
 
 using namespace Game;
 
 
 
 CardEntity::CardEntity()
-    : EntityBase( "card" ), Sprite( nullptr ), OwningPlayer( nullptr ), Container( nullptr )
+    : EntityBase( "card" ), Sprite( nullptr ), OwningPlayer( nullptr ), Container( nullptr ),
+    FullSizedTexture( nullptr ), FrontTexture( nullptr ), BackTexture( nullptr )
 {
+    Power       = 0;
+    Stamina     = 0;
+    ManaCost    = 0;
+    
+    _bDragging = false;
 }
 
 CardEntity::~CardEntity()
@@ -42,14 +49,35 @@ CardEntity::~CardEntity()
     OwningPlayer    = nullptr;
     Container       = nullptr;
     
-    FrontTexture    = nullptr;
-    BackTexture     = nullptr;
-    Sprite          = nullptr;
+    FrontTexture        = nullptr;
+    BackTexture         = nullptr;
+    FullSizedTexture    = nullptr;
+    Sprite              = nullptr;
 }
 
 void CardEntity::Cleanup()
 {
     EntityBase::Cleanup();
+}
+
+bool CardEntity::InDeck() const
+{
+    return Container && Container->GetTag() == TAG_DECK;
+}
+
+bool CardEntity::InHand() const
+{
+    return Container && Container->GetTag() == TAG_HAND;
+}
+
+bool CardEntity::InGrave() const
+{
+    return Container && Container->GetTag() == TAG_GRAVE;
+}
+
+bool CardEntity::OnField() const
+{
+    return Container && Container->GetTag() == TAG_FIELD;
 }
 
 bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache, bool Authority /* = false */ )
@@ -59,9 +87,9 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::Textu
         cocos2d::log( "[Card] ERROR: Failed to load, invalid card table passed into Load!" );
         return false;
     }
-    
+
     // Check validity of the hook table
-    if( !inLua[ "Power" ].isNumber() || !inLua[ "Stamina" ].isNumber() || !inLua[ "Name" ].isString() || !inLua[ "Texture" ].isString() )
+    if( !inLua[ "Power" ].isNumber() || !inLua[ "Stamina" ].isNumber() || !inLua[ "Name" ].isString() || !inLua[ "Texture" ].isString() || !inLua[ "LargeTexture" ].isString() || !inLua[ "Mana" ].isNumber() )
     {
         cocos2d::log( "[Card] ERROR: Failed to load, card table passed into load was missing values" );
         return false;
@@ -71,8 +99,10 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::Textu
     DisplayName     = inLua[ "Name" ].tostring();
     Power           = (uint16) int( inLua[ "Power" ] );
     Stamina         = (uint16) int( inLua[ "Stamina" ] );
+    ManaCost        = (uint16) int( inLua[ "Mana" ] );
 
     FrontTextureName = inLua[ "Texture" ].tostring();
+    LargeTextureName = inLua[ "LargeTexture" ].tostring();
     
     if( inLua[ "BackTexture" ].isString() )
     {
@@ -107,7 +137,9 @@ int CardEntity::LoadResources( const std::function< void() >& Callback )
     
     if( FrontTextureName.empty() )
     {
+        // DECIDE: Should be fatal loading error?
         cocos2d::log( "[Card] ERROR! Failed to load front-texture!" );
+        FrontTexture = nullptr;
     }
     else
     {
@@ -115,6 +147,7 @@ int CardEntity::LoadResources( const std::function< void() >& Callback )
         {
             if( !t )
             {
+                // DECIDE: Should be fatal?
                 cocos2d::log( "[Card] ERROR: Failed to load front-side texture! %s", FrontTextureName.c_str() );
                 this->FrontTexture = nullptr;
             }
@@ -129,6 +162,35 @@ int CardEntity::LoadResources( const std::function< void() >& Callback )
         Output++;
     }
     
+    if( LargeTextureName.empty() )
+    {
+        // DECIDE: Should be fatal loading error?
+        cocos2d::log( "[Card] ERROR! Failed to load full sized texture" );
+        FullSizedTexture = nullptr;
+    }
+    else
+    {
+        Cache->addImageAsync( LargeTextureName, [ = ]( cocos2d::Texture2D* t )
+         {
+             if( !t )
+             {
+                 // DECIDE: Should be fatal?
+                 cocos2d::log( "[Card] ERROR: Failed to load full-sized texture! %s", LargeTextureName.c_str() );
+                 this->FullSizedTexture = nullptr;
+             }
+             else
+             {
+                 this->FullSizedTexture = t;
+             }
+             
+             // Let loader know this texture is done loading
+             Callback();
+         } );
+        
+        // Increment output to let the loader know how many textures need to be loaded
+        Output++;
+    }
+    
     if( BackTextureName.empty() )
     {
         BackTextureName = "CardBack.png";
@@ -136,6 +198,7 @@ int CardEntity::LoadResources( const std::function< void() >& Callback )
         {
             if( !t )
             {
+                // DECIDE: Should be fatal error?
                 cocos2d::log( "[Card] ERROR! Failed to load default back-side texture! %s", BackTextureName.c_str() );
             }
             else
@@ -161,6 +224,7 @@ int CardEntity::LoadResources( const std::function< void() >& Callback )
                 {
                     if( !t )
                     {
+                        // DECIDE: Should be fatal?
                         cocos2d::log( "[Card] ERROR! Failed to load default back-side texture! %s", BackTextureName.c_str() );
                     }
                     else

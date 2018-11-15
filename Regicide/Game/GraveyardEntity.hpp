@@ -34,6 +34,7 @@ namespace Game
         virtual bool RemoveBottom( bool bDestroy = false ) override;
         virtual bool RemoveAtIndex( uint32 Index, bool bDestroy = false ) override;
         virtual bool RemoveRandom( bool bDestroy = false ) override;
+        virtual bool Remove( CardEntity* inCard, bool bDestroy = false ) override;
         
         // Iterator Access
         inline GraveIter Begin()     { return Cards.begin(); }
@@ -46,6 +47,7 @@ namespace Game
         inline size_t Count() const override { return Cards.size(); }
         
         virtual void Invalidate() override;
+        virtual void InvalidateCards( CardEntity* inCard = nullptr, bool bParam = false ) override;
         void InvalidateZOrder();
         
     protected:

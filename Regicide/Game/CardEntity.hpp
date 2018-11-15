@@ -14,6 +14,10 @@
 #define ACTION_TAG_MOVE 1212
 #define ACTION_TAG_ROTATE 2323
 
+// Move animation speed. Measured in ( % of screen width ) / sec
+#define ANIM_MOVE_SPEED 90.f
+#define CALC_MOVE_SPEED( dist ) ( dist / ( cocos2d::Director::getInstance()->getVisibleSize().width * ( ANIM_MOVE_SPEED / 100.f ) ) )
+
 namespace Game
 {
     enum class CardPos
@@ -42,6 +46,7 @@ namespace Game
         
         uint16 Power;
         uint16 Stamina;
+        uint16 ManaCost;
         
         bool bAllowDeckHooks;
         bool bAllowHandHooks;
@@ -52,6 +57,7 @@ namespace Game
         
         cocos2d::Texture2D* FrontTexture;
         cocos2d::Texture2D* BackTexture;
+        cocos2d::Texture2D* FullSizedTexture;
         std::shared_ptr< luabridge::LuaRef > Hooks;
         
         bool Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache, bool Authority = false );
@@ -76,6 +82,14 @@ namespace Game
         
         inline float GetWidth() const { if( Sprite ) { return Sprite->getContentSize().width * Sprite->getScaleX(); } else return 0.f; }
         
+        inline void SetIsDragging( bool In ) { _bDragging = In; }
+        inline bool GetIsDragging() const { return _bDragging; }
+        
+        bool InDeck() const;
+        bool InHand() const;
+        bool InGrave() const;
+        bool OnField() const;
+        
     protected:
         
         bool bSceneInit = false;
@@ -86,8 +100,10 @@ namespace Game
         
         std::string FrontTextureName;
         std::string BackTextureName;
+        std::string LargeTextureName;
         
         bool bFaceUp;
+        bool _bDragging;
         
         virtual int LoadResources( const std::function< void() >& Callback ) override;
         

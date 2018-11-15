@@ -17,6 +17,7 @@
 #include "GraveyardEntity.hpp"
 #include "SingleplayerAuthority.hpp"
 #include "cocos2d.h"
+#include "TurnManager.hpp"
 
 using namespace Game;
 
@@ -48,6 +49,7 @@ void SingleplayerLauncher::Launch( const std::string& PlayerName, const std::str
     TextureCount = 0;
     
     // Launch game on background thread, progress and results reported through callbacks
+    cocos2d::log( "[Launcher] Launch started! Loading entities..." );
     LauncherThread = std::make_shared< std::thread >( [ = ] ()
                                                      {
                                                          this->PerformLaunch( PlayerName, OpponentName, PlayerDeck, OpponentDeck, SingleplayerType::QuickMatch, LevelId, Difficulty );
@@ -63,7 +65,6 @@ void SingleplayerLauncher::_Thread_Complete( bool bError, const std::string& Err
                                           if( LauncherThread )
                                           {
                                               LauncherThread->join();
-                                              cocos2d::log( "[Launcher] (DEBUG) Killing thread" );
                                           }
                                           
                                           LauncherThread.reset();
@@ -108,11 +109,10 @@ void SingleplayerLauncher::BeginLoadingTextures()
             {
                 LoadedTextures++;
                 
-                cocos2d::log( "[DEBUG] Resources Loaded: %d  Needed: %d", LoadedTextures, TextureCount );
-                
                 if( LoadedTextures >= TextureCount && bTexturesChecked )
                 {
                     // All done loading!
+                    cocos2d::log( "[Launcher] Resources loaded! Creating scene.." );
                     this->OnSuccess();
                 }
             } );
@@ -133,13 +133,12 @@ void SingleplayerLauncher::BeginLoadingTextures()
 
 void SingleplayerLauncher::Error( const std::string& Error )
 {
-    cocos2d::log( "%s", Error.c_str() );
     _Thread_Complete( true, Error );
 }
 
 void SingleplayerLauncher::Success()
 {
-    cocos2d::log( "[Launcher] Success!" );
+    cocos2d::log( "[Launcher] Entities loaded! Loading resources..." );
     _Thread_Complete( false, std::string() );
 }
 
@@ -204,6 +203,19 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     NewWorld->AddChild( Authority );
     NewWorld->Auth = Authority;
     
+    // Create Turn Manager
+    auto turnManager = EntityManager.CreateEntity< Game::TurnManager >();
+    
+    if( !turnManager )
+    {
+        EntityManager.DestroyEntity( turnManager );
+        Error( "Failed to create turn manager!" );
+        return;
+    }
+    
+    Authority->AddChild( turnManager );
+    Authority->turnManager = turnManager;
+    
     // Create Gamemode
     auto* GM = EntityManager.CreateEntity< Game::SingleplayerGameMode >();
     if( !GM )
@@ -214,12 +226,11 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     }
     
     // Add to World
-    NewWorld->AddChild( GM );
+    NewWorld->AddChild( GM ); 
     NewWorld->GM = GM;
     
     auto dir = cocos2d::Director::getInstance();
     auto Origin = dir->getVisibleOrigin();
-    auto Size = dir->getVisibleSize();
     
     // Create players
     auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, cache );
@@ -250,7 +261,6 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     Authority->AddChild( NewOpponent );
     Authority->Opponent = NewOpponent;
     
-    cocos2d::log( "[DEBUG] Performing Launch! %s", PlayerName.c_str() );
     Success();
 }
 
@@ -291,7 +301,6 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     
     auto dir = cocos2d::Director::getInstance();
     auto Origin = dir->getVisibleOrigin();
-    auto Size = dir->getVisibleSize();
     
     // Set Deck Traits
     NewDeck->DisplayName    = inDeck.Name;
@@ -330,10 +339,6 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
             try
             {
                 newTable = DeepCopy( CardTable );
-                if( newTable.isTable() )
-                    cocos2d::log( "[LAUNCHER DEBUG] IS TABLE" );
-                else
-                    cocos2d::log( "[LAUNCHER DEBUG] IS NOT TABLE" );
             }
             catch( std::exception& ex )
             {

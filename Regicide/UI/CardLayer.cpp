@@ -89,7 +89,7 @@ bool CardLayer::onTouchBegan( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
         GM->TouchBegan( inTouch, TouchedCard );
     }
     
-    return TouchedCard;
+    return true;
 }
 
 void CardLayer::onTouchMoved( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )

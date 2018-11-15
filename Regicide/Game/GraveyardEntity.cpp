@@ -14,7 +14,7 @@ using namespace Game;
 GraveyardEntity::GraveyardEntity()
 : EntityBase( "Graveyard" )
 {
-    
+    SetTag( TAG_GRAVE );
 }
 
 GraveyardEntity::~GraveyardEntity()
@@ -66,6 +66,7 @@ void GraveyardEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
     {
         Cards.push_front( Input );
         ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
         
         if( bMoveSprite )
         {
@@ -81,6 +82,7 @@ void GraveyardEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
     {
         Cards.push_back( Input );
         ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
         
         if( bMoveSprite )
         {
@@ -101,6 +103,7 @@ void GraveyardEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         
         Cards.insert( Iter, Input );
         ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
         
         if( bMoveSprite )
         {
@@ -122,6 +125,7 @@ void GraveyardEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSpr
         
         Cards.insert( It, Input );
         ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
         
         if( bMoveSprite )
         {
@@ -129,6 +133,36 @@ void GraveyardEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSpr
             MoveCard( Input );
         }
     }
+}
+
+bool GraveyardEntity::Remove( CardEntity* inCard, bool bDestroy )
+{
+    if( !inCard || Cards.empty() )
+        return false;
+    
+    // Lookup card
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It && *It == inCard )
+        {
+            if( bDestroy )
+            {
+                IEntityManager::GetInstance().DestroyEntity( inCard );
+            }
+            else
+            {
+                ClearCardContainer( inCard );
+            }
+            
+            Cards.erase( It );
+            InvalidateCards();
+            InvalidateZOrder();
+            
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 bool GraveyardEntity::RemoveTop( bool bDestroy /* = false */ )
@@ -146,6 +180,7 @@ bool GraveyardEntity::RemoveTop( bool bDestroy /* = false */ )
     }
     
     Cards.pop_front();
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -166,6 +201,7 @@ bool GraveyardEntity::RemoveBottom( bool bDestroy /* = false */ )
     }
     
     Cards.pop_back();
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -189,6 +225,7 @@ bool GraveyardEntity::RemoveAtIndex( uint32 Index, bool bDestroy /* = false */ )
     }
     
     Cards.erase( It );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -214,6 +251,7 @@ bool GraveyardEntity::RemoveRandom( bool bDestroy /* = false */ )
     }
     
     Cards.erase( It );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -225,13 +263,22 @@ void GraveyardEntity::Invalidate()
     
     // Cards and decks share the same parent, instead of the cards being children
     // of decks. So on invalidate we need to update the card positions manually
+    InvalidateCards();
+}
+
+void GraveyardEntity::InvalidateCards( CardEntity* inCard, bool bParam )
+{
+    int Index = 0;
     for( auto It = Begin(); It != End(); It++ )
     {
-        if( *It )
+        float Offset = Index * 0.1f;
+        if( *It && *It != inCard && !(*It)->GetIsDragging() )
         {
-            (*It)->SetPosition( GetPosition() );
-            (*It)->SetRotation( GetRotation() );
+            (*It)->SetPosition( GetPosition() - cocos2d::Vec2( Offset, 0.f ) );
+            (*It)->SetRotation( 0.f );
         }
+        
+        Index++;
     }
 }
 
@@ -240,17 +287,17 @@ void GraveyardEntity::MoveCard( CardEntity* inCard )
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( GetPosition(), 0.4f );
+        inCard->MoveAnimation( GetPosition(), 0.3f );
         
         // Flip face up if it isnt already
         if( !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.4f );
+            inCard->Flip( true, 0.3f );
         
         // Card should always be face up
         float absRot = inCard->GetAbsoluteRotation();
         if( absRot > 1.f || absRot < -1.f )
         {
-            inCard->RotateAnimation( 0.f, 0.4f );
+            inCard->RotateAnimation( 0.f, 0.3f );
         }
     }
 }

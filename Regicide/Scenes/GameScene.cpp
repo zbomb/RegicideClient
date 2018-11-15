@@ -8,6 +8,7 @@
 #include "GameScene.hpp"
 #include "Game/World.hpp"
 #include "Game/EntityBase.hpp"
+#include "UI/ExitOverlay.hpp"
 
 
 using namespace cocos2d;
@@ -69,6 +70,15 @@ GameScene::~GameScene()
 
 void GameScene::ExitGame()
 {
-    auto* App = AppDelegate::GetInstance();
-    App->ExitToMenu();
+    auto Overlay = ExitOverlay::create();
+    Overlay->setGlobalZOrder( 1000 );
+    addChild( Overlay, 100 );
+    
+    Overlay->runAction( cocos2d::Sequence::create( FadeIn::create( 0.5f ), CallFunc::create(
+                        [ = ]()
+                        {
+                            auto* App = AppDelegate::GetInstance();
+                            if( App )
+                                App->ExitToMenu();
+                        }), NULL ) );
 }

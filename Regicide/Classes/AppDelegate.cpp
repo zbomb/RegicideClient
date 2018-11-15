@@ -41,6 +41,7 @@
 #include "Game/World.hpp"
 #include "Game/SingleplayerAuthority.hpp"
 #include <future>
+#include "UI/ExitOverlay.hpp"
 
 using namespace Regicide;
 
@@ -475,8 +476,6 @@ void AppDelegate::ExitToMenu()
     
     State = GameState::MainMenu;
     auto dir = Director::getInstance();
-    dir->replaceScene( TransitionFade::create( 1.f, MainMenu::create() ) );
-    
     
     // All game entities are children of the Game World
     // So destroying the world causes everything to also be destroyed
@@ -488,5 +487,5 @@ void AppDelegate::ExitToMenu()
         EntManager.DestroyEntity( world );
     }
     
-    
+    dir->replaceScene( cocos2d::TransitionFade::create( 0.5f, MainMenu::create() ) );
 }

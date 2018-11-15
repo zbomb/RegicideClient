@@ -17,7 +17,7 @@ using namespace Game;
 Player::Player()
 : EntityBase( "Player" )
 {
-    
+    Mana = 100;
 }
 
 Player::~Player()

@@ -11,6 +11,7 @@
 
 namespace Game
 {
+    class TurnManager;
     
     class AuthorityBase : public EntityBase
     {
@@ -21,5 +22,10 @@ namespace Game
         ~AuthorityBase();
         
         virtual void Cleanup();
+        
+    protected:
+        
+        TurnManager* turnManager;
+        
     };
 }

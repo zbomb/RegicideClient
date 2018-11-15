@@ -7,6 +7,8 @@
 
 #include "FieldEntity.hpp"
 #include "cryptolib/Random.hpp"
+#include "Game/World.hpp"
+#include "Game/SingleplayerAuthority.hpp"
 
 #define REG_CARDS_PER_ROW 8
 
@@ -15,7 +17,7 @@ using namespace Game;
 FieldEntity::FieldEntity()
 : EntityBase( "Field" )
 {
-    
+    SetTag( TAG_FIELD );
 }
 
 FieldEntity::~FieldEntity()
@@ -52,8 +54,8 @@ void FieldEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
     if( Input )
     {
         Cards.push_front( Input );
-        Reposition( Input, false );
-        ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
+        SetCardContainer( Input );
         
         if( bMoveSprite )
         {
@@ -69,8 +71,8 @@ void FieldEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
     if( Input )
     {
         Cards.push_back( Input );
-        Reposition( Input, false );
-        ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
+        SetCardContainer( Input );
         
         int Index = (int)Cards.size() - 1;
         
@@ -92,8 +94,8 @@ void FieldEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         //CC_ASSERT( Iter != Cards.end() );
         
         auto It = Cards.insert( Iter, Input );
-        Reposition( Input, false );
-        ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
+        SetCardContainer( Input );
         
         int Index = (int)( It - Cards.begin() );
         
@@ -116,8 +118,8 @@ void FieldEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite 
         std::advance( It, Index );
         
         Cards.insert( It, Input );
-        Reposition( Input, false );
-        ICardContainer::SetCardContainer( Input );
+        InvalidateCards( Input );
+        SetCardContainer( Input );
         
         if( bMoveSprite )
         {
@@ -125,6 +127,36 @@ void FieldEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite 
             MoveCard( Input, CalcPos( Index ) );
         }
     }
+}
+
+bool FieldEntity::Remove( CardEntity* inCard, bool bDestroy )
+{
+    if( !inCard || Cards.empty() )
+        return false;
+    
+    // Lookup card
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It && *It == inCard )
+        {
+            if( bDestroy )
+            {
+                IEntityManager::GetInstance().DestroyEntity( inCard );
+            }
+            else
+            {
+                ClearCardContainer( inCard );
+            }
+            
+            Cards.erase( It );
+            InvalidateCards();
+            InvalidateZOrder();
+            
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 bool FieldEntity::RemoveTop( bool bDestroy /* = false */ )
@@ -138,11 +170,11 @@ bool FieldEntity::RemoveTop( bool bDestroy /* = false */ )
     }
     else
     {
-        ICardContainer::ClearCardContainer( Cards.front() );
+        ClearCardContainer( Cards.front() );
     }
     
     Cards.pop_front();
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -159,11 +191,11 @@ bool FieldEntity::RemoveBottom( bool bDestroy /* = false */ )
     }
     else
     {
-        ICardContainer::ClearCardContainer( Cards.back() );
+        ClearCardContainer( Cards.back() );
     }
     
     Cards.pop_back();
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -183,11 +215,11 @@ bool FieldEntity::RemoveAtIndex( uint32 Index, bool bDestroy /* = false */ )
     }
     else if( *It )
     {
-        ICardContainer::ClearCardContainer( *It );
+        ClearCardContainer( *It );
     }
     
     Cards.erase( It );
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -209,17 +241,17 @@ bool FieldEntity::RemoveRandom( bool bDestroy /* = false */ )
     }
     else if( *It )
     {
-        ICardContainer::ClearCardContainer( *It );
+        ClearCardContainer( *It );
     }
     
     Cards.erase( It );
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
 }
 
-void FieldEntity::Reposition( CardEntity* Ignore, bool bFillIgnoredSpace )
+void FieldEntity::InvalidateCards( CardEntity* Ignore /* = nullptr */, bool bParam /* = false */ )
 {
     int Index = 0;
     
@@ -227,9 +259,9 @@ void FieldEntity::Reposition( CardEntity* Ignore, bool bFillIgnoredSpace )
     // from total card count in CalcPos
     for( auto It = Cards.begin(); It != Cards.end(); It++ )
     {
-        if( (*It) && *It != Ignore )
+        if( (*It) && *It != Ignore && !(*It)->GetIsDragging() )
         {
-            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.4f );
+            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.3f );
         }
         
         Index++;
@@ -239,52 +271,6 @@ void FieldEntity::Reposition( CardEntity* Ignore, bool bFillIgnoredSpace )
 void FieldEntity::Invalidate()
 {
     EntityBase::Invalidate();
-    
-    // Cards and decks share the same parent, instead of the cards being children
-    // of decks. So on invalidate we need to update the card positions manually
-    
-    auto dir = cocos2d::Director::getInstance();
-    auto size = dir->getVisibleSize();
-    
-    if( !Cards.empty() && Cards.front() )
-    {
-        // Were going to have a set spacing for cards, and if we go over 10 cards,
-        // we will break it out into another row
-        auto ct = (int)Count() - 1;
-        float CardWidth = Cards.front()->GetWidth();
-
-        float Avail = size.width * 0.7f;
-        int FirstRow    = ct > 10 ? 10 : ct;
-        int SecondRow = ct > 10 ? ct - 10 : 0;
-        
-        float Spacing = Avail / 10.f;
-        
-        float TotalWide = Spacing * FirstRow;
-        float TotalWideTwo = Spacing * SecondRow;
-        float Start = TotalWide * -0.5f;
-        
-        // Now we can space the cards out over this width, since the cards are
-        // anchored by the mid point, we subtracted an extra card width from the result
-        int Index = 0;
-        int Row = 0;
-        for( auto It = Begin(); It != End(); It++ )
-        {
-            if( Index >= 10 )
-            {
-                Index = 0;
-                Row = 1;
-            }
-            
-            if( *It )
-            {
-                //float PositionX = ( - TotalWidth / 2.f ) + Index * Spacing;
-                //(*It)->SetPosition( GetPosition() + cocos2d::Vec2( PositionX, 0.f ) );
-                //(*It)->SetRotation( GetRotation() );
-            }
-            
-            Index++;
-        }
-    }
 }
 
 cocos2d::Vec2 FieldEntity::CalcPos( int Index, int CardDelta )
@@ -321,22 +307,22 @@ cocos2d::Vec2 FieldEntity::CalcPos( int Index, int CardDelta )
 
 }
 
-void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos )
+void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( AbsPos, 0.4f );
+        inCard->MoveAnimation( inPos, 0.3f );
         
         // Flip face up if it isnt already
         if( !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.4f );
+            inCard->Flip( true, 0.3f );
         
         // On field, card should always be upright
         float absRot = inCard->GetAbsoluteRotation();
         if( absRot > 1.f || absRot < -1.f )
         {
-            inCard->RotateAnimation( 0.f, 0.4f );
+            inCard->RotateAnimation( 0.f, 0.3f );
         }
     }
 }
@@ -357,4 +343,73 @@ void FieldEntity::InvalidateZOrder()
             Cards[ i ]->SetZ( Order );
         }
     }
+}
+
+
+bool FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
+{
+    if( !inCard )
+    {
+        return false;
+    }
+    
+    // Were going to get the number of cards, add one and determine where each card would
+    // be if we added this additional card, we will then determine which point the card is
+    // closest to, and if its too far away from the closest point, then we will return false
+    // To screen the validity of the attempts, we will build a quick rect around where we consider
+    // valid drop positions, and if the card is outside of that then return false
+    
+    auto thisPos = GetAbsolutePosition();
+    auto dir = cocos2d::Director::getInstance();
+    auto size = dir->getVisibleSize();
+    
+    float thisW = size.width * 0.7f;
+    float thisH = size.height * 0.42f;
+    
+    cocos2d::Rect Bounds( thisPos.x - thisW / 2.f, thisPos.y - thisH / 2.f, thisW, thisH );
+    if( !Bounds.containsPoint( inPos ) )
+    {
+        return false;
+    }
+
+    int CardCount       = (int)Count() + 1;
+    float ShortestDist  = size.height / 3.f; // Also min required distance
+    int BestIndex       = -1;
+    cocos2d::Vec2 Abs   = GetOwner() ? GetOwner()->GetAbsolutePosition() : cocos2d::Vec2::ZERO;
+    
+    for( int i = 0; i < CardCount; i++ )
+    {
+        float Dist = ( CalcPos( i ) + Abs ).getDistance( inPos );
+
+        if( Dist < ShortestDist )
+        {
+            ShortestDist = Dist;
+            BestIndex = i;
+        }
+    }
+    
+    if( BestIndex < 0 )
+    {
+        return false;
+    }
+    
+    // TODO: Move this logic
+    auto world = Game::World::GetWorld();
+    auto auth = world ? world->GetAuthority< Game::SingleplayerAuthority >() : nullptr;
+    
+    if( auth )
+    {
+        if( auth->PlayCard( inCard->GetOwningPlayer(), inCard ) )
+        {
+            // Add card
+            auto cont = inCard->GetContainer();
+            if( cont )
+                cont->Remove( inCard );
+            
+            AddAtIndex( inCard, BestIndex, true );
+            return true;
+        }
+    }
+    
+    return false;
 }

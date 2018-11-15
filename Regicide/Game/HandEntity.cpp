@@ -14,7 +14,10 @@ using namespace Game;
 HandEntity::HandEntity()
 : EntityBase( "Hand" )
 {
+    SetTag( TAG_HAND );
     
+    bExpanded       = false;
+    bVisibleLocally = false;
 }
 
 HandEntity::~HandEntity()
@@ -51,7 +54,7 @@ void HandEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
     if( Input )
     {
         Cards.push_front( Input );
-        Reposition( Input, false );
+        InvalidateCards( Input );
         ICardContainer::SetCardContainer( Input );
         
         if( bMoveSprite )
@@ -67,7 +70,7 @@ void HandEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
     if( Input )
     {
         Cards.push_back( Input );
-        Reposition( Input, false );
+        InvalidateCards( Input );
         ICardContainer::SetCardContainer( Input );
         
         int Index = (int)Cards.size() - 1;
@@ -90,7 +93,7 @@ void HandEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         //CC_ASSERT( Iter != Cards.end() );
         
         auto It = Cards.insert( Iter, Input );
-        Reposition( Input, false );
+        InvalidateCards( Input );
         ICardContainer::SetCardContainer( Input );
         
         int Index = (int)( It - Cards.begin() );
@@ -114,7 +117,7 @@ void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
         std::advance( It, Index );
         
         Cards.insert( It, Input );
-        Reposition( Input, false );
+        InvalidateCards( Input );
         ICardContainer::SetCardContainer( Input );
         
         if( bMoveSprite )
@@ -123,6 +126,36 @@ void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
             MoveCard( Input, CalcPos( Index ) );
         }
     }
+}
+
+bool HandEntity::Remove( CardEntity* inCard, bool bDestroy )
+{
+    if( !inCard || Cards.empty() )
+        return false;
+    
+    // Lookup card
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It && *It == inCard )
+        {
+            if( bDestroy )
+            {
+                IEntityManager::GetInstance().DestroyEntity( inCard );
+            }
+            else
+            {
+                ClearCardContainer( inCard );
+            }
+            
+            Cards.erase( It );
+            InvalidateCards();
+            InvalidateZOrder();
+            
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 bool HandEntity::RemoveTop( bool bDestroy /* = false */ )
@@ -140,7 +173,7 @@ bool HandEntity::RemoveTop( bool bDestroy /* = false */ )
     }
     
     Cards.pop_front();
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -161,7 +194,7 @@ bool HandEntity::RemoveBottom( bool bDestroy /* = false */ )
     }
     
     Cards.pop_back();
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -185,7 +218,7 @@ bool HandEntity::RemoveAtIndex( uint32 Index, bool bDestroy /* = false */ )
     }
     
     Cards.erase( It );
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
@@ -211,25 +244,24 @@ bool HandEntity::RemoveRandom( bool bDestroy /* = false */ )
     }
     
     Cards.erase( It );
-    Reposition( nullptr );
+    InvalidateCards();
     InvalidateZOrder();
     
     return true;
 }
 
-void HandEntity::Reposition( CardEntity* Ignore, bool bFillIgnoredSpace )
+void HandEntity::InvalidateCards( CardEntity* Ignore, bool bExpanding )
 {
     int Index = 0;
-    auto dir = cocos2d::Director::getInstance();
-    auto size = dir->getVisibleSize();
     
     // If were ignoring a card and dont want to fill the place, we need to subtract one
     // from total card count in CalcPos
     for( auto It = Cards.begin(); It != Cards.end(); It++ )
     {
-        if( (*It) && *It != Ignore )
+        if( (*It) && *It != Ignore && !(*It)->GetIsDragging() )
         {
-            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.4f );
+            // If were expanding, then were going to increate the animation speed
+            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f );
         }
         
         Index++;
@@ -239,40 +271,7 @@ void HandEntity::Reposition( CardEntity* Ignore, bool bFillIgnoredSpace )
 void HandEntity::Invalidate()
 {
     EntityBase::Invalidate();
-    
-    // Cards and decks share the same parent, instead of the cards being children
-    // of decks. So on invalidate we need to update the card positions manually
-    
-    // The cards will have some overlap when in hand, the more cards, the more overlap
-    // Then, we have to spread the cards out evenly, also with an increasing with although a smaller factor
-    // Overlap = Count * 1px;
-    // TotalWidth = Count * ( CardWidth - ( Count * 1px ) )
-    if( !Cards.empty() && Cards.front() )
-    {
-        float OverlapFactor = 2.f;
-        auto ct = Count() - 1;
-        
-        float CardWidth = Cards.front()->GetWidth();
-        
-        float Overlap = ct * OverlapFactor - 6.f;
-        float Spacing = CardWidth - Overlap;
-        float TotalWidth = ct * Spacing;
-        
-        // Now we can space the cards out over this width, since the cards are
-        // anchored by the mid point, we subtracted an extra card width from the result
-        int Index = 0;
-        for( auto It = Begin(); It != End(); It++ )
-        {
-            if( *It )
-            {
-                float PositionX = ( - TotalWidth / 2.f ) + Index * Spacing;
-                //(*It)->SetPosition( GetPosition() + cocos2d::Vec2( PositionX, 0.f ) );
-                //(*It)->SetRotation( GetRotation() );
-            }
-            
-            Index++;
-        }
-    }
+    InvalidateCards();
 }
 
 cocos2d::Vec2 HandEntity::CalcPos( int Index, int CardDelta )
@@ -293,16 +292,16 @@ cocos2d::Vec2 HandEntity::CalcPos( int Index, int CardDelta )
     return GetPosition() + cocos2d::Vec2( ( -TotalWidth / 2.f ) + Index * Spacing, bExpanded ? size.height * 0.15f : 0.f );
 }
 
-void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos )
+void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( AbsPos, 0.4f );
+        inCard->MoveAnimation( inPos, 0.5f );
         
         // Flip face up if it isnt already
         if( bVisibleLocally && !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.4f );
+            inCard->Flip( true, 0.5f );
         
         // If were flipped upside down, then ensure the card is also upside down
         auto rot = GetAbsoluteRotation();
@@ -311,7 +310,7 @@ void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos )
             float cardRot = inCard->GetAbsoluteRotation();
             if( cardRot < 1.f || cardRot > -1.f )
             {
-                inCard->RotateAnimation( GetAbsoluteRotation(), 0.4f );
+                inCard->RotateAnimation( GetAbsoluteRotation(), 0.5f );
             }
         }
     }
@@ -341,6 +340,75 @@ void HandEntity::SetExpanded( bool bExpand )
         return;
     
     bExpanded = bExpand;
-    cocos2d::log( "[DEBUG] EXPANDING %s", bExpanded ? "true" : "false" );
-    Reposition( nullptr );
+    InvalidateCards( nullptr, true );
+}
+
+
+bool HandEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
+{
+    if( !inCard )
+        return false;
+    
+    // Determine, if this card was added, a list of points, and find the one which is
+    // closest to the drop position, and have a minimum required distance
+    auto dir = cocos2d::Director::getInstance();
+    auto size = dir->getVisibleSize();
+    
+    // We also need to determine if this card is coming from a different container (shouldnt right now)
+    int CardCount = (int) Count();
+    
+    auto cont = inCard->GetContainer();
+    if( !cont || cont->GetTag() != TAG_HAND )
+        CardCount++;
+    
+    int BestIndex       = -1;
+    float IndexDist     = size.width / 16.f;
+    cocos2d::Vec2 Abs   = GetOwner() ? GetOwner()->GetAbsolutePosition() : cocos2d::Vec2::ZERO;
+    
+    for( int i = 0; i < CardCount; i++ )
+    {
+        float Dist = ( CalcPos( i ) + Abs ).getDistance( inPos );
+        
+        if( Dist < IndexDist )
+        {
+            BestIndex = i;
+            IndexDist = Dist;
+        }
+    }
+    
+    // Check if anything was found
+    if( BestIndex < 0 )
+        return false;
+    
+    // Move the card
+    if( cont )
+    {
+        if( cont->GetTag() == TAG_HAND )
+        {
+            // This means were just re-arranging the card, so we need to
+            // move the card in the list manually
+            bool bFound = false;
+            for( auto It = Cards.begin(); It != Cards.end(); It++ )
+            {
+                if( *It && *It == inCard )
+                {
+                    Cards.erase( It );
+                    bFound = true;
+                    break;
+                }
+            }
+            
+            // If the card didnt end up being in the list, then somethings wrong
+            if( !bFound )
+            {
+                cocos2d::log( "[UI] WARNING: Hand re-arrange failed.. couldnt find specified card in list" );
+                return false;
+            }
+        }
+        else
+            cont->Remove( inCard );
+    }
+    
+    AddAtIndex( inCard, BestIndex );
+    return true;
 }

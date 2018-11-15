@@ -35,6 +35,7 @@ namespace Game
         virtual bool RemoveBottom( bool bDestroy = false ) override;
         virtual bool RemoveAtIndex( uint32 Index, bool bDestroy = false ) override;
         virtual bool RemoveRandom( bool bDestroy = false ) override;
+        virtual bool Remove( CardEntity* inCard, bool bDestroy = false ) override;
         
         // Iterator Access
         inline HandIter Begin()     { return Cards.begin(); }
@@ -53,7 +54,10 @@ namespace Game
         inline bool IsExpanded() const { return bExpanded; }
         
         void SetExpanded( bool bExpand );
-    
+        virtual void InvalidateCards( CardEntity* Ignore = nullptr, bool bExpanding = false ) override;
+        
+        bool AttemptDrop( CardEntity* inCard, const cocos2d::Vec2& inPos );
+        
     protected:
         
         std::deque< CardEntity* > Cards;
@@ -62,7 +66,7 @@ namespace Game
         
         void MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos );
         cocos2d::Vec2 CalcPos( int Index, int CardDelta = 0 );
-        void Reposition( CardEntity* Ignore, bool bFillIgnoredSpace = false );
+        
         
         friend class SingleplayerLauncher;
     };

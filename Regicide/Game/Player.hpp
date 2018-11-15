@@ -36,6 +36,12 @@ namespace Game
         std::vector< CardEntity* > GetAllCards();
         CardEntity* PerformTouchTrace( const cocos2d::Vec2& inPos );
         
+        inline int GetMana() const { return Mana; }
+        void SetMana( int In ) { Mana = In; }
+        
+        inline int GetHealth() const { return Health; }
+        void SetHealth( int In ) { Health = In; }
+        
     private:
         
         CardEntity* _Impl_TraceTouch( std::deque< CardEntity* >::iterator Begin, std::deque< CardEntity* >::iterator End, const cocos2d::Vec2& inPos );
@@ -50,6 +56,9 @@ namespace Game
         
         // Traits
         std::string DisplayName;
+        
+        int Mana;
+        int Health;
         
         // Friend the launcher
         friend class SingleplayerLauncher;

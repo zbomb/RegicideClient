@@ -9,6 +9,12 @@
 
 #include "CardEntity.hpp"
 
+#define TAG_DECK 10
+#define TAG_FIELD 11
+#define TAG_HAND 12
+#define TAG_GRAVE 13
+#define TAG_KING 14
+
 namespace Game
 {
     class ICardContainer
@@ -26,12 +32,17 @@ namespace Game
         virtual bool RemoveBottom( bool bDestroy = false ) = 0;
         virtual bool RemoveAtIndex( uint32 Index, bool bDestroy = false ) = 0;
         virtual bool RemoveRandom( bool bDestroy = false ) = 0;
+        virtual bool Remove( CardEntity* Input, bool bDestroy = false ) = 0;
         
         // Other Accessors
         virtual bool IndexValid( uint32 Index ) const = 0;
         virtual CardEntity* operator[]( uint32 Index ) = 0;
         virtual CardEntity* At( uint32 Index ) = 0;
         virtual size_t Count() const = 0;
+        
+        inline int GetTag() const { return i_Tag; }
+        
+        virtual void InvalidateCards( CardEntity* IgnoredCard = nullptr, bool bParam = false ) = 0;
         
     protected:
         
@@ -48,6 +59,15 @@ namespace Game
                 inCard->SetZ( 10 );
             }
         }
+        
+        void SetTag( int inTag )
+        {
+            i_Tag = inTag;
+        }
+        
+    private:
+        
+        int i_Tag;
         
     };
 }

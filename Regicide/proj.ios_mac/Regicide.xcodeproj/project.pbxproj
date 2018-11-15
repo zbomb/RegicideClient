@@ -89,6 +89,7 @@
 		D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */; };
 		D02F8DD021974F7D00B5C65A /* World.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DCE21974F7D00B5C65A /* World.cpp */; };
 		D02F8DD32197509F00B5C65A /* SingleplayerLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */; };
+		D03C671B219B555D00A177A7 /* CardViewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D03C6719219B555D00A177A7 /* CardViewer.cpp */; };
 		D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */; };
 		D0414B762195DF7100D0BA2F /* OnlineLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */; };
 		D05E9BC12189C27A0026E33A /* API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BBE2189C27A0026E33A /* API.cpp */; };
@@ -127,6 +128,7 @@
 		D0B9FD78217128ED0097E97B /* RegisterLayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD67217128ED0097E97B /* RegisterLayer.cpp */; };
 		D0B9FD79217128ED0097E97B /* IntroScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD68217128ED0097E97B /* IntroScene.cpp */; };
 		D0B9FD7A217128ED0097E97B /* IntroScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD68217128ED0097E97B /* IntroScene.cpp */; };
+		D0C67FFC219BBF070072233F /* ExitOverlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0C67FFA219BBF070072233F /* ExitOverlay.cpp */; };
 		D0CC20642190B76500B01994 /* UpdateScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0CC20622190B76500B01994 /* UpdateScene.cpp */; };
 		D0CC206821910FB000B01994 /* IContentSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0CC206721910FB000B01994 /* IContentSystem.cpp */; };
 		D0E6C81721940B7C00064670 /* OptionsScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0E6C81521940B7C00064670 /* OptionsScene.cpp */; };
@@ -337,6 +339,8 @@
 		D02F8DCF21974F7D00B5C65A /* World.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = World.hpp; sourceTree = "<group>"; };
 		D02F8DD12197509F00B5C65A /* SingleplayerLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerLauncher.cpp; sourceTree = "<group>"; };
 		D02F8DD22197509F00B5C65A /* SingleplayerLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerLauncher.hpp; sourceTree = "<group>"; };
+		D03C6719219B555D00A177A7 /* CardViewer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardViewer.cpp; sourceTree = "<group>"; };
+		D03C671A219B555D00A177A7 /* CardViewer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardViewer.hpp; sourceTree = "<group>"; };
 		D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerLauncher.cpp; sourceTree = "<group>"; };
 		D0414B712195DF5600D0BA2F /* SingleplayerLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerLauncher.hpp; sourceTree = "<group>"; };
 		D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OnlineLauncher.cpp; sourceTree = "<group>"; };
@@ -393,6 +397,9 @@
 		D0B9FD65217128ED0097E97B /* ConnectingPopup.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConnectingPopup.h; sourceTree = "<group>"; };
 		D0B9FD67217128ED0097E97B /* RegisterLayer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RegisterLayer.cpp; sourceTree = "<group>"; };
 		D0B9FD68217128ED0097E97B /* IntroScene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IntroScene.cpp; sourceTree = "<group>"; };
+		D0C67FFA219BBF070072233F /* ExitOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ExitOverlay.cpp; sourceTree = "<group>"; };
+		D0C67FFB219BBF070072233F /* ExitOverlay.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ExitOverlay.hpp; sourceTree = "<group>"; };
+		D0C67FFE219BF7FE0072233F /* TurnManager.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TurnManager.hpp; sourceTree = "<group>"; };
 		D0CC20622190B76500B01994 /* UpdateScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = UpdateScene.cpp; sourceTree = "<group>"; };
 		D0CC20632190B76500B01994 /* UpdateScene.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = UpdateScene.hpp; sourceTree = "<group>"; };
 		D0CC206621910E8B00B01994 /* IContentSystem.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IContentSystem.hpp; sourceTree = "<group>"; };
@@ -758,6 +765,7 @@
 				D0E894EB2199C9A60095F842 /* ICardContainer.hpp */,
 				D0E894ED2199E4E30095F842 /* CardAnimations.cpp */,
 				D0E894EE2199E4E30095F842 /* CardAnimations.hpp */,
+				D0C67FFE219BF7FE0072233F /* TurnManager.hpp */,
 			);
 			name = Game;
 			path = ../Game;
@@ -813,6 +821,10 @@
 				D0E6C81A2194218A00064670 /* UpdatePrompt.hpp */,
 				D024C5B4219AAB640024968E /* CardLayer.cpp */,
 				D024C5B5219AAB640024968E /* CardLayer.hpp */,
+				D03C6719219B555D00A177A7 /* CardViewer.cpp */,
+				D03C671A219B555D00A177A7 /* CardViewer.hpp */,
+				D0C67FFA219BBF070072233F /* ExitOverlay.cpp */,
+				D0C67FFB219BBF070072233F /* ExitOverlay.hpp */,
 			);
 			name = UI;
 			path = ../UI;
@@ -1076,6 +1088,7 @@
 				D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */,
 				D0CC206821910FB000B01994 /* IContentSystem.cpp in Sources */,
 				1AF87B8A1F6F7822007BE51C /* main.m in Sources */,
+				D0C67FFC219BBF070072233F /* ExitOverlay.cpp in Sources */,
 				D0189BE02192877A007A8BD6 /* ldump.cpp in Sources */,
 				D02C114321804977009A8DFD /* snappy-sinksource.cc in Sources */,
 				D0189BF22192877A007A8BD6 /* ltm.cpp in Sources */,
@@ -1097,6 +1110,7 @@
 				D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */,
 				D024C5B6219AAB640024968E /* CardLayer.cpp in Sources */,
 				D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */,
+				D03C671B219B555D00A177A7 /* CardViewer.cpp in Sources */,
 				D0189BE72192877A007A8BD6 /* lmem.cpp in Sources */,
 				D0B75D2A2198E6CD00EC80F5 /* SingleplayerAuthority.cpp in Sources */,
 				D0E894EF2199E4E30095F842 /* CardAnimations.cpp in Sources */,
