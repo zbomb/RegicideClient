@@ -1,8 +1,11 @@
 //
-//  SingleplayerGameMode.cpp
-//  Regicide-mobile
+//    SingleplayerGameMode.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "SingleplayerGameMode.hpp"
@@ -14,7 +17,6 @@
 #include "FieldEntity.hpp"
 #include "UI/CardViewer.hpp"
 
-
 using namespace Game;
 
 
@@ -23,41 +25,10 @@ void SingleplayerGameMode::Initialize()
     
 }
 
-void SingleplayerGameMode::PostInitialize()
-{
-    
-}
-
 void SingleplayerGameMode::Cleanup()
 {
+    GameModeBase::Cleanup();
     _DoCloseViewer();
-}
-
-Player* SingleplayerGameMode::GetLocalPlayer()
-{
-    // Get reference to Authority
-    auto Auth = GetAuthority< SingleplayerAuthority >();
-    if( !Auth )
-        return nullptr;
-    
-    return Auth->GetPlayer();
-}
-
-Player* SingleplayerGameMode::GetOpponent()
-{
-    // Get reference to Authority
-    auto Auth = GetAuthority< SingleplayerAuthority >();
-    if( !Auth )
-        return nullptr;
-    
-    return Auth->GetOpponent();
-}
-
-void SingleplayerGameMode::OnTurnChanged( PlayerTurn inTurn )
-{
-    _CurrentTurn = inTurn;
-    
-    
 }
 
 /*=========================================================================================
@@ -117,10 +88,8 @@ void SingleplayerGameMode::TouchMoved( cocos2d::Touch *inTouch )
     // Check if card is being dragged & in player's hand
     if( _touchedCard && !_touchedCard->GetIsDragging() && _touchedCard->InHand() )
     {
-        // Ask auth if it would be valid to play this card
-        auto Auth = GetAuthority< SingleplayerAuthority >();
-        
-        if( Auth && Auth->CanPlayCard( GetLocalPlayer(), _touchedCard ) )
+        // Check if the gamemode thinks we can even play this card
+        if( CanPlayCard( _touchedCard ) )
         {
             // We need to make sure that its fairly explicit that the user is trying to drag and not click
             auto deltaVec = inTouch->getDelta();
@@ -175,7 +144,7 @@ bool SingleplayerGameMode::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *I
     // besides just the field & hand
     
     auto DropPos = Info->getLocation(); // Were not going to factor the offset when dropping, use actual touch pos
-    auto pl = GetLocalPlayer();
+    auto pl = GetPlayer();
     auto hand = pl ? pl->GetHand() : nullptr;
     auto field = pl ? pl->GetField() : nullptr;
     
@@ -184,12 +153,26 @@ bool SingleplayerGameMode::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *I
         return true;
     
     // If not, then try the field
-    return( field && field->AttemptDrop( inCard, DropPos ) );
+    if( field )
+    {
+        int BestIndex = field->AttemptDrop( inCard, DropPos );
+        if( BestIndex < 0 )
+            return false;
+        
+        // Player attempted to drop card onto field, so we need to pass call along
+        // to the authority to be processed
+        auto Auth = GetAuthority< SingleplayerAuthority >();
+        CC_ASSERT( Auth );
+        
+        Auth->PlayCard( inCard, BestIndex );
+    }
+    
+    return false;
 }
 
 void SingleplayerGameMode::OnCardClicked( CardEntity* inCard )
 {
-    auto LocalPlayer = GetLocalPlayer();
+    auto LocalPlayer = GetPlayer();
     bool bLocalOwner = inCard->GetOwningPlayer() == LocalPlayer;
     
     if( inCard->InGrave() )
@@ -237,7 +220,7 @@ void SingleplayerGameMode::CloseGraveyardViewer()
 
 void SingleplayerGameMode::CloseHandViewer()
 {
-    auto pl = GetLocalPlayer();
+    auto pl = GetPlayer();
     auto hand = pl ? pl->GetHand() : nullptr;
     
     if( hand && hand->IsExpanded() )
@@ -260,31 +243,18 @@ void SingleplayerGameMode::OpenCardViewer( CardEntity *inCard )
     // TODO: Better looking animation
     
     // Determine if the card is in the hand or not
-    auto Auth = GetAuthority< SingleplayerAuthority >();
-    bool bCanPlay = Auth && Auth->CanPlayCard( GetLocalPlayer(), inCard );
+    bool bCanPlay = CanPlayCard( inCard );
     
     _DoCloseViewer();
     _Viewer = CardViewer::create( inCard, bCanPlay );
     _Viewer->SetCloseCallback( std::bind( &SingleplayerGameMode::_DoCloseViewer, this ) );
     if( bCanPlay )
-        _Viewer->SetPlayCallback( std::bind( &SingleplayerGameMode::_DoPlayCard, this, inCard ) );
+        _Viewer->SetPlayCallback( std::bind( &SingleplayerGameMode::PlayCard, this, inCard, -1 ) );
     
     _Viewer->setGlobalZOrder( 300 );
     scene->addChild( _Viewer, 200 );
 }
 
-void SingleplayerGameMode::_DoPlayCard( CardEntity *inCard )
-{
-    // Pass call along to PlayCard
-    auto Auth = GetAuthority< SingleplayerAuthority >();
-    if( Auth )
-    {
-        if( !Auth->PlayCard( GetLocalPlayer(), inCard, true ) )
-        {
-            // TODO: Show something to indicate this card cannot be played
-        }
-    }
-}
 
 void SingleplayerGameMode::_DoCloseViewer()
 {
@@ -297,7 +267,7 @@ void SingleplayerGameMode::_DoCloseViewer()
 
 void SingleplayerGameMode::OpenHandViewer( CardEntity *inCard )
 {
-    auto Player = GetLocalPlayer();
+    auto Player = GetPlayer();
     if( Player == inCard->GetOwningPlayer() )
     {
         auto hand = Player->GetHand();
@@ -319,3 +289,4 @@ void SingleplayerGameMode::OpenGraveyardViewer( GraveyardEntity *Grave )
 {
     cocos2d::log( "[DEBUG] OPENING GRAVEYARD VIEWER" );
 }
+

@@ -1,13 +1,16 @@
 //
-//  Utils.cpp
-//  Regicide
+//    Utils.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/1/18.
+//    Created: 10/16/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
-#include "Utils.h"
+#include "Utils.hpp"
 #include <memory>
-#include "RegicideAPI/Account.h"
+#include "RegicideAPI/Account.hpp"
 #include "external/json/prettywriter.h"
 
 using namespace Regicide;

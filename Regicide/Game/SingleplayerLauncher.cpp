@@ -1,12 +1,15 @@
 //
-//  SingleplayerLauncher.cpp
-//  Regicide-mobile
+//    SingleplayerLauncher.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "SingleplayerLauncher.hpp"
-#include "AppDelegate.h"
+#include "AppDelegate.hpp"
 #include "World.hpp"
 #include "cocos2d.h"
 #include "SingleplayerGameMode.hpp"
@@ -16,8 +19,8 @@
 #include "FieldEntity.hpp"
 #include "GraveyardEntity.hpp"
 #include "SingleplayerAuthority.hpp"
-#include "cocos2d.h"
-#include "TurnManager.hpp"
+#include "KingEntity.hpp"
+
 
 using namespace Game;
 
@@ -203,19 +206,6 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     NewWorld->AddChild( Authority );
     NewWorld->Auth = Authority;
     
-    // Create Turn Manager
-    auto turnManager = EntityManager.CreateEntity< Game::TurnManager >();
-    
-    if( !turnManager )
-    {
-        EntityManager.DestroyEntity( turnManager );
-        Error( "Failed to create turn manager!" );
-        return;
-    }
-    
-    Authority->AddChild( turnManager );
-    Authority->turnManager = turnManager;
-    
     // Create Gamemode
     auto* GM = EntityManager.CreateEntity< Game::SingleplayerGameMode >();
     if( !GM )
@@ -233,7 +223,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     auto Origin = dir->getVisibleOrigin();
     
     // Create players
-    auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, cache );
+    auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, cache, false );
     
     if( !NewLocalPlayer )
     {
@@ -246,10 +236,10 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     // Ensure local player hand flips cards face up
     NewLocalPlayer->Hand->bVisibleLocally = true;
     
-    Authority->AddChild( NewLocalPlayer );
-    Authority->LocalPlayer = NewLocalPlayer;
+    NewWorld->AddChild( NewLocalPlayer );
+    NewWorld->LocalPlayer = NewLocalPlayer;
     
-    auto NewOpponent = CreatePlayer( OpponentName, OpponentDeck, cache );
+    auto NewOpponent = CreatePlayer( OpponentName, OpponentDeck, cache, true );
     
     if( !NewOpponent )
     {
@@ -258,14 +248,14 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
         return;
     }
     
-    Authority->AddChild( NewOpponent );
-    Authority->Opponent = NewOpponent;
+    NewWorld->AddChild( NewOpponent );
+    NewWorld->Opponent = NewOpponent;
     
     Success();
 }
 
 
-Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName, const Regicide::Deck &inDeck, cocos2d::TextureCache* cache )
+Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName, const Regicide::Deck &inDeck, cocos2d::TextureCache* cache, bool bOpponent /* = false */ )
 {
     // Create new player entity
     auto& EntityManager = Game::IEntityManager::GetInstance();
@@ -289,6 +279,48 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     
     // Set Player Traits
     NewPlayer->DisplayName = DisplayName;
+    NewPlayer->bOpponent = bOpponent;
+    NewPlayer->Health   = 30;
+    
+    // Load King
+    auto KingTable = luabridge::newTable( L );
+    luabridge::setGlobal( L, KingTable, "KING" );
+    
+    if( !Lua->RunScript( "kings/" + std::to_string( inDeck.KingId ) + ".lua" ) )
+    {
+        cocos2d::log( "[Launcher] Failed to load king with id: %d", inDeck.KingId );
+        
+        // Reset KING to nil
+        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
+        
+        // Rollback Function
+        EntityManager.DestroyEntity( NewPlayer );
+        return nullptr;
+    }
+    
+    auto* newKing = EntityManager.CreateEntity< Game::KingEntity >();
+    if( !newKing )
+    {
+        // Rollback Function
+        EntityManager.DestroyEntity( NewPlayer );
+        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
+        return nullptr;
+    }
+    
+    if( !newKing->Load( KingTable, NewPlayer, cache, bOpponent ) )
+    {
+        EntityManager.DestroyEntity( NewPlayer );
+        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
+        return nullptr;
+    }
+    
+    // Reset KING global in Lua
+    luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
+    
+    NewPlayer->AddChild( newKing );
+    NewPlayer->King = newKing;
+    
+    newKing->UpdateHealth( NewPlayer->Health );
     
     // Create Deck
     auto* NewDeck = EntityManager.CreateEntity< Game::DeckEntity >();
@@ -354,7 +386,7 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
                 continue;
             }
             
-            if( !NewCard->Load( newTable, NewPlayer, cache, true ) )
+            if( !NewCard->Load( newTable, NewPlayer, cache ) )
             {
                 cocos2d::log( "[Launcher] Failed to load a card '%d' for player!", C.Id );
                 EntityManager.DestroyEntity( NewCard );
@@ -384,9 +416,6 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     NewPlayer->AddChild( NewHand );
     NewPlayer->Hand = NewHand;
 
-    
-    // TODO: Hand Setup?
-    
     // Create playing field
     auto* NewField = EntityManager.CreateEntity< FieldEntity >();
     
@@ -398,8 +427,6 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     
     NewPlayer->AddChild( NewField );
     NewPlayer->Field = NewField;
-    
-    // TODO: Field Setup?
     
     // Create Graveyard
     auto* NewGraveyard = EntityManager.CreateEntity< GraveyardEntity >();

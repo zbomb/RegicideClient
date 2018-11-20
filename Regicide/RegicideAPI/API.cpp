@@ -1,18 +1,21 @@
 //
-//  API.cpp
-//  Regicide
+//    API.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/31/18.
+//    Created: 10/31/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #define API_DEV_MODE
 
-#include "RegicideAPI/API.h"
+#include "RegicideAPI/API.hpp"
 #include "utf8/utf8.h"
-#include "CryptoLibrary.h"
+#include "CryptoLibrary.hpp"
 #include "cocos2d.h"
-#include "RegicideAPI/Types.h"
-#include "Numeric.h"
+#include "RegicideAPI/Types.hpp"
+#include "Numeric.hpp"
 #include "external/json/document.h"
 #include "external/json/prettywriter.h"
 #include "network/HttpRequest.h"

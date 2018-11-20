@@ -1,15 +1,18 @@
 //
-//  APILuaBindings.hpp
-//  Regicide
+//    APILuaBindings.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/6/18.
+//    Created: 11/6/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #ifndef APILuaBindings_h
 #define APILuaBindings_h
 
 #include "LuaHeaders.hpp"
-#include "API.h"
+#include "API.hpp"
 
 
 namespace Regicide

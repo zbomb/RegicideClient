@@ -1,14 +1,16 @@
 //
-//  AccountManager.hpp
-//  Regicide-mobile
+//    AccountManager.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/2/18.
+//    Created: 11/2/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
-#ifndef AccountManager_hpp
-#define AccountManager_hpp
+#pragma once
 
-#include "Account.h"
+#include "Account.hpp"
 #include "IContentSystem.hpp"
 
 namespace Regicide
@@ -46,5 +48,3 @@ namespace Regicide
     
     
 }
-
-#endif /* AccountManager_hpp */

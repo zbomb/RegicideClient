@@ -1,14 +1,17 @@
 //
-//  GameScene.hpp
-//  Regicide-mobile
+//    GameScene.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/11/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
 #include "cocos2d.h"
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include "ui/CocosGUI.h"
 #include "UI/CardLayer.hpp"
 
@@ -27,10 +30,16 @@ public:
     ~GameScene();
     
     inline CardLayer* GetCardLayer() { return cardLayer; }
+    void UpdateTurnState( const std::string& In );
+    void UpdatePlayerTurn( const std::string& In );
     
 private:
     
     cocos2d::ui::Button* ExitButton;
+    cocos2d::ui::Button* TestButton;
+    cocos2d::Label* TurnLabel;
+    cocos2d::Label* PlayerLabel;
+    
     CardLayer* cardLayer;
     
     virtual void ExitGame();

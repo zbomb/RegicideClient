@@ -1,12 +1,14 @@
 //
-//  Numeric.h
-//  Regicide
+//    Numeric.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/31/18.
+//    Created: 11/1/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
-#ifndef Numeric_h
-#define Numeric_h
+#pragma once
 
 #include <stdint.h>
 
@@ -19,5 +21,3 @@ typedef int32_t      int32;
 typedef uint64_t     uint64;
 typedef int64_t      int64;
 
-
-#endif /* Numeric_h */

@@ -1,31 +1,53 @@
 //
-//  DeckEntity.cpp
-//  Regicide-mobile
+//    DeckEntity.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "DeckEntity.hpp"
-#include "cryptolib/Random.hpp"
-
 
 using namespace Game;
 
 
 DeckEntity::DeckEntity()
-    : EntityBase( "Deck" )
+    : EntityBase( "Deck" ), Counter( nullptr )
 {
     SetTag( TAG_DECK );
+    bAddedToScene = false;
 }
 
 DeckEntity::~DeckEntity()
 {
+    if( Counter )
+    {
+        Counter->removeFromParent();
+    }
     
+    Counter = nullptr;
 }
 
 void DeckEntity::Cleanup()
 {
+    EntityBase::Cleanup();
+}
+
+void DeckEntity::AddToScene( cocos2d::Node* In )
+{
+    if( bAddedToScene )
+        return;
     
+    bAddedToScene = true;
+    cocos2d::log( "DECK ADDED TO SCENE" );
+    
+    Counter = cocos2d::Label::createWithTTF( std::to_string( Count() ), "fonts/arial.ttf", 50.f );
+    Counter->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    Counter->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
+    
+    In->addChild( Counter, 100 );
 }
 
 bool DeckEntity::IndexValid( uint32 Index ) const
@@ -57,64 +79,73 @@ CardEntity* DeckEntity::DrawCard()
     ClearCardContainer( Output );
     InvalidateZOrder();
     InvalidateCards();
+    UpdateCounter();
     
     return Output;
 }
 
-void DeckEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
+void DeckEntity::AddToTop( CardEntity *Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         Cards.push_front( Input );
         SetCardContainer( Input );
         InvalidateCards( Input );
+        UpdateCounter();
         
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void DeckEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
+void DeckEntity::AddToBottom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         Cards.push_back( Input );
         SetCardContainer( Input );
         InvalidateCards( Input );
+        UpdateCounter();
         
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void DeckEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
+void DeckEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         // Generate random index
-        using Random = effolkronium::random_static;
-        auto Iter = Random::get( Cards.begin(), Cards.end() );
-        //CC_ASSERT( Iter != Cards.end() );
+        auto Iter = Cards.begin();
+        std::advance( Iter, cocos2d::random< int >( 0, (int) Cards.size() ) );
         
         Cards.insert( Iter, Input );
         SetCardContainer( Input );
         InvalidateCards( Input );
+        UpdateCounter();
         
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void DeckEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
+void DeckEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -127,12 +158,15 @@ void DeckEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
         Cards.insert( It, Input );
         SetCardContainer( Input );
         InvalidateCards( Input );
+        UpdateCounter();
         
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
@@ -158,6 +192,7 @@ bool DeckEntity::Remove( CardEntity* inCard, bool bDestroy )
             Cards.erase( It );
             InvalidateCards();
             InvalidateZOrder();
+            UpdateCounter();
             
             return true;
         }
@@ -183,6 +218,7 @@ bool DeckEntity::RemoveTop( bool bDestroy /* = false */ )
     Cards.pop_front();
     InvalidateCards();
     InvalidateZOrder();
+    UpdateCounter();
     
     return true;
 }
@@ -204,6 +240,7 @@ bool DeckEntity::RemoveBottom( bool bDestroy /* = false */ )
     Cards.pop_back();
     InvalidateCards();
     InvalidateZOrder();
+    UpdateCounter();
     
     return true;
 }
@@ -228,6 +265,7 @@ bool DeckEntity::RemoveAtIndex( uint32 Index, bool bDestroy /* = false */ )
     Cards.erase( It );
     InvalidateCards();
     InvalidateZOrder();
+    UpdateCounter();
     
     return true;
 }
@@ -238,8 +276,8 @@ bool DeckEntity::RemoveRandom( bool bDestroy /* = false */ )
         return false;
     
     // Choose random card
-    using Random = effolkronium::random_static;
-    auto It = Random::get( Cards.begin(), Cards.end() );
+    auto It = Cards.begin();
+    std::advance( It, cocos2d::random< int >( 0, (int) Cards.size() - 1 ) );
     CC_ASSERT( It != Cards.end() );
     
     if( bDestroy && *It )
@@ -254,8 +292,17 @@ bool DeckEntity::RemoveRandom( bool bDestroy /* = false */ )
     Cards.erase( It );
     InvalidateCards();
     InvalidateZOrder();
+    UpdateCounter();
     
     return true;
+}
+
+void DeckEntity::UpdateCounter()
+{
+    if( Counter )
+    {
+        Counter->setString( std::to_string( Count() ) );
+    }
 }
 
 void DeckEntity::Invalidate()
@@ -265,6 +312,22 @@ void DeckEntity::Invalidate()
     // Cards and decks share the same parent, instead of the cards being children
     // of decks. So on invalidate we need to update the card positions manually
     InvalidateCards();
+    
+    // Update the Counter label
+    if( Counter )
+    {
+        float CardHeight = 0.f;
+        for( auto It = Begin(); It != End(); It++ )
+        {
+            if( *It && (*It)->Sprite )
+            {
+                CardHeight = (*It)->Sprite->getContentSize().height * (*It)->Sprite->getScaleY();
+                break;
+            }
+        }
+        
+        Counter->setPosition( GetAbsolutePosition() + cocos2d::Vec2( 0.f, -CardHeight * 0.5f - Counter->getContentSize().height * 0.5f - 5.f ) );
+    }
 }
 
 void DeckEntity::InvalidateCards( CardEntity* Ignore, bool bParam )
@@ -283,12 +346,12 @@ void DeckEntity::InvalidateCards( CardEntity* Ignore, bool bParam )
     }
 }
 
-void DeckEntity::MoveCard( CardEntity* inCard )
+void DeckEntity::MoveCard( CardEntity* inCard, std::function< void() > Callback )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( GetPosition(), 0.3f );
+        inCard->MoveAnimation( GetPosition(), 0.3f, Callback );
         
         // Make sure its face down if in deck
         if( inCard->IsFaceUp() )

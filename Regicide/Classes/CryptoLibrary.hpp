@@ -1,6 +1,16 @@
+//
+//    CryptoLibrary.hpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #pragma once
 #include <vector>
-#include "Numeric.h"
+#include "Numeric.hpp"
 
 
 typedef std::vector< uint8 >::iterator ByteIter;

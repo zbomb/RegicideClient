@@ -1,8 +1,11 @@
 //
-//  SingleplayerAuthority.cpp
-//  Regicide-mobile
+//    SingleplayerAuthority.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/11/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "SingleplayerAuthority.hpp"
@@ -11,6 +14,8 @@
 #include "HandEntity.hpp"
 #include "FieldEntity.hpp"
 #include "GraveyardEntity.hpp"
+#include "SingleplayerGameMode.hpp"
+#include "Actions.hpp"
 
 #define GAME_INITDRAW_COUNT 10
 
@@ -19,436 +24,650 @@ using namespace Game;
 
 SingleplayerAuthority::~SingleplayerAuthority()
 {
-    LocalPlayer     = nullptr;
-    Opponent        = nullptr;
 }
 
 void SingleplayerAuthority::Cleanup()
 {
-    EntityBase::Cleanup();
-    
-    cocos2d::Director::getInstance()->getScheduler()->unscheduleUpdate( this );
-    cocos2d::Director::getInstance()->getScheduler()->unschedule( "StartTimer", this );
+    AuthorityBase::Cleanup();
 }
 
 void SingleplayerAuthority::PostInit()
 {
     // Call base class method
     EntityBase::PostInit();
+
+    // Setup State, wait for a few seconds before starting the match
+    mState = MatchState::PreMatch;
     
-    CC_ASSERT( LocalPlayer && Opponent );
-    
-    auto dir = cocos2d::Director::getInstance();
-    auto Origin = dir->getVisibleOrigin();
-    auto Size = dir->getVisibleSize();
-    
-    // Setup field
-    // Set player object location
-    LocalPlayer->SetPosition( cocos2d::Vec2( Origin.x + Size.width / 2.f, Origin.y + Size.height * 0.f ) );
-    Opponent->SetPosition( cocos2d::Vec2( Origin.x + Size.width / 2.f, Origin.y + Size.height * 1.f ) );
-    
-    // Set locations of decks
-    auto PlayerDeck = LocalPlayer->GetDeck();
-    auto OpponentDeck = Opponent->GetDeck();
-    
-    PlayerDeck->SetPosition( cocos2d::Vec2( Size.width * 0.4f, Size.height * 0.25f ) );
-    PlayerDeck->SetRotation( 0.f );
-    
-    OpponentDeck->SetPosition( cocos2d::Vec2( Size.width * 0.4f, -Size.height * 0.25f ) );
-    OpponentDeck->SetRotation( 180.f );
-    
-    // Invalidate deck Z-Order
-    PlayerDeck->InvalidateZOrder();
-    OpponentDeck->InvalidateZOrder();
-    
-    // Set hand positions
-    auto PlayerHand = LocalPlayer->GetHand();
-    auto OpponentHand = Opponent->GetHand();
-    
-    PlayerHand->SetPosition( cocos2d::Vec2( 0.f, 0.f) );
-    PlayerHand->SetRotation( 0.f );
-    OpponentHand->SetPosition( cocos2d::Vec2( 0.f, 0.f ) );
-    OpponentHand->SetRotation( 180.f );
-    
-    auto PlayerField = LocalPlayer->GetField();
-    auto OpponentField = Opponent->GetField();
-    
-    PlayerField->SetPosition( cocos2d::Vec2( 0.f, Size.height * 0.3f ) );
-    PlayerField->SetRotation( 0.f );
-    OpponentField->SetPosition( cocos2d::Vec2( 0.f, -Size.height * 0.3f ) );
-    OpponentField->SetRotation( 180.f );
-    
-    auto PlayerGrave = LocalPlayer->GetGraveyard();
-    auto OpponentGrave = Opponent->GetGraveyard();
-    
-    PlayerGrave->SetPosition( cocos2d::Vec2( -Size.width * 0.4f, Size.height * 0.25f ) );
-    PlayerGrave->SetRotation( 0.f );
-    OpponentGrave->SetPosition( cocos2d::Vec2( -Size.width * 0.35f, -Size.height * 0.25f ) );
-    OpponentGrave->SetRotation( 180.f );
-    
-    // Setup starting state on everything
-    LocalPlayer->SetMana( 10 );
-    Opponent->SetMana( 10 );
-    
-    // TODO: King Card
-    
-    LocalPlayer->SetHealth( 25 );
-    Opponent->SetHealth( 25 );
-    
+    using namespace std::placeholders;
+    WaitOnPlayer( std::bind( &SingleplayerAuthority::StartGame, this, _1, _2 ), 4.f );
 }
 
 void SingleplayerAuthority::SceneInit( cocos2d::Scene *inScene )
 {
     EntityBase::SceneInit( inScene );
     
-    // Setup turn manager callbacks
-    CC_ASSERT( turnManager );
-    
-    using namespace std::placeholders;
-    turnManager->SetGameStateCallback( std::bind( &SingleplayerAuthority::OnGameStateChanged, this, _1 ) );
-    turnManager->SetTurnStateCallback( std::bind( &SingleplayerAuthority::OnTurnStateChanged, this, _1, _2 ) );
-    
-    // Wait 2 seconds and then start the match
-    cocos2d::Director::getInstance()->getScheduler()->schedule( CC_CALLBACK_0( SingleplayerAuthority::StartGame, this ), this, 2.f, 0, 0.f, false, "StartTimer" );
+    cocos2d::Director::getInstance()->getScheduler()->schedule( CC_CALLBACK_1( SingleplayerAuthority::Test, this ), this, 2.f, 0, 0.f, false, "test" );
 }
 
-void SingleplayerAuthority::StartGame()
-{
-    cocos2d::log( "[Auth] Starting Game!" );
-    
-    // Start ticks
-    cocos2d::Director::getInstance()->getScheduler()->scheduleUpdate( this, 0, false );
-    
-    // Start turn manager
-    turnManager->StartGame();
-}
 
 /*=================================================================================
     Game Flow Logic
  =================================================================================*/
-void SingleplayerAuthority::OnGameStateChanged( GameState inState )
+
+
+void SingleplayerAuthority::SetReady()
 {
-    if( inState == GameState::CoinFlip )
+    // This function is used to notify the authority that the player is ready
+    // to advance the game state. Example: Waiting for an animation, or at start of game
+    if( _fWaitCallback )
     {
-        cocos2d::log( "[Auth] Game state update: Coin Flip" );
-        // Choose starting player, play coin flip animation, and announce winner,
-        // wait a couple seconds, and call TurnManager::SetupMatch( <CoinFlipWinner> );
-        
-        // TODO
-        turnManager->SetupMatch( PlayerTurn::LocalPlayer );
+        // Calc how long it took for the player to call this function
+        float Delta = std::chrono::duration_cast< std::chrono::seconds >( std::chrono::steady_clock::now() - _tWaitStart ).count();
+        _fWaitCallback( Delta, false );
     }
-    else if( inState == GameState::InitialDraw )
+    
+    // Kill timeout timer
+    cocos2d::Director::getInstance()->getScheduler()->unschedule( "WaitOnTimeout", this );
+}
+
+
+void SingleplayerAuthority::WaitOnPlayer( std::function< void( float, bool ) > OnReady, float Timeout )
+{
+    _fWaitCallback = OnReady;
+    _tWaitStart = std::chrono::steady_clock::now();
+    
+    // Start timeout timer
+    cocos2d::Director::getInstance()->getScheduler()->schedule( std::bind( OnReady, std::placeholders::_1, true ), this, Timeout, 0, 0.f, false, "WaitOnTimeout" );
+}
+
+
+void SingleplayerAuthority::StartGame( float Delay, bool bTimeout )
+{
+    cocos2d::log( "[Auth] Starting Game..." );
+    mState = MatchState::CoinFlip;
+    
+    // Choose player to start first
+    int RandValue = cocos2d::random( 0, 2 );
+    if( RandValue <= 0 )
+        pState = PlayerTurn::LocalPlayer;
+    else
+        pState = PlayerTurn::Opponent;
+    
+    // Inform GameMode
+    GameModeBase* GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    Queue.Callback = std::bind( &SingleplayerAuthority::CoinFlipFinish, this );
+    
+    auto coinFlip = Queue.CreateAction< CoinFlipAction >( GM );
+    coinFlip->StartingPlayer = pState;
+    
+    GM->RunActionQueue( std::move( Queue ) );
+}
+
+void SingleplayerAuthority::CoinFlipFinish()
+{
+    cocos2d::log( "[DEBUG] FINISH COIN FLIP!" );
+    
+    GameModeBase* GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    // Update Match State
+    mState = MatchState::Blitz;
+    
+    auto Queue = ActionQueue();
+    auto blitzStart = Queue.CreateAction< EventAction >( GM );
+    blitzStart->ActionName = "BlitzStart";
+    
+    // Create 'DrawCard' actions for both players
+    auto Pl = GetPlayer();
+    auto Op = GetOpponent();
+    
+    CC_ASSERT( Pl );
+    CC_ASSERT( Op );
+    
+    auto PlDeck = Pl->GetDeck();
+    auto OpDeck = Op->GetDeck();
+    
+    CC_ASSERT( PlDeck );
+    CC_ASSERT( OpDeck );
+    
+    Action* lastPlayerAction = blitzStart;
+    Action* lastOpponentAction = blitzStart;
+    
+    for( int i = 0; i < GAME_INITDRAW_COUNT; i++ )
     {
-        cocos2d::log( "[Auth] Game state update: Initial Draw" );
-        
-        // Perform initial draw
-        for( int i = 0; i < 10; i++ )
+        // Create draw actions that will run sequentially, each players draws will
+        // be parallel to one another though
+        auto plCard = PlDeck->At( i );
+        if( plCard )
         {
-            DrawCard( LocalPlayer );
-            DrawCard( Opponent );
+            auto plDraw = lastPlayerAction->CreateAction< DrawCardAction >( Pl );
+            plDraw->TargetCard = plCard->GetEntityId();
+            
+            lastPlayerAction = plDraw;
         }
         
-        // Wait for user to finish playing cards
-    }
-    else if( inState == GameState::Main )
-    {
-        cocos2d::log( "[Auth] Game state update: Main" );
-        // TODO
-    }
-    else if( inState == GameState::PostMatch )
-    {
-        // TODO
-    }
-}
-
-void SingleplayerAuthority::OnTurnStateChanged( PlayerTurn inPlayer, TurnState inState )
-{
-    if( inState == TurnState::PreTurn )
-    {
-        cocos2d::log( "[Auth] Game state update: Pre Turn" );
-        // TODO: Reset State?
-        if( inPlayer == PlayerTurn::LocalPlayer )
-            DrawCard( LocalPlayer );
-        else
-            DrawCard( Opponent );
-        
-        turnManager->Advance();
-    }
-    else if( inState == TurnState::BuildForces )
-    {
-        cocos2d::log( "[Auth] Game state update: Build Forces" );
-        // TODO: Update User/UI
-        // Wait for user to finish playing cards
-    }
-    else if( inState == TurnState::Planning )
-    {
-        cocos2d::log( "[Auth] Game state update: Planning" );
-        // TODO: Update User/UI
-        // Wait for user to finish planning
-    }
-    else if( inState == TurnState::Engage )
-    {
-        cocos2d::log( "[Auth] Game state update: Engage" );
-        // TODO: Have AI perform block
-        // Do game stuff
-        
-        turnManager->Advance();
-    }
-    else if( inState == TurnState::PostBattle )
-    {
-        cocos2d::log( "[Auth] Game state update: Post Battle" );
-        turnManager->Advance();
-    }
-}
-
-
-void SingleplayerAuthority::update( float Delta )
-{
-    // 'Tick' System Mock Up
-     auto delta = std::chrono::duration_cast< std::chrono::seconds >( std::chrono::steady_clock::now() - StateBegin );
-    
-    // Check round state advane
-    if( _gstate == GameState::PreGame )
-    {
-        // Check if enough time advanced to start coin flip
-        if( delta.count() > 2 )
+        auto opCard = OpDeck->At( i );
+        if( opCard )
         {
-            OnPreGameComplete();
+            auto opDraw = lastOpponentAction->CreateAction< DrawCardAction >( Op );
+            opDraw->TargetCard = opCard->GetEntityId();
+            
+            lastOpponentAction = opDraw;
         }
     }
     
+    // Create action to query blitz cards from the player
+    auto blitzQuery = lastPlayerAction->CreateAction< TimedQueryAction >( GM );
+    blitzQuery->ActionName = "BlitzQuery";
+    blitzQuery->Deadline = std::chrono::steady_clock::now() + std::chrono::seconds( 25 );
     
-    // TODO: Play Animation
-    
-    
-}
-
-void SingleplayerAuthority::OnPreGameComplete()
-{
-    // Update game state
-    _gstate = GameState::CoinFlip;
-    StateBegin = std::chrono::steady_clock::now();
-    
-    // Choose random player to start
-    _plturn = PlayerTurn::LocalPlayer;
-    
-    // TODO: Play some type of animation for coin flip
-    
+    GM->RunActionQueue( std::move( Queue ) );
 }
 
 
-void SingleplayerAuthority::DrawCard( Player* Target )
+void SingleplayerAuthority::SetBlitzCards( const std::vector< CardEntity* >& Cards )
 {
-    if( !Target )
+    cocos2d::log( "[Auth] Received blitz selection" );
+    
+    // Ensure the game is in the blitz game state
+    if( mState != MatchState::Blitz )
+    {
+        cocos2d::log( "[Authority] Player attempted to set blitz cards outside of the blitz round!" );
         return;
+    }
     
-    // Draw a card if the player is able to
-    auto deck = Target->GetDeck();
-    auto hand = Target->GetHand();
+    // Validate
+    std::map< uint32_t, uint8_t > Errors;
+    int TotalManaCost = 0;
+    auto* LocalPlayer = GetPlayer();
     
-    if( deck && hand )
+    PlayerBlitzSelection.clear();
+    
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
     {
-        if( deck->Count() > 0 )
+        if( !( *It ) )
         {
-            auto DrawnCard = deck->At( 0 );
-            if( DrawnCard )
-            {
-                // Move card
-                deck->Remove( DrawnCard );
-                hand->AddToBottom( DrawnCard );
-            }
+            cocos2d::log( "[Authority] Failed to set blitz card! Card was null.." );
+            Errors[ 0 ] = PLAY_ERROR_INVALID;
+            continue;
+        }
+        
+        // Check if card is in hand and owned by the local player
+        if( ( *It )->GetOwningPlayer() != LocalPlayer || !( *It )->InHand() )
+        {
+            cocos2d::log( "[Authority] Failed to set blitz card! Card was not in local players hand" );
+            Errors[ (*It)->GetEntityId() ] = PLAY_ERROR_BADCARD;
+            continue;
+        }
+        
+        // Finally, check mana cost
+        if( TotalManaCost + ( *It )->ManaCost > LocalPlayer->GetMana() )
+        {
+            cocos2d::log( "[Authority] Failed to set blits card! Not enough mana!" );
+            Errors[ (*It)->GetEntityId() ] = PLAY_ERROR_BADMANA;
+            continue;
+        }
+        
+        TotalManaCost += ( *It )->ManaCost;
+        PlayerBlitzSelection.push_back( *It );
+    }
+    
+    // If there were errors, inform the player
+    if( Errors.size() > 0 )
+    {
+        cocos2d::log( "[Auth] CALLING BLITZ ERROR!" );
+        auto GM = GetGameMode< SingleplayerGameMode >();
+        CC_ASSERT( GM );
+        
+        auto Queue = ActionQueue();
+        auto errEvent = Queue.CreateAction< BlitzErrorAction >( GM );
+        errEvent->Errors = Errors;
+        
+        GM->RunActionQueue( std::move( Queue ) );
+    }
+    else
+    {
+        cocos2d::log( "[Auth] CALLING FINISH BLITZ!!!" );
+        FinishBlitz();
+    }
+}
+
+void SingleplayerAuthority::FinishBlitz()
+{
+    auto GM = GetGameMode< SingleplayerGameMode >();
+    auto LocalPlayer = GetPlayer();
+    auto Opponent = GetOpponent();
+    CC_ASSERT( GM && LocalPlayer && Opponent );
+    
+    cocos2d::log( "[Auth] %d blitz cards selected", (int) PlayerBlitzSelection.size() );
+    
+    // AI cards should be selected by this point, were going to play all card simultaneously
+    // then advance the round state into main
+    auto Queue = ActionQueue();
+    Queue.Callback = std::bind( &SingleplayerAuthority::StartMatch, this );
+    
+    // Advance Match State
+    auto mainStart = Queue.CreateAction< EventAction >( GM );
+    mainStart->ActionName = "MatchStart";
+    
+    int UpdatedMana = LocalPlayer->GetMana();
+    for( auto It = PlayerBlitzSelection.begin(); It != PlayerBlitzSelection.end(); It++ )
+    {
+        auto playCard = mainStart->CreateAction< PlayCardAction >( LocalPlayer );
+        
+        playCard->TargetCard        = (*It)->GetEntityId();
+        playCard->bWasSuccessful    = true;
+        playCard->bNeedsMove        = true;
+        playCard->TargetIndex       = 1000;
+        
+        UpdatedMana -= (*It)->ManaCost;
+    }
+    
+    // Update Mana
+    auto updateMana = Queue.CreateAction< UpdateManaAction >( LocalPlayer );
+    updateMana->UpdatedMana = UpdatedMana;
+    
+    GM->RunActionQueue( std::move( Queue ) );
+}
+
+void SingleplayerAuthority::StartMatch()
+{
+    cocos2d::log( "[Auth] Starting match!" );
+    
+    // Jump Into Main Game Loop
+    PreTurn( pState );
+}
+
+Player* SingleplayerAuthority::CurrentTurnPlayer()
+{
+    if( pState == PlayerTurn::LocalPlayer )
+        return GetPlayer();
+    else
+        return GetOpponent();
+}
+
+void SingleplayerAuthority::PreTurn( PlayerTurn pTurn )
+{
+    // Update State
+    pState = pTurn;
+    mState = MatchState::Main;
+    tState = TurnState::PreTurn;
+    
+    // Perform Draw
+    auto GM = GetGameMode< GameModeBase >();
+    auto ActivePlayer = CurrentTurnPlayer();
+    CC_ASSERT( ActivePlayer && GM );
+    
+    auto Queue = ActionQueue();
+    auto deck = ActivePlayer->GetDeck();
+    
+    if( !deck || deck->Count() <= 0 || !deck->At( 0 ) )
+    {
+        cocos2d::log( "[Auth] Player ran out of cards!" );
+        // TODO: Win Game Action
+        return;
+    }
+    
+    auto turnStart = Queue.CreateAction< TurnStartAction >( GM );
+    turnStart->pState = pState;
+    
+    auto drawAction = turnStart->CreateAction< DrawCardAction >( ActivePlayer );
+    drawAction->TargetCard = deck->At( 0 )->GetEntityId();
+    
+    // On callback, advance round state
+    Queue.Callback = std::bind( &SingleplayerAuthority::Marshal, this );
+    GM->RunActionQueue( std::move( Queue ) );
+}
+
+void SingleplayerAuthority::Marshal()
+{
+    cocos2d::log( "[Auth] Marshal Started..." );
+    
+    // Ensure State Is Updated
+    tState = TurnState::Marshal;
+    mState = MatchState::Main;
+    
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Update = Queue.CreateAction< EventAction >( GM );
+    Update->ActionName = "MarshalStart";
+    
+    GM->RunActionQueue( std::move( Queue ) );
+    
+    // Allow player to play cards, once the player is unable to perform
+    // any actions, then the state will advance automatically
+    
+    // TODO: Check if player is able to play cards, or trigger abilities
+    
+}
+
+void SingleplayerAuthority::Attack()
+{
+    cocos2d::log( "[Auth] Attack Started" );
+    
+    // Update State
+    tState = TurnState::Attack;
+    mState = MatchState::Main;
+    
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Update = Queue.CreateAction< EventAction >( GM );
+    Update->ActionName = "AttackStart";
+    
+    GM->RunActionQueue( std::move( Queue ) );
+    
+    // Allow player/opponent to select attackers, the player must call FinishTurn
+    // to advance the round state
+}
+
+void SingleplayerAuthority::Block()
+{
+    cocos2d::log( "[Auth] Block Started" );
+    
+    // Update State
+    tState = TurnState::Block;
+    mState = MatchState::Main;
+    
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Update = Queue.CreateAction< EventAction >( GM );
+    Update->ActionName = "BlockStart";
+    
+    GM->RunActionQueue( std::move( Queue ) );
+    
+    // Allow player/opponent to select blockers, the player must call FinishTurn
+    // to advance the round state
+    
+    // DEBUG
+    if( pState == PlayerTurn::LocalPlayer )
+    {
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=] ( float d ){ this->Damage(); }, this, 2.f, 0, 0.f, false, "DebugMoveToDamage" );
+    }
+}
+
+void SingleplayerAuthority::Damage()
+{
+    cocos2d::log( "[Auth] Damage Started" );
+    
+    // Update State
+    tState = TurnState::Damage;
+    mState = MatchState::Main;
+    
+    // DEBUG
+    cocos2d::Director::getInstance()->getScheduler()->schedule( [=] ( float d ) { this->PostTurn(); }, this, 2.f, 0, 0.f, false, "DebugMoveToPost" );
+}
+
+void SingleplayerAuthority::PlayCard( CardEntity* card, int Index )
+{
+    auto GM = GetGameMode< SingleplayerGameMode >();
+    Player* LocalPlayer = GetPlayer();
+    
+    CC_ASSERT( GM );
+    CC_ASSERT( LocalPlayer );
+    
+    auto Queue = ActionQueue();
+    auto* playCard = Queue.CreateAction< PlayCardAction >( LocalPlayer );
+    
+    playCard->bNeedsMove = true;
+    playCard->bWasSuccessful = false;
+    playCard->TargetCard = card->GetEntityId();
+    playCard->TargetIndex = Index;
+    
+    if( !card )
+    {
+        cocos2d::log( "[Authority] Failed to play card! Called with null!" );
+        
+    } // Check if the card is in the players hand
+    else if( card->GetOwningPlayer() != LocalPlayer || !card->InHand() )
+    {
+        cocos2d::log( "[Authority] Attempt to play card thats not in the players hand!" );
+
+    } // Check if the player has enough mana
+    else if( card->ManaCost > LocalPlayer->GetMana() )
+    {
+        cocos2d::log( "[Authority] Failed to play card.. not enough mana" );
+        
+    }
+    else
+    {
+        // Request is valid, Build action queue
+        // This might seem overcomplicated, but were attempting to make multiplayer and singleplayer
+        // as close as possible, so the method to update state and run animations is the same
+        
+        auto* manaAction = Queue.CreateAction< UpdateManaAction >( LocalPlayer );
+        manaAction->UpdatedMana = LocalPlayer->GetMana() - card->ManaCost;
+        
+        playCard->bWasSuccessful = true;
+    }
+    
+    GM->RunActionQueue( std::move( Queue ) );
+}
+
+void SingleplayerAuthority::PostTurn()
+{
+    cocos2d::log( "[Auth] Post Turn Started..." );
+    
+    mState = MatchState::Main;
+    tState = TurnState::PostTurn;
+    
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Update = Queue.CreateAction< EventAction >( GM );
+    Update->ActionName = "PostTurnStart";
+    
+    // TODO: Any Cleanup/Hooks?
+    
+    // On action queue complete, next turn starts
+    PlayerTurn nextTurn = pState == PlayerTurn::LocalPlayer ? PlayerTurn::Opponent : PlayerTurn::LocalPlayer;
+    Queue.Callback = std::bind( &SingleplayerAuthority::PreTurn, this, nextTurn );
+    
+    GM->RunActionQueue( std::move( Queue ) );
+}
+
+
+void SingleplayerAuthority::FinishTurn()
+{
+    // Ensure were in the main match state
+    if( mState != MatchState::Main )
+    {
+        cocos2d::log( "[Auth] 'FinishTurn' called outside of main match state!" );
+        return;
+    }
+    
+    if( pState == PlayerTurn::LocalPlayer )
+    {
+        if( tState == TurnState::Marshal )
+        {
+            // Advance state to 'Attack'
+            Attack();
+        }
+        else if( tState == TurnState::Attack )
+        {
+            // Advance state to 'block'
+            Block();
+        }
+        else
+        {
+            cocos2d::log( "[Auth] 'FinishTurn' called outside of Marshal/Attack!" );
+        }
+    }
+    else
+    {
+        if( tState == TurnState::Block )
+        {
+            // Advance state to 'damage'
+            Damage();
+        }
+        else
+        {
+            cocos2d::log( "[Auth] 'FinishTurn' called outside of player's turn!" );
         }
     }
 }
 
-void SingleplayerAuthority::FinishTurn( Player *inPlayer )
+void SingleplayerAuthority::SetAttackers( const std::vector<CardEntity *> &Cards )
 {
-    auto game = GetGameState();
-    auto pl = GetPlayersTurn();
-    auto state = GetTurnState();
-    
-    bool bIsLocal = inPlayer == LocalPlayer;
-    bool bIsPlTurn = ( bIsLocal && pl == PlayerTurn::LocalPlayer ) || ( !bIsLocal && pl == PlayerTurn::Opponent );
-    
-    if( game == GameState::InitialDraw && bIsLocal )
+    if( pState != PlayerTurn::LocalPlayer || mState != MatchState::Main || tState != TurnState::Attack )
     {
-        turnManager->Advance();
+        cocos2d::log( "[Auth] Attempt to set attackers outside of player attack phase!" );
+        // TODO: Send Error
+        return;
     }
-    else if( game == GameState::Main )
+    
+    BattleMatrix.clear();
+    
+    // We need to validate the cards, if theres any errors, we need to alert
+    // the gamemode of the issue.
+    std::vector< CardEntity* > Errors;
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
     {
-        if( bIsPlTurn && ( state == TurnState::BuildForces || state == TurnState::Planning ) )
+        // Check for null entries
+        if( !(*It ) )
         {
-            turnManager->Advance();
+            Errors.push_back( nullptr );
+            continue;
         }
-        else if( !bIsPlTurn && state == TurnState::Engage )
+        
+        // Ensure cards are owned by player, and in field
+        if( (*It)->GetOwningPlayer() != GetPlayer() || !(*It)->OnField() )
         {
-            turnManager->Advance();
+            Errors.push_back( *It );
+            continue;
         }
+        
+        // TODO: Check if card is able to attack
     }
+    
+    if( Errors.size() > 0 )
+    {
+        // Respond to player with errors
+        return;
+    }
+    
+    // Setup battle matrix with player selection
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+        BattleMatrix.insert( std::make_pair( *It, std::vector< CardEntity* >() ) );
+    
+    // Advance Round State
+    FinishTurn();
 }
 
-bool SingleplayerAuthority::CanPlayCard( Player* inPlayer, CardEntity* inCard )
+void SingleplayerAuthority::SetBlockers( const std::map<CardEntity *, CardEntity *> &Cards )
 {
-    if( !inPlayer || !inCard )
+    if( pState != PlayerTurn::Opponent || mState != MatchState::Main || tState != TurnState::Block )
+    {
+        cocos2d::log( "[Auth] Attempt to set blockers outside of opponent block phase!" );
+        
+        // TODO: Send error to gamemdoe
+        return;
+    }
+    
+    // Validate Blockers
+    std::vector< CardEntity* > Errors;
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        // Check for null cards
+        if( !( It->first ) )
+        {
+            Errors.push_back( nullptr );
+            continue;
+        }
+        else if( !( It->second ) )
+        {
+            Errors.push_back( It->first );
+            continue;
+        }
+        
+        //  Ensure blocking card is valid
+        if( It->first->GetOwningPlayer() != GetPlayer() || !It->first->OnField() )
+        {
+            Errors.push_back( It->first );
+            continue;
+        }
+        
+        // Ensure attacking card is valid
+        if( BattleMatrix.count( It->second ) <= 0 )
+        {
+            Errors.push_back( It->first );
+            continue;
+        }
+        
+        // Add to battle matrix
+        BattleMatrix[ It->second ].push_back( It->first );
+    }
+    
+    if( Errors.size() > 0 )
+    {
+        cocos2d::log( "[Auth] Failed to set blockers!" );
+        
+        // TODO: Send error
+        return;
+    }
+    
+    FinishTurn();
+}
+
+void SingleplayerAuthority::TriggerAbility( CardEntity *Card, uint8_t AbilityId )
+{
+    
+}
+
+bool SingleplayerAuthority::DrawCard( Player *In, uint32_t Count )
+{
+    // Return false if invalid player, or no cards left to draw
+    if( !In )
         return false;
     
-    // Must be owned by the player thats trying to play the card
-    if( inCard->GetOwningPlayer() == inPlayer )
+    auto Deck = In->GetDeck();
+    if( !Deck || Deck->Count() < Count )
+        return false;
+
+    
+    // Build action queue to draw this card
+    auto Queue = ActionQueue();
+    Game::Action* lastAction = nullptr;
+    
+    for( int i = 0; i < Count; i++ )
     {
-        // Check turn and game state
-        auto game = GetGameState();
-        auto pl = GetPlayersTurn();
-        auto turn = GetTurnState();
+        auto tarCard = Deck->At( i );
+        if( !tarCard )
+            return false;
         
-        if( game != GameState::InitialDraw )
+        DrawCardAction* drawAction;
+        if( lastAction )
         {
-            // Ensure its main state
-            if( game != GameState::Main )
-                return false;
-            
-            // Check if its this players turn
-            if( pl == PlayerTurn::LocalPlayer &&
-               inPlayer == Opponent )
-                return false;
-            
-            if( pl == PlayerTurn::Opponent &&
-               inPlayer == LocalPlayer )
-                return false;
-            
-            // Check if its the right game state
-            if( turn != TurnState::BuildForces )
-                return false;
+            drawAction = lastAction->CreateAction< DrawCardAction >( In );
+        }
+        else
+        {
+            drawAction = Queue.CreateAction< DrawCardAction >( In );
         }
         
-        // Ensure card is actually in hand
-        if( !inCard->InHand() )
-            return false;
-        
-        // Now, its either initial draw, or main, and this players build forces turn
-        // Check if they have enough mana, and we should be all set
-        return inPlayer->GetMana() >= inCard->ManaCost;
+        lastAction = drawAction;
+        drawAction->TargetCard = tarCard->GetEntityId();
     }
     
-    return false;
-}
-
-bool SingleplayerAuthority::PlayCard( Player* inPlayer, CardEntity *inCard, bool bMoveCard )
-{
-    // Validate Move
-    if( !CanPlayCard( inPlayer, inCard ) )
-        return false;
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
     
-    
-    if( bMoveCard )
-    {
-        // Move card to field
-        auto cont = inCard->GetContainer();
-        auto field = inPlayer->GetField();
-        
-        if( !field )
-            return false;
-        
-        if( cont )
-            cont->Remove( inCard );
-        
-        field->AddToBottom( inCard );
-    }
-    
-    // Subtract mana
-    inPlayer->SetMana( inPlayer->GetMana() - inCard->ManaCost );
-    
+    GM->RunActionQueue( std::move( Queue ) );
     return true;
+    
 }
 
 void SingleplayerAuthority::Test( float Delta )
 {
-    /*
-    ICardContainer* Deck = Opponent->GetDeck();
-    ICardContainer* Field = Opponent->GetField();
-    ICardContainer* Hand = Opponent->GetHand();
-    ICardContainer* Grave = Opponent->GetGraveyard();
-    ICardContainer* PDeck = LocalPlayer->GetDeck();
-    ICardContainer* PField = LocalPlayer->GetField();
-    ICardContainer* PHand = LocalPlayer->GetHand();
-    ICardContainer* PGrave = LocalPlayer->GetGraveyard();
-    
-    static int i = 0;
-    i++;
-    
-    if( Deck->Count() > 0 )
-    {
-        auto card = Deck->At( 0 );
-        Deck->RemoveTop();
-        
-        if( i % 3 != 0 )
-        {
-            Field->AddToBottom( card );
-        }
-        else
-        {
-            Hand->AddToBottom( card );
-        }
-    }
-    
-    if( PDeck->Count() > 0 )
-    {
-        auto card = PDeck->At( 0 );
-        PDeck->RemoveTop();
-        
-        if( i % 3 != 0 )
-        {
-            PField->AddToBottom( card );
-        }
-        else
-        {
-            PHand->AddToBottom( card );
-        }
-    }
-     Random Test
-     
-    int res = cocos2d::random( 0, 3 );
-    int other = cocos2d::random( 0, 3 );
-    
-    ICardContainer* RandContainer;
-    ICardContainer* OtherContainer;
-    if( res == 0 )
-        RandContainer = LocalPlayer->GetDeck();
-    else if( res == 1 )
-        RandContainer = LocalPlayer->GetHand();
-    else if( res == 2 )
-        RandContainer = LocalPlayer->GetGraveyard();
-    else
-        RandContainer = LocalPlayer->GetField();
-    
-    if( other == 0 )
-        OtherContainer = LocalPlayer->GetHand();
-    else if( other == 1 )
-        OtherContainer = LocalPlayer->GetDeck();
-    else if ( other == 2 )
-        OtherContainer = LocalPlayer->GetGraveyard();
-    else
-        OtherContainer = LocalPlayer->GetField();
-    
-    cocos2d::log( "A" );
-    int ct = 0;
-    for( int i = 0; i < RandContainer->Count(); i++ )
-    {
-        cocos2d::log( "B" );
-        if( RandContainer->IndexValid( i ) )
-        {
-            cocos2d::log( "C" );
-            auto* Card = RandContainer->At( i );
-            if( Card )
-            {
-                cocos2d::log( "D" );
-                RandContainer->RemoveAtIndex( i );
-                OtherContainer->AddToTop( Card );
-            }
-        }
-        
-        ct++;
-        if( ct > 1 )
-            break;
-    }
-     */
+
 }

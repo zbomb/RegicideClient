@@ -1,7 +1,17 @@
-#include "RegisterLayer.h"
-#include "MainMenuScene.h"
+//
+//    RegisterLayer.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
+#include "RegisterLayer.hpp"
+#include "MainMenuScene.hpp"
 #include "utf8.h"
-#include "API.h"
+#include "API.hpp"
 
 
 bool RegisterLayer::init()

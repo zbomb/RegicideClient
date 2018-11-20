@@ -1,12 +1,14 @@
 //
-//  GraveyardEntity.cpp
-//  Regicide-mobile
+//    GraveyardEntity.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/11/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "GraveyardEntity.hpp"
-#include "cryptolib/Random.hpp"
 
 
 using namespace Game;
@@ -24,7 +26,7 @@ GraveyardEntity::~GraveyardEntity()
 
 void GraveyardEntity::Cleanup()
 {
-    
+    EntityBase::Cleanup();
 }
 
 
@@ -60,7 +62,7 @@ CardEntity* GraveyardEntity::DrawCard()
     return Output;
 }
 
-void GraveyardEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
+void GraveyardEntity::AddToTop( CardEntity *Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -71,12 +73,14 @@ void GraveyardEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void GraveyardEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
+void GraveyardEntity::AddToBottom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -87,19 +91,20 @@ void GraveyardEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void GraveyardEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
+void GraveyardEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         // Generate random index
-        using Random = effolkronium::random_static;
-        auto Iter = Random::get( Cards.begin(), Cards.end() );
-        //CC_ASSERT( Iter != Cards.end() );
+        auto Iter = Cards.begin();
+        std::advance( Iter, cocos2d::random< int>( 0, (int)Cards.size() ) );
         
         Cards.insert( Iter, Input );
         ICardContainer::SetCardContainer( Input );
@@ -108,12 +113,14 @@ void GraveyardEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void GraveyardEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
+void GraveyardEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -130,8 +137,10 @@ void GraveyardEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSpr
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input );
+            MoveCard( Input, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
@@ -237,8 +246,8 @@ bool GraveyardEntity::RemoveRandom( bool bDestroy /* = false */ )
         return false;
     
     // Choose random card
-    using Random = effolkronium::random_static;
-    auto It = Random::get( Cards.begin(), Cards.end() );
+    auto It = Cards.begin();
+    std::advance( It, cocos2d::random< int >( 0, (int) Cards.size() - 1 ) );
     CC_ASSERT( It != Cards.end() );
     
     if( bDestroy && *It )
@@ -282,12 +291,12 @@ void GraveyardEntity::InvalidateCards( CardEntity* inCard, bool bParam )
     }
 }
 
-void GraveyardEntity::MoveCard( CardEntity* inCard )
+void GraveyardEntity::MoveCard( CardEntity* inCard, std::function< void() > Callback )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( GetPosition(), 0.3f );
+        inCard->MoveAnimation( GetPosition(), 0.3f, Callback );
         
         // Flip face up if it isnt already
         if( !inCard->IsFaceUp() )

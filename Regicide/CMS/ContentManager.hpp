@@ -1,15 +1,18 @@
 //
-//  ContentManager.hpp
-//  Regicide-mobile
+//    ContentManager.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/2/18.
+//    Created: 11/2/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #ifndef ContentManager_hpp
 #define ContentManager_hpp
 
 #include "network/CCDownloader.h"
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include "IContentSystem.hpp"
 
 using namespace cocos2d;

@@ -1,7 +1,15 @@
-#include "ConnectingPopup.h"
+//
+//    ConnectingPopup.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
+#include "ConnectingPopup.hpp"
 #include "cocos/base/CCEventListenerTouch.h"
-
-
 
 using namespace cocos2d;
 using namespace cocos2d::ui;
@@ -9,7 +17,7 @@ using namespace cocos2d::ui;
 
 bool ConnectingPopup::init()
 {
-	log( "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" );
+
 	// Initialize Parent
 	if( !LayerColor::initWithColor( Color4B( 0, 0, 0, 180 ) ) )
 	{

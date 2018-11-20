@@ -1,12 +1,14 @@
 //
-//  FieldEntity.cpp
-//  Regicide-mobile
+//    FieldEntity.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/11/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "FieldEntity.hpp"
-#include "cryptolib/Random.hpp"
 #include "Game/World.hpp"
 #include "Game/SingleplayerAuthority.hpp"
 
@@ -49,7 +51,7 @@ CardEntity* FieldEntity::operator[]( uint32 Index )
 }
 
 
-void FieldEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
+void FieldEntity::AddToTop( CardEntity *Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -61,12 +63,14 @@ void FieldEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
         {
             InvalidateZOrder();
             auto goodPos = CalcPos( 0 );
-            MoveCard( Input, goodPos );
+            MoveCard( Input, goodPos, Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void FieldEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
+void FieldEntity::AddToBottom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -79,19 +83,20 @@ void FieldEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void FieldEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
+void FieldEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         // Generate random index
-        using Random = effolkronium::random_static;
-        auto Iter = Random::get( Cards.begin(), Cards.end() );
-        //CC_ASSERT( Iter != Cards.end() );
+        auto Iter = Cards.begin();
+        std::advance( Iter, cocos2d::random< int >( 0, (int) Cards.size() ) );
         
         auto It = Cards.insert( Iter, Input );
         InvalidateCards( Input );
@@ -102,12 +107,14 @@ void FieldEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void FieldEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
+void FieldEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -124,8 +131,10 @@ void FieldEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite 
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
@@ -231,8 +240,9 @@ bool FieldEntity::RemoveRandom( bool bDestroy /* = false */ )
         return false;
     
     // Choose random card
-    using Random = effolkronium::random_static;
-    auto It = Random::get( Cards.begin(), Cards.end() );
+    auto It = Cards.begin();
+    std::advance( It, cocos2d::random< int >( 0, (int) Cards.size() - 1 ) );
+    
     CC_ASSERT( It != Cards.end() );
     
     if( bDestroy && *It )
@@ -307,12 +317,12 @@ cocos2d::Vec2 FieldEntity::CalcPos( int Index, int CardDelta )
 
 }
 
-void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos )
+void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std::function< void() > Callback )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( inPos, 0.3f );
+        inCard->MoveAnimation( inPos, 0.3f, Callback );
         
         // Flip face up if it isnt already
         if( !inCard->IsFaceUp() )
@@ -346,11 +356,11 @@ void FieldEntity::InvalidateZOrder()
 }
 
 
-bool FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
+int FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
 {
     if( !inCard )
     {
-        return false;
+        return -1;
     }
     
     // Were going to get the number of cards, add one and determine where each card would
@@ -369,7 +379,7 @@ bool FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
     cocos2d::Rect Bounds( thisPos.x - thisW / 2.f, thisPos.y - thisH / 2.f, thisW, thisH );
     if( !Bounds.containsPoint( inPos ) )
     {
-        return false;
+        return -1;
     }
 
     int CardCount       = (int)Count() + 1;
@@ -388,28 +398,6 @@ bool FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
         }
     }
     
-    if( BestIndex < 0 )
-    {
-        return false;
-    }
-    
-    // TODO: Move this logic
-    auto world = Game::World::GetWorld();
-    auto auth = world ? world->GetAuthority< Game::SingleplayerAuthority >() : nullptr;
-    
-    if( auth )
-    {
-        if( auth->PlayCard( inCard->GetOwningPlayer(), inCard ) )
-        {
-            // Add card
-            auto cont = inCard->GetContainer();
-            if( cont )
-                cont->Remove( inCard );
-            
-            AddAtIndex( inCard, BestIndex, true );
-            return true;
-        }
-    }
-    
-    return false;
+    // Return the best index we found
+    return BestIndex >= 0 ? BestIndex : -1;
 }

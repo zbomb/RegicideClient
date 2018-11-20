@@ -1,17 +1,20 @@
 //
-//  LuaEngine.cpp
-//  Regicide-mobile
+//    LuaEngine.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/6/18.
+//    Created: 11/6/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "LuaEngine.hpp"
-#include "Utils.h"
-#include "EventHub.h"
+#include "Utils.hpp"
+#include "EventHub.hpp"
 
 // Include funcs needed for binding
 #include "RegicideAPI/APILuaBindings.hpp"
-#include "CryptoLibrary.h"
+#include "CryptoLibrary.hpp"
 #include "CMS/LuaBindings_CMS.hpp"
 
 

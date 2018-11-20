@@ -1,13 +1,16 @@
 //
-//  SingleplayerLauncher.cpp
-//  Regicide-mobile
+//    SingleplayerLauncher.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/9/18.
+//    Created: 11/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "SingleplayerLauncher.hpp"
 #include "PopTransition.hpp"
-#include "AppDelegate.h"
+#include "AppDelegate.hpp"
 #include "CMS/IContentSystem.hpp"
 
 USING_NS_CC;
@@ -94,6 +97,7 @@ void SingleplayerLauncherScene::OnLaunchClicked( cocos2d::Ref *Caller )
     
     Regicide::Deck TestDeck;
     TestDeck.Name = "Test Deck";
+    TestDeck.KingId = 1;
     TestDeck.Id = 1;
     
     for( int i = 0; i < 1; i++ )

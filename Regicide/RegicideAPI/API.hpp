@@ -1,13 +1,17 @@
 //
-//  API.h
-//  Regicide
+//    API.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/31/18.
+//    Created: 10/31/18
+//    Updated: 11/20/18
 //
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #pragma once
 
-#include "Numeric.h"
-#include "Types.h"
+#include "Numeric.hpp"
+#include "Types.hpp"
 #include "network/HttpRequest.h"
 #include <future>
 #include "external/json/document.h"

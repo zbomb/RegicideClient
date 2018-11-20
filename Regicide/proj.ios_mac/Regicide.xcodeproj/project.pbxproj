@@ -19,8 +19,6 @@
 		294D0D641D0D56D500F7F5D4 /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 294D0D631D0D56D500F7F5D4 /* CoreText.framework */; };
 		46880B8819C43A87006E1F66 /* AppDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46880B8419C43A87006E1F66 /* AppDelegate.cpp */; };
 		46880B8919C43A87006E1F66 /* AppDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46880B8419C43A87006E1F66 /* AppDelegate.cpp */; };
-		46880B8A19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46880B8619C43A87006E1F66 /* HelloWorldScene.cpp */; };
-		46880B8B19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46880B8619C43A87006E1F66 /* HelloWorldScene.cpp */; };
 		503AE0F817EB97AB00D1A890 /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 503AE0F617EB97AB00D1A890 /* Icon.icns */; };
 		503AE10517EB98FF00D1A890 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 503AE10317EB98FF00D1A890 /* main.cpp */; };
 		503AE11B17EB9C5A00D1A890 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 503AE11A17EB9C5A00D1A890 /* IOKit.framework */; };
@@ -79,11 +77,6 @@
 		D01B61C5219815C600D77D43 /* FieldEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61C3219815C600D77D43 /* FieldEntity.cpp */; };
 		D01B61C82198167700D77D43 /* GraveyardEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D01B61C62198167700D77D43 /* GraveyardEntity.cpp */; };
 		D024C5B6219AAB640024968E /* CardLayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D024C5B4219AAB640024968E /* CardLayer.cpp */; };
-		D02C114221804977009A8DFD /* snappy-c.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113521804977009A8DFD /* snappy-c.cc */; };
-		D02C114321804977009A8DFD /* snappy-sinksource.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113821804977009A8DFD /* snappy-sinksource.cc */; };
-		D02C114421804977009A8DFD /* snappy-stubs-internal.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113A21804977009A8DFD /* snappy-stubs-internal.cc */; };
-		D02C114521804977009A8DFD /* snappy-stubs-public.h in Resources */ = {isa = PBXBuildFile; fileRef = D02C113C21804977009A8DFD /* snappy-stubs-public.h */; };
-		D02C114721804977009A8DFD /* snappy.cc in Sources */ = {isa = PBXBuildFile; fileRef = D02C113F21804977009A8DFD /* snappy.cc */; };
 		D02F8DC621974CFD00B5C65A /* GameModeBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */; };
 		D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DC821974DE300B5C65A /* Player.cpp */; };
 		D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */; };
@@ -108,6 +101,8 @@
 		D0947ADA21916DE40097F326 /* VerifyFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947AD921916DE40097F326 /* VerifyFunction.cpp */; };
 		D0947ADD21916DFA0097F326 /* LogoutFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */; };
 		D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */; };
+		D0AFCE0721A3444200B11AC9 /* KingEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */; };
+		D0AFCE0B21A3D6DF00B11AC9 /* CardSelector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0AFCE0921A3D6DF00B11AC9 /* CardSelector.cpp */; };
 		D0B12CFD2196A45100B7C674 /* EntityBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B12CFB2196A45100B7C674 /* EntityBase.cpp */; };
 		D0B12D002196B05F00B7C674 /* CardEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */; };
 		D0B2724F2192BF3900073264 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */; };
@@ -200,9 +195,7 @@
 		288765A40DF7441C002DB57D /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		294D0D631D0D56D500F7F5D4 /* CoreText.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreText.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/CoreText.framework; sourceTree = DEVELOPER_DIR; };
 		46880B8419C43A87006E1F66 /* AppDelegate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AppDelegate.cpp; sourceTree = "<group>"; };
-		46880B8519C43A87006E1F66 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		46880B8619C43A87006E1F66 /* HelloWorldScene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HelloWorldScene.cpp; sourceTree = "<group>"; };
-		46880B8719C43A87006E1F66 /* HelloWorldScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HelloWorldScene.h; sourceTree = "<group>"; };
+		46880B8519C43A87006E1F66 /* AppDelegate.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = AppDelegate.hpp; sourceTree = "<group>"; };
 		503AE0F617EB97AB00D1A890 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
 		503AE0F717EB97AB00D1A890 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		503AE10317EB98FF00D1A890 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = mac/main.cpp; sourceTree = "<group>"; };
@@ -217,9 +210,9 @@
 		BF170DB012928DE900B8313A /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
 		BF170DB412928DE900B8313A /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = usr/lib/libz.dylib; sourceTree = SDKROOT; };
 		BF1C47EA1293683800B63C5D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		D00E7D172171CCD80085BBAF /* EventHub.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EventHub.h; sourceTree = "<group>"; };
+		D00E7D172171CCD80085BBAF /* EventHub.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EventHub.hpp; sourceTree = "<group>"; };
 		D00E7D192171CD000085BBAF /* EventHub.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EventHub.cpp; sourceTree = "<group>"; };
-		D00FAC5921731797007E215C /* EventDataTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EventDataTypes.h; sourceTree = "<group>"; };
+		D00FAC5921731797007E215C /* EventDataTypes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EventDataTypes.hpp; sourceTree = "<group>"; };
 		D0189AAA21925D39007A8BD6 /* liblua.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblua.a; path = ios/lib/liblua.a; sourceTree = "<group>"; };
 		D0189B03219270C6007A8BD6 /* CFunctions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CFunctions.h; sourceTree = "<group>"; };
 		D0189B04219270C6007A8BD6 /* ClassInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ClassInfo.h; sourceTree = "<group>"; };
@@ -309,7 +302,6 @@
 		D0189BFE21929ECE007A8BD6 /* LuaHeaders.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LuaHeaders.hpp; sourceTree = "<group>"; };
 		D01B61BA2197EE0F00D77D43 /* DeckEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DeckEntity.cpp; sourceTree = "<group>"; };
 		D01B61BB2197EE0F00D77D43 /* DeckEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DeckEntity.hpp; sourceTree = "<group>"; };
-		D01B61BF2197FE8A00D77D43 /* Random.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Random.hpp; sourceTree = "<group>"; };
 		D01B61C02198124700D77D43 /* HandEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = HandEntity.cpp; sourceTree = "<group>"; };
 		D01B61C12198124700D77D43 /* HandEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = HandEntity.hpp; sourceTree = "<group>"; };
 		D01B61C3219815C600D77D43 /* FieldEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = FieldEntity.cpp; sourceTree = "<group>"; };
@@ -318,17 +310,6 @@
 		D01B61C72198167700D77D43 /* GraveyardEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GraveyardEntity.hpp; sourceTree = "<group>"; };
 		D024C5B4219AAB640024968E /* CardLayer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardLayer.cpp; sourceTree = "<group>"; };
 		D024C5B5219AAB640024968E /* CardLayer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardLayer.hpp; sourceTree = "<group>"; };
-		D02C113521804977009A8DFD /* snappy-c.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snappy-c.cc"; sourceTree = "<group>"; };
-		D02C113621804977009A8DFD /* snappy-c.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-c.h"; sourceTree = "<group>"; };
-		D02C113721804977009A8DFD /* snappy-internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-internal.h"; sourceTree = "<group>"; };
-		D02C113821804977009A8DFD /* snappy-sinksource.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snappy-sinksource.cc"; sourceTree = "<group>"; };
-		D02C113921804977009A8DFD /* snappy-sinksource.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-sinksource.h"; sourceTree = "<group>"; };
-		D02C113A21804977009A8DFD /* snappy-stubs-internal.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "snappy-stubs-internal.cc"; sourceTree = "<group>"; };
-		D02C113B21804977009A8DFD /* snappy-stubs-internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-stubs-internal.h"; sourceTree = "<group>"; };
-		D02C113C21804977009A8DFD /* snappy-stubs-public.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "snappy-stubs-public.h"; sourceTree = "<group>"; };
-		D02C113F21804977009A8DFD /* snappy.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = snappy.cc; sourceTree = "<group>"; };
-		D02C114021804977009A8DFD /* snappy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = snappy.h; sourceTree = "<group>"; };
-		D02C114921804A19009A8DFD /* snappy-config.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "snappy-config.h"; sourceTree = "<group>"; };
 		D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GameModeBase.cpp; sourceTree = "<group>"; };
 		D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GameModeBase.hpp; sourceTree = "<group>"; };
 		D02F8DC821974DE300B5C65A /* Player.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Player.cpp; sourceTree = "<group>"; };
@@ -349,14 +330,15 @@
 		D058CB6F217592160074ECB7 /* core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = core.h; sourceTree = "<group>"; };
 		D058CB70217592160074ECB7 /* unchecked.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unchecked.h; sourceTree = "<group>"; };
 		D058CB71217592160074ECB7 /* utf8.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utf8.h; sourceTree = "<group>"; };
-		D058CB7521766DE30074ECB7 /* Utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Utils.h; sourceTree = "<group>"; };
-		D05E9BBD2189C27A0026E33A /* Account.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Account.h; sourceTree = "<group>"; };
+		D058CB7521766DE30074ECB7 /* Utils.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Utils.hpp; sourceTree = "<group>"; };
+		D05E9BBD2189C27A0026E33A /* Account.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Account.hpp; sourceTree = "<group>"; };
 		D05E9BBE2189C27A0026E33A /* API.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = API.cpp; sourceTree = "<group>"; };
-		D05E9BBF2189C27A0026E33A /* API.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = API.h; sourceTree = "<group>"; };
-		D05E9BC02189C27A0026E33A /* Types.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Types.h; sourceTree = "<group>"; };
-		D05E9BC3218A2D1C0026E33A /* Numeric.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Numeric.h; sourceTree = "<group>"; };
+		D05E9BBF2189C27A0026E33A /* API.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = API.hpp; sourceTree = "<group>"; };
+		D05E9BC02189C27A0026E33A /* Types.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Types.hpp; sourceTree = "<group>"; };
+		D05E9BC3218A2D1C0026E33A /* Numeric.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Numeric.hpp; sourceTree = "<group>"; };
 		D05E9BC4218AB7EF0026E33A /* Utils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Utils.cpp; sourceTree = "<group>"; };
 		D05E9BC7218AD1EE0026E33A /* LoginFunction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LoginFunction.cpp; sourceTree = "<group>"; };
+		D0699E9C219E402700EBA40B /* Actions.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Actions.hpp; sourceTree = "<group>"; };
 		D07A7F8121913C1F008B7667 /* platform_util.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = platform_util.h; sourceTree = "<group>"; };
 		D07A7F8221913CC8008B7667 /* platform_uil.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = platform_uil.c; sourceTree = "<group>"; };
 		D082EBB0218B5DBE004CD6DE /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
@@ -372,6 +354,10 @@
 		D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LogoutFunction.cpp; sourceTree = "<group>"; };
 		D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ContentStorage.cpp; sourceTree = "<group>"; };
 		D0A5CDAC218D60CD004AC648 /* ContentStorage.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ContentStorage.hpp; sourceTree = "<group>"; };
+		D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KingEntity.cpp; sourceTree = "<group>"; };
+		D0AFCE0621A3444200B11AC9 /* KingEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = KingEntity.hpp; sourceTree = "<group>"; };
+		D0AFCE0921A3D6DF00B11AC9 /* CardSelector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardSelector.cpp; sourceTree = "<group>"; };
+		D0AFCE0A21A3D6DF00B11AC9 /* CardSelector.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CardSelector.hpp; sourceTree = "<group>"; };
 		D0B12CFB2196A45100B7C674 /* EntityBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = EntityBase.cpp; sourceTree = "<group>"; };
 		D0B12CFC2196A45100B7C674 /* EntityBase.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = EntityBase.hpp; sourceTree = "<group>"; };
 		D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CardEntity.cpp; sourceTree = "<group>"; };
@@ -386,20 +372,19 @@
 		D0B75D282198E6CD00EC80F5 /* SingleplayerAuthority.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SingleplayerAuthority.cpp; sourceTree = "<group>"; };
 		D0B75D292198E6CD00EC80F5 /* SingleplayerAuthority.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerAuthority.hpp; sourceTree = "<group>"; };
 		D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ConnectingPopup.cpp; sourceTree = "<group>"; };
-		D0B9FD59217128EC0097E97B /* MainMenuScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainMenuScene.h; sourceTree = "<group>"; };
-		D0B9FD5B217128ED0097E97B /* RegisterLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RegisterLayer.h; sourceTree = "<group>"; };
-		D0B9FD5C217128ED0097E97B /* IntroScene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntroScene.h; sourceTree = "<group>"; };
+		D0B9FD59217128EC0097E97B /* MainMenuScene.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MainMenuScene.hpp; sourceTree = "<group>"; };
+		D0B9FD5B217128ED0097E97B /* RegisterLayer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = RegisterLayer.hpp; sourceTree = "<group>"; };
+		D0B9FD5C217128ED0097E97B /* IntroScene.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = IntroScene.hpp; sourceTree = "<group>"; };
 		D0B9FD5D217128ED0097E97B /* CryptoLibrary.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CryptoLibrary.cpp; sourceTree = "<group>"; };
 		D0B9FD5F217128ED0097E97B /* LoginLayer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LoginLayer.cpp; sourceTree = "<group>"; };
-		D0B9FD60217128ED0097E97B /* CryptoLibrary.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CryptoLibrary.h; sourceTree = "<group>"; };
+		D0B9FD60217128ED0097E97B /* CryptoLibrary.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = CryptoLibrary.hpp; sourceTree = "<group>"; };
 		D0B9FD63217128ED0097E97B /* MainMenuScene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = MainMenuScene.cpp; sourceTree = "<group>"; };
-		D0B9FD64217128ED0097E97B /* LoginLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LoginLayer.h; sourceTree = "<group>"; usesTabs = 1; };
-		D0B9FD65217128ED0097E97B /* ConnectingPopup.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConnectingPopup.h; sourceTree = "<group>"; };
+		D0B9FD64217128ED0097E97B /* LoginLayer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = LoginLayer.hpp; sourceTree = "<group>"; usesTabs = 1; };
+		D0B9FD65217128ED0097E97B /* ConnectingPopup.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = ConnectingPopup.hpp; sourceTree = "<group>"; };
 		D0B9FD67217128ED0097E97B /* RegisterLayer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RegisterLayer.cpp; sourceTree = "<group>"; };
 		D0B9FD68217128ED0097E97B /* IntroScene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IntroScene.cpp; sourceTree = "<group>"; };
 		D0C67FFA219BBF070072233F /* ExitOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ExitOverlay.cpp; sourceTree = "<group>"; };
 		D0C67FFB219BBF070072233F /* ExitOverlay.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ExitOverlay.hpp; sourceTree = "<group>"; };
-		D0C67FFE219BF7FE0072233F /* TurnManager.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TurnManager.hpp; sourceTree = "<group>"; };
 		D0CC20622190B76500B01994 /* UpdateScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = UpdateScene.cpp; sourceTree = "<group>"; };
 		D0CC20632190B76500B01994 /* UpdateScene.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = UpdateScene.hpp; sourceTree = "<group>"; };
 		D0CC206621910E8B00B01994 /* IContentSystem.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IContentSystem.hpp; sourceTree = "<group>"; };
@@ -524,7 +509,6 @@
 				D082EBE0218BC9AA004CD6DE /* CMS */,
 				D082EBA2218B5DBE004CD6DE /* cryptolib */,
 				D05E9BBC2189C27A0026E33A /* RegicideAPI */,
-				D02C113421804977009A8DFD /* snappy */,
 				D058CB6C217592160074ECB7 /* utf8 */,
 				46880B8319C43A87006E1F66 /* Classes */,
 				1AC6FAE5180E9839004C840B /* cocos2d_libs.xcodeproj */,
@@ -569,15 +553,15 @@
 		46880B8319C43A87006E1F66 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				D05E9BC3218A2D1C0026E33A /* Numeric.h */,
+				D05E9BC3218A2D1C0026E33A /* Numeric.hpp */,
 				D0B9FD5D217128ED0097E97B /* CryptoLibrary.cpp */,
-				D0B9FD60217128ED0097E97B /* CryptoLibrary.h */,
-				D00FAC5921731797007E215C /* EventDataTypes.h */,
+				D0B9FD60217128ED0097E97B /* CryptoLibrary.hpp */,
+				D00FAC5921731797007E215C /* EventDataTypes.hpp */,
 				46880B8419C43A87006E1F66 /* AppDelegate.cpp */,
-				46880B8519C43A87006E1F66 /* AppDelegate.h */,
-				D00E7D172171CCD80085BBAF /* EventHub.h */,
+				46880B8519C43A87006E1F66 /* AppDelegate.hpp */,
+				D00E7D172171CCD80085BBAF /* EventHub.hpp */,
 				D00E7D192171CD000085BBAF /* EventHub.cpp */,
-				D058CB7521766DE30074ECB7 /* Utils.h */,
+				D058CB7521766DE30074ECB7 /* Utils.hpp */,
 				D05E9BC4218AB7EF0026E33A /* Utils.cpp */,
 				D082EBDE218BC445004CD6DE /* iOSUtil.mm */,
 				D0189B31219272E4007A8BD6 /* LuaEngine.cpp */,
@@ -714,25 +698,6 @@
 			path = ../lua;
 			sourceTree = "<group>";
 		};
-		D02C113421804977009A8DFD /* snappy */ = {
-			isa = PBXGroup;
-			children = (
-				D02C113521804977009A8DFD /* snappy-c.cc */,
-				D02C113621804977009A8DFD /* snappy-c.h */,
-				D02C113721804977009A8DFD /* snappy-internal.h */,
-				D02C113821804977009A8DFD /* snappy-sinksource.cc */,
-				D02C113921804977009A8DFD /* snappy-sinksource.h */,
-				D02C113A21804977009A8DFD /* snappy-stubs-internal.cc */,
-				D02C113B21804977009A8DFD /* snappy-stubs-internal.h */,
-				D02C113C21804977009A8DFD /* snappy-stubs-public.h */,
-				D02C113F21804977009A8DFD /* snappy.cc */,
-				D02C114021804977009A8DFD /* snappy.h */,
-				D02C114921804A19009A8DFD /* snappy-config.h */,
-			);
-			name = snappy;
-			path = ../snappy;
-			sourceTree = "<group>";
-		};
 		D0414BA02195EDFA00D0BA2F /* Game */ = {
 			isa = PBXGroup;
 			children = (
@@ -765,7 +730,9 @@
 				D0E894EB2199C9A60095F842 /* ICardContainer.hpp */,
 				D0E894ED2199E4E30095F842 /* CardAnimations.cpp */,
 				D0E894EE2199E4E30095F842 /* CardAnimations.hpp */,
-				D0C67FFE219BF7FE0072233F /* TurnManager.hpp */,
+				D0699E9C219E402700EBA40B /* Actions.hpp */,
+				D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */,
+				D0AFCE0621A3444200B11AC9 /* KingEntity.hpp */,
 			);
 			name = Game;
 			path = ../Game;
@@ -794,10 +761,10 @@
 		D05E9BBC2189C27A0026E33A /* RegicideAPI */ = {
 			isa = PBXGroup;
 			children = (
-				D05E9BBD2189C27A0026E33A /* Account.h */,
+				D05E9BBD2189C27A0026E33A /* Account.hpp */,
 				D05E9BBE2189C27A0026E33A /* API.cpp */,
-				D05E9BBF2189C27A0026E33A /* API.h */,
-				D05E9BC02189C27A0026E33A /* Types.h */,
+				D05E9BBF2189C27A0026E33A /* API.hpp */,
+				D05E9BC02189C27A0026E33A /* Types.hpp */,
 				D05E9BC7218AD1EE0026E33A /* LoginFunction.cpp */,
 				D082EBDA218B5E3E004CD6DE /* RegisterFunction.cpp */,
 				D0947AD921916DE40097F326 /* VerifyFunction.cpp */,
@@ -812,11 +779,11 @@
 			isa = PBXGroup;
 			children = (
 				D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */,
-				D0B9FD65217128ED0097E97B /* ConnectingPopup.h */,
+				D0B9FD65217128ED0097E97B /* ConnectingPopup.hpp */,
 				D0B9FD5F217128ED0097E97B /* LoginLayer.cpp */,
-				D0B9FD64217128ED0097E97B /* LoginLayer.h */,
+				D0B9FD64217128ED0097E97B /* LoginLayer.hpp */,
 				D0B9FD67217128ED0097E97B /* RegisterLayer.cpp */,
-				D0B9FD5B217128ED0097E97B /* RegisterLayer.h */,
+				D0B9FD5B217128ED0097E97B /* RegisterLayer.hpp */,
 				D0E6C8192194218A00064670 /* UpdatePrompt.cpp */,
 				D0E6C81A2194218A00064670 /* UpdatePrompt.hpp */,
 				D024C5B4219AAB640024968E /* CardLayer.cpp */,
@@ -825,6 +792,8 @@
 				D03C671A219B555D00A177A7 /* CardViewer.hpp */,
 				D0C67FFA219BBF070072233F /* ExitOverlay.cpp */,
 				D0C67FFB219BBF070072233F /* ExitOverlay.hpp */,
+				D0AFCE0921A3D6DF00B11AC9 /* CardSelector.cpp */,
+				D0AFCE0A21A3D6DF00B11AC9 /* CardSelector.hpp */,
 			);
 			name = UI;
 			path = ../UI;
@@ -834,11 +803,9 @@
 			isa = PBXGroup;
 			children = (
 				D0B9FD63217128ED0097E97B /* MainMenuScene.cpp */,
-				D0B9FD59217128EC0097E97B /* MainMenuScene.h */,
+				D0B9FD59217128EC0097E97B /* MainMenuScene.hpp */,
 				D0B9FD68217128ED0097E97B /* IntroScene.cpp */,
-				D0B9FD5C217128ED0097E97B /* IntroScene.h */,
-				46880B8619C43A87006E1F66 /* HelloWorldScene.cpp */,
-				46880B8719C43A87006E1F66 /* HelloWorldScene.h */,
+				D0B9FD5C217128ED0097E97B /* IntroScene.hpp */,
 				D0CC20622190B76500B01994 /* UpdateScene.cpp */,
 				D0CC20632190B76500B01994 /* UpdateScene.hpp */,
 				D0E6C81521940B7C00064670 /* OptionsScene.cpp */,
@@ -864,7 +831,6 @@
 				D082EBB0218B5DBE004CD6DE /* config.h */,
 				D082EBC6218B5DBE004CD6DE /* sha256.c */,
 				D082EBC7218B5DBE004CD6DE /* sha256.h */,
-				D01B61BF2197FE8A00D77D43 /* Random.hpp */,
 			);
 			name = cryptolib;
 			path = ../cryptolib;
@@ -874,8 +840,8 @@
 			isa = PBXGroup;
 			children = (
 				D082EBE4218C1BE4004CD6DE /* AccountManager.cpp */,
-				D082EBE8218C47FA004CD6DE /* ContentManager.hpp */,
 				D082EBE5218C1BE4004CD6DE /* AccountManager.hpp */,
+				D082EBE8218C47FA004CD6DE /* ContentManager.hpp */,
 				D082EBE7218C47FA004CD6DE /* ContentManager.cpp */,
 				D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */,
 				D0A5CDAC218D60CD004AC648 /* ContentStorage.hpp */,
@@ -1014,7 +980,6 @@
 				D0E6C81D2194314B00064670 /* LaunchScreenBackground2.png in Resources */,
 				D0B2725E2192C38A00073264 /* Resource in Resources */,
 				1A88B2641FC3D9C9005C14AE /* Images.xcassets in Resources */,
-				D02C114521804977009A8DFD /* snappy-stubs-public.h in Resources */,
 				D0B2725C2192C2E300073264 /* LuaScripts in Resources */,
 				D0B2724F2192BF3900073264 /* LaunchScreen.storyboard in Resources */,
 			);
@@ -1052,7 +1017,6 @@
 				D0189BE62192877A007A8BD6 /* lmathlib.cpp in Sources */,
 				D02F8DD32197509F00B5C65A /* SingleplayerLauncher.cpp in Sources */,
 				D0B9FD6D217128ED0097E97B /* CryptoLibrary.cpp in Sources */,
-				D02C114221804977009A8DFD /* snappy-c.cc in Sources */,
 				D0189BE42192877A007A8BD6 /* liolib.cpp in Sources */,
 				D0189BEA2192877A007A8BD6 /* lopcodes.cpp in Sources */,
 				D0B75D262198E66300EC80F5 /* AuthorityBase.cpp in Sources */,
@@ -1078,7 +1042,6 @@
 				D0189BE92192877A007A8BD6 /* lobject.cpp in Sources */,
 				D0189BDF2192877A007A8BD6 /* ldo.cpp in Sources */,
 				1AF87B8B1F6F782A007BE51C /* RootViewController.mm in Sources */,
-				D02C114721804977009A8DFD /* snappy.cc in Sources */,
 				D0189BED2192877A007A8BD6 /* lstate.cpp in Sources */,
 				D082EBD9218B5DBF004CD6DE /* sha256.c in Sources */,
 				D0189BD72192877A007A8BD6 /* lauxlib.cpp in Sources */,
@@ -1090,13 +1053,12 @@
 				1AF87B8A1F6F7822007BE51C /* main.m in Sources */,
 				D0C67FFC219BBF070072233F /* ExitOverlay.cpp in Sources */,
 				D0189BE02192877A007A8BD6 /* ldump.cpp in Sources */,
-				D02C114321804977009A8DFD /* snappy-sinksource.cc in Sources */,
 				D0189BF22192877A007A8BD6 /* ltm.cpp in Sources */,
 				D0189BDD2192877A007A8BD6 /* ldblib.cpp in Sources */,
 				D082EBE9218C47FA004CD6DE /* ContentManager.cpp in Sources */,
 				D02F8DCD21974E9600B5C65A /* SingleplayerGameMode.cpp in Sources */,
 				D01B61C5219815C600D77D43 /* FieldEntity.cpp in Sources */,
-				46880B8A19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */,
+				D0AFCE0B21A3D6DF00B11AC9 /* CardSelector.cpp in Sources */,
 				D082EBDB218B5E3E004CD6DE /* RegisterFunction.cpp in Sources */,
 				D0189BF72192877A007A8BD6 /* lvm.cpp in Sources */,
 				D0B12D002196B05F00B7C674 /* CardEntity.cpp in Sources */,
@@ -1115,13 +1077,13 @@
 				D0B75D2A2198E6CD00EC80F5 /* SingleplayerAuthority.cpp in Sources */,
 				D0E894EF2199E4E30095F842 /* CardAnimations.cpp in Sources */,
 				D05E9BC5218AB7EF0026E33A /* Utils.cpp in Sources */,
+				D0AFCE0721A3444200B11AC9 /* KingEntity.cpp in Sources */,
 				D0189B33219272E4007A8BD6 /* LuaEngine.cpp in Sources */,
 				D0189BF12192877A007A8BD6 /* ltablib.cpp in Sources */,
 				D00E7D1A2171CD000085BBAF /* EventHub.cpp in Sources */,
 				D0189BDE2192877A007A8BD6 /* ldebug.cpp in Sources */,
 				D0189BD62192877A007A8BD6 /* lapi.cpp in Sources */,
 				D0B9FD73217128ED0097E97B /* MainMenuScene.cpp in Sources */,
-				D02C114421804977009A8DFD /* snappy-stubs-internal.cc in Sources */,
 				D0189BF02192877A007A8BD6 /* ltable.cpp in Sources */,
 				D0FCB83221990D3B00FC1277 /* LoadingScene.cpp in Sources */,
 			);
@@ -1144,7 +1106,6 @@
 				46880B8919C43A87006E1F66 /* AppDelegate.cpp in Sources */,
 				D0B9FD7A217128ED0097E97B /* IntroScene.cpp in Sources */,
 				503AE10517EB98FF00D1A890 /* main.cpp in Sources */,
-				46880B8B19C43A87006E1F66 /* HelloWorldScene.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

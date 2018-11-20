@@ -1,8 +1,11 @@
 //
-//  ICardContainer.hpp
-//  Regicide-mobile
+//    ICardContainer.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/12/18.
+//    Created: 11/12/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
@@ -22,10 +25,10 @@ namespace Game
         
     public:
         
-        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true ) = 0;
-        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true ) = 0;
-        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true ) = 0;
-        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true ) = 0;
+        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) = 0;
+        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) = 0;
+        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) = 0;
+        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) = 0;
         
         // Discarding Cards
         virtual bool RemoveTop( bool bDestroy = false ) = 0;

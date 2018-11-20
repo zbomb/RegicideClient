@@ -1,10 +1,14 @@
 //
-//  EventHub.cpp
-//  Regicide
+//    EventHub.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/13/18.
+//    Created: 10/13/18
+//    Updated: 11/20/18
 //
-#include "EventHub.h"
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
+#include "EventHub.hpp"
 #include "cocos2d.h"
 
 EventId EventHub::LastUsedId( EVENT_INVALID );

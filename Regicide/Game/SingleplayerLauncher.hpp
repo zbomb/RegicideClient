@@ -1,14 +1,17 @@
 //
-//  SingleplayerLauncher.hpp
-//  Regicide-mobile
+//    SingleplayerLauncher.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 #include <functional>               // For std::function
-#include "RegicideAPI/Account.h"    // For Regicide::Card, Regicide::Deck
-#include "AppDelegate.h"
+#include "RegicideAPI/Account.hpp"    // For Regicide::Card, Regicide::Deck
+#include "AppDelegate.hpp"
 #include <thread>
 
 
@@ -54,7 +57,7 @@ namespace Game
         void Success();
         
         World* CreateWorld();
-        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, cocos2d::TextureCache* inCache );
+        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, cocos2d::TextureCache* inCache, bool bOpponent = false );
         
         void BeginLoadingTextures();
         int TextureCount = 0;

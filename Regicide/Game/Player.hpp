@@ -1,8 +1,11 @@
 //
-//  Player.hpp
-//  Regicide-mobile
+//    Player.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
@@ -17,6 +20,7 @@ namespace Game
     class FieldEntity;
     class GraveyardEntity;
     class ICardContainer;
+    class KingEntity;
     
     class Player : public EntityBase
     {
@@ -31,6 +35,7 @@ namespace Game
         inline HandEntity* GetHand() { return Hand; }
         inline FieldEntity* GetField() { return Field; }
         inline GraveyardEntity* GetGraveyard() { return Graveyard; }
+        inline KingEntity* GetKing() { return King; }
         inline std::string GetName() { return DisplayName; }
         
         std::vector< CardEntity* > GetAllCards();
@@ -41,6 +46,9 @@ namespace Game
         
         inline int GetHealth() const { return Health; }
         void SetHealth( int In ) { Health = In; }
+        
+        inline bool IsOpponent() const { return bOpponent; }
+        void InvalidatePossibleActions();
         
     private:
         
@@ -53,12 +61,20 @@ namespace Game
         HandEntity* Hand;
         FieldEntity* Field;
         GraveyardEntity* Graveyard;
+        KingEntity* King;
         
         // Traits
         std::string DisplayName;
         
         int Mana;
         int Health;
+        
+        bool bOpponent;
+        
+        // Actions
+        void Action_PlayCard( Action* In, std::function< void() > Callback );
+        void Action_UpdateMana( Action* In, std::function< void() > Callback );
+        void Action_DrawCard( Action* In, std::function< void() > Callback );
         
         // Friend the launcher
         friend class SingleplayerLauncher;

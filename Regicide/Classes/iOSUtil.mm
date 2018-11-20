@@ -1,13 +1,16 @@
 //
-//  iOSUtil.mm
-//  Regicide-mobile
+//    IOSUtil.mm
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/1/18.
+//    Created: 11/1/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #import <Foundation/Foundation.h>
 #import <string>
-#include "Utils.h"
+#include "Utils.hpp"
 
 /*========================================================
     iOS Platform Specific

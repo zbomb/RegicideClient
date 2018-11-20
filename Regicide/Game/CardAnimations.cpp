@@ -1,8 +1,11 @@
 //
-//  CardAnimations.cpp
-//  Regicide-mobile
+//    CardAnimations.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/12/18.
+//    Created: 11/12/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "CardAnimations.hpp"

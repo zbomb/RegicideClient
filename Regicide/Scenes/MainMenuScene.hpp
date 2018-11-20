@@ -1,17 +1,22 @@
-/*==========================================================================================
-	Regicide Mobile
+//
+//    MainMenuScene.hpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
 
-	MainMenuScene.h
-	(c) 2018 Zachary Berry
-=============================================================================================*/
+
 #pragma once
 
 #include "cocos2d.h"
-#include "LoginLayer.h"
-#include "EventDataTypes.h"
-#include "RegisterLayer.h"
-#include "EventHub.h"
-#include "Numeric.h"
+#include "LoginLayer.hpp"
+#include "EventDataTypes.hpp"
+#include "RegisterLayer.hpp"
+#include "EventHub.hpp"
+#include "Numeric.hpp"
 #include "UI/UpdatePrompt.hpp"
 
 using namespace cocos2d;

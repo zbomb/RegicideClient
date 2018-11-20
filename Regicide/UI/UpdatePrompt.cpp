@@ -1,8 +1,11 @@
 //
-//  UpdatePrompt.cpp
-//  Regicide-mobile
+//    UpdatePrompt.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/8/18.
+//    Created: 11/8/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "UpdatePrompt.hpp"

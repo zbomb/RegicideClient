@@ -1,8 +1,11 @@
 //
-//  LuaEngine.hpp
-//  Regicide-mobile
+//    LuaEngine.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/6/18.
+//    Created: 11/6/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once

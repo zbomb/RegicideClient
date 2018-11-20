@@ -1,8 +1,11 @@
 //
-//  CardViewer.cpp
-//  Regicide-mobile
+//    CardViewer.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/13/18.
+//    Created: 11/13/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "CardViewer.hpp"
@@ -32,7 +35,6 @@ bool CardViewer::init()
         return false;
     
     auto dir = cocos2d::Director::getInstance();
-    auto size = dir->getVisibleSize();
     auto origin = dir->getVisibleOrigin();
     
     Background = cocos2d::DrawNode::create();

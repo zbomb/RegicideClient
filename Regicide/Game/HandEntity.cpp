@@ -1,23 +1,30 @@
 //
-//  HandEntity.cpp
-//  Regicide-mobile
+//    HandEntity.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "HandEntity.hpp"
-#include "cryptolib/Random.hpp"
+#include "UI/CardSelector.hpp"
+#include "Game/Player.hpp"
+#include "Game/World.hpp"
+#include "Game/AuthorityBase.hpp"
 
 using namespace Game;
 
 
 HandEntity::HandEntity()
-: EntityBase( "Hand" )
+: EntityBase( "Hand" ), Selector( nullptr )
 {
     SetTag( TAG_HAND );
     
     bExpanded       = false;
     bVisibleLocally = false;
+    bBlitzMode      = false;
 }
 
 HandEntity::~HandEntity()
@@ -49,7 +56,7 @@ CardEntity* HandEntity::operator[]( uint32 Index )
 }
 
 
-void HandEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
+void HandEntity::AddToTop( CardEntity *Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -60,12 +67,14 @@ void HandEntity::AddToTop( CardEntity *Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( 0 ) );
+            MoveCard( Input, CalcPos( 0 ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void HandEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
+void HandEntity::AddToBottom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -78,19 +87,20 @@ void HandEntity::AddToBottom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void HandEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
+void HandEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
         // Generate random index
-        using Random = effolkronium::random_static;
-        auto Iter = Random::get( Cards.begin(), Cards.end() );
-        //CC_ASSERT( Iter != Cards.end() );
+        auto Iter = Cards.begin();
+        std::advance( Iter, cocos2d::random< int >( 0, (int) Cards.size() ) );
         
         auto It = Cards.insert( Iter, Input );
         InvalidateCards( Input );
@@ -101,12 +111,14 @@ void HandEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
-void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
+void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite, std::function< void() > Callback )
 {
     if( Input )
     {
@@ -123,8 +135,10 @@ void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite )
         if( bMoveSprite )
         {
             InvalidateZOrder();
-            MoveCard( Input, CalcPos( Index ) );
+            MoveCard( Input, CalcPos( Index ), Callback );
         }
+        else if( Callback )
+            Callback();
     }
 }
 
@@ -230,8 +244,8 @@ bool HandEntity::RemoveRandom( bool bDestroy /* = false */ )
         return false;
     
     // Choose random card
-    using Random = effolkronium::random_static;
-    auto It = Random::get( Cards.begin(), Cards.end() );
+    auto It = Cards.begin();
+    std::advance( It, cocos2d::random< int >( 0, (int) Cards.size() - 1 ) );
     CC_ASSERT( It != Cards.end() );
     
     if( bDestroy && *It )
@@ -292,12 +306,12 @@ cocos2d::Vec2 HandEntity::CalcPos( int Index, int CardDelta )
     return GetPosition() + cocos2d::Vec2( ( -TotalWidth / 2.f ) + Index * Spacing, bExpanded ? size.height * 0.15f : 0.f );
 }
 
-void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos )
+void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std::function< void() > Callback )
 {
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( inPos, 0.5f );
+        inCard->MoveAnimation( inPos, 0.5f, Callback );
         
         // Flip face up if it isnt already
         if( bVisibleLocally && !inCard->IsFaceUp() )
@@ -343,6 +357,140 @@ void HandEntity::SetExpanded( bool bExpand )
     InvalidateCards( nullptr, true );
 }
 
+void HandEntity::OpenBlitzMode()
+{
+    if( bBlitzMode )
+        return;
+    
+    bBlitzMode = true;
+    
+    // Reset State
+    SelectedCards.clear();
+    SelectedMana = 0;
+
+    // Create Blitz UI
+    Selector = CardSelector::Create( Begin(), End() );
+    Selector->SetSelectionChanged( [=] ( std::vector< Game::CardEntity* > In ) -> void
+    {
+        // Update Consumed Mana and store currently selected cards
+        SelectedCards   = In;
+        SelectedMana    = 0;
+        
+        for( auto It = SelectedCards.begin(); It != SelectedCards.end(); It++ )
+        {
+            if( *It )
+            {
+                SelectedMana += (*It)->ManaCost;
+            }
+        }
+        
+    } );
+    
+    Selector->SetSelectCheck( [=]( Game::CardEntity* In ) -> bool
+    {
+        // Check if this card is able to be selected
+        if( !In )
+        {
+            return false;
+        }
+        
+        auto Pl = dynamic_cast< Game::Player* >( GetOwner() );
+        if( !Pl )
+        {
+            return false;
+        }
+
+        if( SelectedMana + In->ManaCost > Pl->GetMana() )
+        {
+            return false;
+        }
+        
+        return true;
+    } );
+    
+    Selector->SetConfirm( std::bind( &HandEntity::ConfirmBlitz, this ) );
+    Selector->setOpacity( 0 );
+    
+    GetScene()->addChild( Selector );
+    
+    // Fade out cards
+    for( auto It = Begin(); It != End(); It++ )
+    {
+        if( *It && (*It)->Sprite )
+        {
+            (*It)->Sprite->runAction( cocos2d::FadeOut::create( 0.25f ) );
+        }
+    }
+    
+    // Fade in selector
+    Selector->runAction( cocos2d::Sequence::create( cocos2d::FadeIn::create( 0.25f ), NULL ) );
+}
+
+void HandEntity::ConfirmBlitz()
+{
+    if( bBlitzMode )
+    {
+        // Pass along our selection
+        auto world = Game::World::GetWorld();
+        auto Auth = world ? world->GetAuthority() : nullptr;
+        
+        if( Auth )
+        {
+            if( Selector )
+                Selector->Lock();
+            
+            Auth->SetBlitzCards( SelectedCards );
+        }
+    }
+}
+
+void HandEntity::DeselectBlitz( Game::CardEntity* In )
+{
+    if( Selector )
+    {
+        if( In == nullptr )
+            Selector->DeselectAll();
+        else
+            Selector->Deselect( In );
+    }
+}
+
+void HandEntity::EnabledBlitzMenu()
+{
+    if( Selector )
+        Selector->UnLock();
+}
+
+void HandEntity::CloseBlitzMode()
+{
+    if( !bBlitzMode )
+        return;
+    
+    bBlitzMode = false;
+    
+    // Reset State
+    SelectedMana = 0;
+    SelectedCards.clear();
+    
+    // Fade Cards Back In
+    for( auto It = Begin(); It != End(); It++ )
+    {
+        if( (*It) && (*It)->Sprite )
+        {
+            (*It)->Sprite->runAction( cocos2d::FadeIn::create( 0.25f ) );
+        }
+    }
+    
+    if( Selector )
+    {
+        // Fade out selector, and remove
+        Selector->runAction( cocos2d::Sequence::create(
+                   cocos2d::FadeOut::create( 0.25f ),
+                   cocos2d::RemoveSelf::create(), NULL ) );
+    }
+    
+    Selector = nullptr;
+}
 
 bool HandEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
 {

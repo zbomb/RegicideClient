@@ -1,11 +1,14 @@
-/*==========================================================================================
-	Regicide Mobile
+//
+//    IntroScene.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
 
-	MainMenuScene.cpp
-	(c) 2018 Zachary Berry
-=============================================================================================*/
-
-#include "IntroScene.h"
+#include "IntroScene.hpp"
 #include "SimpleAudioEngine.h"
 
 

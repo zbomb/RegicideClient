@@ -1,14 +1,17 @@
 //
-//  UpdateScene.hpp
-//  Regicide-mobile
+//    UpdateScene.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/5/18.
+//    Created: 11/5/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
 #include "cocos2d.h"
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include "ui/CocosGUI.h"
 
 using namespace cocos2d;

@@ -1,9 +1,13 @@
 //
-//  PopTransition.hpp
-//  Regicide
+//    PopTransition.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/8/18.
+//    Created: 11/8/18
+//    Updated: 11/20/18
 //
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #include <type_traits>
 #include <cocos2d.h>
 

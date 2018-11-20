@@ -57,6 +57,11 @@
     
     // Set EAGLView as view of RootViewController
     self.view = eaglView;
+
+    if( @available (iOS 11, * ) )
+    {
+        [ self setNeedsUpdateOfScreenEdgesDeferringSystemGestures ];
+    }
 }
 
 // Implement viewDidLoad to do additional setup after loading the view, typically from a nib.
@@ -118,5 +123,9 @@
     // Release any cached data, images, etc that aren't in use.
 }
 
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures
+{
+    return UIRectEdgeBottom;
+}
 
 @end

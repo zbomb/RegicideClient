@@ -1,14 +1,16 @@
 //
-//  World.hpp
-//  Regicide-mobile
+//    World.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
 #include "EntityBase.hpp"
-
 #include "SingleplayerLauncher.hpp"
 
 
@@ -39,10 +41,15 @@ namespace Game
         
         inline cocos2d::Scene* GetScene() { return LinkedScene; }
         
+        inline Player* GetLocalPlayer() { return LocalPlayer; }
+        inline Player* GetOpponent() { return Opponent; }
+        
     protected:
         
         GameModeBase* GM;
         AuthorityBase* Auth;
+        Player* LocalPlayer;
+        Player* Opponent;
 
         static World* CurrentInstance;
     

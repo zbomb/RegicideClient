@@ -1,3 +1,13 @@
+//
+//    AppDelegate.hpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
  
@@ -28,10 +38,10 @@
 #define SDKBOX_ENABLED
 #define USE_AUDIO_ENGINE true
 
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include "cocos2d.h"
 #include <future>
-#include "RegicideAPI/Account.h"
+#include "RegicideAPI/Account.hpp"
 
 #define REG_TAG_LAUNCHER 1010
 

@@ -1,13 +1,16 @@
 //
-//  OnlineLauncher.cpp
-//  Regicide-mobile
+//    OnlineLauncher.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/9/18.
+//    Created: 11/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "OnlineLauncher.hpp"
 #include "PopTransition.hpp"
-#include "AppDelegate.h"
+#include "AppDelegate.hpp"
 
 USING_NS_CC;
 

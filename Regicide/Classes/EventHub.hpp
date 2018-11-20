@@ -1,12 +1,16 @@
 //
-//  EventHub.h
-//  Regicide
+//    EventHub.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/13/18.
+//    Created: 10/13/18
+//    Updated: 11/20/18
 //
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #pragma once
 
-#include "EventDataTypes.h"
+#include "EventDataTypes.hpp"
 #include "LuaEngine.hpp"
 
 typedef uint32_t EventId;

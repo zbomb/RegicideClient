@@ -1,15 +1,18 @@
 //
-//  SingleplayerGameMode.hpp
-//  Regicide-mobile
+//    SingleplayerGameMode.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
 #include "GameModeBase.hpp"
 #include "CardEntity.hpp"
-#include "TurnManager.hpp"
+#include <chrono>
 
 class CardViewer;
 
@@ -23,21 +26,11 @@ namespace Game
         
     public:
         
-        virtual Player* GetLocalPlayer();
-        virtual Player* GetOpponent();
-        
         virtual void Cleanup();
-        
-        inline PlayerTurn GetPlayerTurn() const { return _CurrentTurn; }
-        void OnTurnChanged( PlayerTurn inTurn );
         
     protected:
         
         virtual void Initialize();
-        virtual void PostInitialize();
-        
-        PlayerTurn _CurrentTurn;
-        
         
         /*=============================================================================================
             Input Layer
@@ -68,10 +61,7 @@ namespace Game
         
         CardViewer* _Viewer = nullptr;
         void _DoCloseViewer();
-        void _DoPlayCard( CardEntity* inCard );
-        
-        
-        
+
         friend class SingleplayerLauncher;
         
     };

@@ -1,16 +1,19 @@
-/*==========================================================================================
-	Regicide Mobile
+//
+//    MainMenuScene.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
 
-	MainMenuScene.cpp
-	(c) 2018 Zachary Berry
-=============================================================================================*/
-
-#include "MainMenuScene.h"
+#include "MainMenuScene.hpp"
 #include "SimpleAudioEngine.h"
-#include "LoginLayer.h"
-#include "EventHub.h"
-#include "Utils.h"
-#include "API.h"
+#include "LoginLayer.hpp"
+#include "EventHub.hpp"
+#include "Utils.hpp"
+#include "API.hpp"
 #include "IContentSystem.hpp"
 #include "OptionsScene.hpp"
 #include "SingleplayerLauncher.hpp"

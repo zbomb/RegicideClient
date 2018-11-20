@@ -1,13 +1,17 @@
 //
-//  Account.h
-//  Regicide
+//    Account.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/31/18.
+//    Created: 10/31/18
+//    Updated: 11/20/18
 //
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #pragma once
 
 #include <vector>
-#include "Numeric.h"
+#include "Numeric.hpp"
 
 namespace Regicide
 {
@@ -50,6 +54,7 @@ namespace Regicide
     {
         std::string Name;
         uint32 Id;
+        uint32 KingId;
         
         std::vector< Card > Cards;
         

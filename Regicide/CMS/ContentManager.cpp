@@ -1,8 +1,11 @@
 //
-//  ContentManager.cpp
-//  Regicide-mobile
+//    ContentManager.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/2/18.
+//    Created: 11/2/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "ContentManager.hpp"
@@ -11,7 +14,7 @@
 #include "network/CCDownloader.h"
 #include "IContentSystem.hpp"
 #include <functional>
-#include "CryptoLibrary.h"
+#include "CryptoLibrary.hpp"
 #include "gzip/decompress.hpp"
 
 

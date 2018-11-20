@@ -1,16 +1,19 @@
 //
-//  ContentSystem.hpp
-//  Regicide
+//    IContentSystem.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/5/18.
+//    Created: 11/5/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include <string>
 
 // Dependence on RegicideAPI/Account.h
-#include "Account.h"
+#include "Account.hpp"
 
 namespace Regicide
 {

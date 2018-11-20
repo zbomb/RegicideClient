@@ -1,12 +1,14 @@
 //
-//  LuaBindings_CMS.hpp
-//  Regicide
+//    LuaBindings_CMS.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/6/18.
+//    Created: 11/6/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
-#ifndef LuaBindings_CMS_h
-#define LuaBindings_CMS_h
+#pragma once
 
 #include <string>
 #include "IContentSystem.hpp"
@@ -169,5 +171,3 @@ namespace Regicide
     }
 }
 
-
-#endif /* LuaBindings_CMS_h */

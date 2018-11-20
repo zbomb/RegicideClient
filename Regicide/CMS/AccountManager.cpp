@@ -1,14 +1,17 @@
 //
-//  AccountManager.cpp
-//  Regicide-mobile
+//    AccountManager.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/2/18.
+//    Created: 11/2/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "AccountManager.hpp"
-#include "Utils.h"
+#include "../Classes/Utils.hpp"
 #include "ContentStorage.hpp"
-
+#include "external/json/document.h"
 
 using namespace Regicide;
 using namespace rapidjson;
@@ -64,7 +67,7 @@ void AccountManager::Init()
         }
         
         // Read the account structure
-        if( !Utils::ReadAccount( Account.GetObject(), LocalAccount ) || !LocalAccount )
+        if( !Regicide::Utils::ReadAccount( Account.GetObject(), LocalAccount ) || !LocalAccount )
         {
             cocos2d::log( "[ERROR] Failed to read local account file!" );
             LocalAccount.reset();
@@ -105,7 +108,7 @@ void AccountManager::WriteAccount()
     
     // Serialize to string and pass along to ContentVault to store the data for us
     std::string AccountStr;
-    Utils::WriteAccount( LocalAccount, AccountStr );
+    Regicide::Utils::WriteAccount( LocalAccount, AccountStr );
     
     std::vector< uint8 > AccountData( AccountStr.begin(), AccountStr.end() );
     

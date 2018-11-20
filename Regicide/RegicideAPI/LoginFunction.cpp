@@ -1,20 +1,23 @@
 //
-//  LoginFunction.cpp
-//  Regicide
+//    LoginFunction.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/1/18.
+//    Created: 11/1/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
-#include "API.h"
-#include "Utils.h"
+#include "API.hpp"
+#include "../Classes/Utils.hpp"
 #include "utf8/utf8.h"
-#include "CryptoLibrary.h"
+#include "CryptoLibrary.hpp"
 #include "external/json/document.h"
 #include "external/json/prettywriter.h"
 #include "network/HttpClient.h"
 #include "network/HttpResponse.h"
 #include "network/HttpRequest.h"
-#include "EventHub.h"
+#include "EventHub.hpp"
 #include "CMS/IContentSystem.hpp"
 
 

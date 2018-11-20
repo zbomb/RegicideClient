@@ -1,12 +1,15 @@
 //
-//  ContentStorage.cpp
-//  Regicide-mobile
+//    ContentStorage.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/3/18.
+//    Created: 11/3/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "ContentStorage.hpp"
-#include "Utils.h"
+#include "../Classes/Utils.hpp"
 #include "platform/CCFileUtils.h"
 #include "external/json/document.h"
 #include "external/json/prettywriter.h"

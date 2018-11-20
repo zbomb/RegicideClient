@@ -1,4 +1,14 @@
-#include "CryptoLibrary.h"
+//
+//    CryptoLibrary.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
+#include "CryptoLibrary.hpp"
 #include "cryptolib/sha256.h"
 #include "base/CCConsole.h"
 #include <string>
@@ -6,8 +16,8 @@
 #include <iomanip>
 #include "utf8/utf8.h"
 #include <iostream>
-#include "Numeric.h"
-#include "RegicideAPI/API.h"
+#include "Numeric.hpp"
+#include "RegicideAPI/API.hpp"
 #include "LuaHeaders.hpp"
 
 using namespace cocos2d;

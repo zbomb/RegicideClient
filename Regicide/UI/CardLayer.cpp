@@ -1,8 +1,11 @@
 //
-//  CardLayer.cpp
-//  Regicide-mobile
+//    CardLayer.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/13/18.
+//    Created: 11/13/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "CardLayer.hpp"
@@ -50,25 +53,21 @@ Game::CardEntity* CardLayer::TraceTouch( const cocos2d::Vec2 &inPos )
     
     if( world )
     {
-        auto GM = world->GetGameMode();
-        if( GM )
+        auto pl = world->GetLocalPlayer();
+        auto op = world->GetOpponent();
+        
+        if( pl )
         {
-            auto pl = GM->GetLocalPlayer();
-            auto op = GM->GetOpponent();
-            
-            if( pl )
-            {
-                auto ret = pl->PerformTouchTrace( inPos );
-                if( ret )
-                    return ret;
-            }
-            
-            if( op )
-            {
-                auto ret = op->PerformTouchTrace( inPos );
-                if( ret )
-                    return ret;
-            }
+            auto ret = pl->PerformTouchTrace( inPos );
+            if( ret )
+                return ret;
+        }
+        
+        if( op )
+        {
+            auto ret = op->PerformTouchTrace( inPos );
+            if( ret )
+                return ret;
         }
     }
     
@@ -106,7 +105,6 @@ void CardLayer::onTouchMoved( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 void CardLayer::onTouchEnded( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 {
     Game::CardEntity* TouchedCard = inTouch ? TraceTouch( inTouch->getLocation() ) : nullptr;
-    
     auto world = Game::World::GetWorld();
     auto GM = world ? world->GetGameMode() : nullptr;
     

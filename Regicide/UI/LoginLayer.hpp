@@ -1,3 +1,12 @@
+//
+//    LoginLayer.hpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
 #pragma once
 
 #include "cocos/cocos2d.h"

@@ -1,15 +1,18 @@
 //
-//  UpdateScene.cpp
-//  Regicide-mobile
+//    UpdateScene.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/5/18.
+//    Created: 11/5/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "UpdateScene.hpp"
 #include "IContentSystem.hpp"
-#include "MainMenuScene.h"
-#include "Utils.h"
-#include "AppDelegate.h"
+#include "MainMenuScene.hpp"
+#include "../Classes/Utils.hpp"
+#include "AppDelegate.hpp"
 
 using namespace cocos2d;
 

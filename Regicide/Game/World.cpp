@@ -1,8 +1,11 @@
 //
-//  World.cpp
-//  Regicide-mobile
+//    World.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "World.hpp"
@@ -30,6 +33,7 @@ World::~World()
 
 void World::Cleanup()
 {
+    EntityBase::Cleanup();
 }
 
 

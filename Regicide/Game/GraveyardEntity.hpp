@@ -1,8 +1,11 @@
 //
-//  GraveyardEntity.hpp
-//  Regicide-mobile
+//    GraveyardEntity.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/11/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
@@ -12,7 +15,6 @@
 
 namespace Game
 {
-    typedef std::deque< CardEntity* >::iterator GraveIter;
     class GraveyardEntity : public EntityBase, public ICardContainer
     {
         
@@ -24,10 +26,10 @@ namespace Game
         virtual void Cleanup() override;
         
         CardEntity* DrawCard();
-        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true ) override;
+        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
         
         // Discarding Cards
         virtual bool RemoveTop( bool bDestroy = false ) override;
@@ -37,8 +39,8 @@ namespace Game
         virtual bool Remove( CardEntity* inCard, bool bDestroy = false ) override;
         
         // Iterator Access
-        inline GraveIter Begin()     { return Cards.begin(); }
-        inline GraveIter End()       { return Cards.end(); }
+        inline CardIter Begin()     { return Cards.begin(); }
+        inline CardIter End()       { return Cards.end(); }
         
         // Other Accessors
         bool IndexValid( uint32 Index ) const override;
@@ -54,7 +56,7 @@ namespace Game
         
         std::deque< CardEntity* > Cards;
         
-        void MoveCard( CardEntity* inCard );
+        void MoveCard( CardEntity* inCard, std::function< void() > Callback );
         
     };
 }

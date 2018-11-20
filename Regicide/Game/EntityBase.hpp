@@ -1,19 +1,23 @@
 //
-//  EntityBase.hpp
-//  Regicide-mobile
+//    EntityBase.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
-#include "Numeric.h"
+#include "Numeric.hpp"
 #include <vector>
 #include <future>
 
-
 namespace Game
 {
+    class World;
+    class Action;
     
     class EntityBase
     {
@@ -50,6 +54,9 @@ namespace Game
         
         virtual void Invalidate();
         
+        // Actions
+        void PerformAction( Game::Action* In, std::function< void() > OnComplete );
+        
     protected:
         
         virtual void Cleanup();
@@ -66,6 +73,11 @@ namespace Game
         
         std::vector< EntityBase* >::iterator ChildBegin() { return Children.begin(); }
         std::vector< EntityBase* >::iterator ChildEnd() { return Children.end(); }
+        
+        World* GetWorld() const;
+        
+        std::map< std::string, std::function< void( Game::Action* In, std::function< void() > ) > > ActionCallbacks;
+        void SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback );
         
     private:
         
@@ -95,8 +107,8 @@ namespace Game
         T* CreateEntity( cocos2d::Scene* inScene );
         
         bool EntityExists( uint32 EntityId );
-        bool DestroyEntity( uint32 EntityId, bool bIncludeChildren = true );
-        bool DestroyEntity( EntityBase* EntityRef, bool bIncludeChildren = true );
+        bool DestroyEntity( uint32 EntityId );
+        bool DestroyEntity( EntityBase* EntityRef );
         EntityBase* GetEntity( uint32 EntityId );
         
         inline EntityIter Begin() { return EntityStore.begin(); }
@@ -120,6 +132,9 @@ namespace Game
         IEntityManager() {}
         IEntityManager( const IEntityManager& Other ) = delete;
         IEntityManager& operator= ( const IEntityManager& Other ) = delete;
+        
+        void CallCleanup( EntityBase* In );
+        void DoDestroy( std::map< uint32, std::shared_ptr< EntityBase > >::iterator Iter );
     };
     
     static uint32 NextEntityId = 1;

@@ -1,20 +1,23 @@
 //
-//  HandEntity.hpp
-//  Regicide-mobile
+//    HandEntity.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/11/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 
 #include "EntityBase.hpp"
 #include "ICardContainer.hpp"
+#include "CardEntity.hpp"
+
+class CardSelector;
 
 namespace Game
 {
-    class CardEntity;
-    typedef std::deque< CardEntity* >::iterator HandIter;
-    
     class HandEntity : public EntityBase, public ICardContainer
     {
         
@@ -25,10 +28,10 @@ namespace Game
         
         virtual void Cleanup() override;
         
-        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true ) override;
-        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true ) override;
+        virtual void AddToBottom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddToTop( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddAtRandom( CardEntity* Input, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
+        virtual void AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite = true, std::function< void() > Callback = nullptr ) override;
         
         // Discarding Cards
         virtual bool RemoveTop( bool bDestroy = false ) override;
@@ -38,8 +41,8 @@ namespace Game
         virtual bool Remove( CardEntity* inCard, bool bDestroy = false ) override;
         
         // Iterator Access
-        inline HandIter Begin()     { return Cards.begin(); }
-        inline HandIter End()       { return Cards.end(); }
+        inline CardIter Begin()     { return Cards.begin(); }
+        inline CardIter End()       { return Cards.end(); }
         
         // Other Accessors
         bool IndexValid( uint32 Index ) const override;
@@ -58,15 +61,26 @@ namespace Game
         
         bool AttemptDrop( CardEntity* inCard, const cocos2d::Vec2& inPos );
         
+        void OpenBlitzMode();
+        void CloseBlitzMode();
+        void EnabledBlitzMenu();
+        void DeselectBlitz( Game::CardEntity* In );
+        
     protected:
         
         std::deque< CardEntity* > Cards;
         bool bVisibleLocally;
         bool bExpanded;
+        bool bBlitzMode;
         
-        void MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos );
+        void MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos, std::function< void() > Callback );
         cocos2d::Vec2 CalcPos( int Index, int CardDelta = 0 );
         
+        CardSelector* Selector;
+        std::vector< Game::CardEntity* > SelectedCards;
+        int SelectedMana;
+        
+        void ConfirmBlitz();
         
         friend class SingleplayerLauncher;
     };

@@ -1,13 +1,16 @@
 //
-//  Utils.h
-//  Regicide
+//    Utils.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/16/18.
+//    Created: 10/16/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #pragma once
 #include "external/json/document.h"
-#include "RegicideAPI/Account.h"
+#include "RegicideAPI/Account.hpp"
 #include <memory>
 
 

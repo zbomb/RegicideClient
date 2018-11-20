@@ -1,3 +1,13 @@
+//
+//    AppDelegate.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
  
@@ -22,16 +32,15 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-#include "AppDelegate.h"
-#include "Scenes/HelloWorldScene.h"
-#include "Scenes/MainMenuScene.h"
-#include "Scenes/IntroScene.h"
+#include "AppDelegate.hpp"
+#include "Scenes/MainMenuScene.hpp"
+#include "Scenes/IntroScene.hpp"
 #include "CMS/IContentSystem.hpp"
 #include "Scenes/UpdateScene.hpp"
 #include <chrono>
-#include "RegicideAPI/API.h"
-#include "Utils.h"
-#include "EventHub.h"
+#include "RegicideAPI/API.hpp"
+#include "Utils.hpp"
+#include "EventHub.hpp"
 #include "LuaEngine.hpp"
 #include "Game/EntityBase.hpp"
 #include "Game/CardEntity.hpp"

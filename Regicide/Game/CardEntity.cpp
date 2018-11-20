@@ -1,8 +1,11 @@
 //
-//  CardEntity.cpp
-//  Regicide-mobile
+//    CardEntity.cpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 11/10/18.
+//    Created: 11/10/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
 //
 
 #include "CardEntity.hpp"
@@ -11,7 +14,6 @@
 #include "ICardContainer.hpp"
 
 using namespace Game;
-
 
 
 CardEntity::CardEntity()
@@ -23,26 +25,13 @@ CardEntity::CardEntity()
     ManaCost    = 0;
     
     _bDragging = false;
+    bSceneInit = false;
 }
 
 CardEntity::~CardEntity()
 {
     if( Sprite && Sprite != NULL )
     {
-        /*
-        auto dir = cocos2d::Director::getInstance();
-        auto sch = dir ? dir->getScheduler() : nullptr;
-        
-        if( sch )
-        {
-            sch->performFunctionInCocosThread( [ = ]()
-                  {
-                      if( Sprite )
-                          Sprite->removeFromParent();
-                  } );
-        }
-         */
-        
         Sprite->removeFromParent();
     }
     
@@ -80,7 +69,7 @@ bool CardEntity::OnField() const
     return Container && Container->GetTag() == TAG_FIELD;
 }
 
-bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache, bool Authority /* = false */ )
+bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache )
 {
     if( !inLua.isTable() )
     {
@@ -121,10 +110,6 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::Textu
         Hooks = std::make_shared< luabridge::LuaRef >( inLua[ "Hooks" ] );
     else
         Hooks = std::make_shared< luabridge::LuaRef >( luabridge::newTable( inLua.state() ) );
-    
-    // Set Authority Flag
-    (*Hooks)[ "Authority" ] = Authority;
-    
 
     return true;
     
@@ -133,6 +118,8 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::Textu
 int CardEntity::LoadResources( const std::function< void() >& Callback )
 {
     auto Cache = cocos2d::Director::getInstance()->getTextureCache();
+    CC_ASSERT( Cache );
+    
     int Output = 1;
     
     if( FrontTextureName.empty() )
@@ -329,7 +316,7 @@ void CardEntity::Flip( bool bInFaceUp, float Time )
     bFaceUp = bInFaceUp;
 }
 
-void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time )
+void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::function< void() > Callback )
 {
     if( Sprite )
     {
@@ -340,8 +327,14 @@ void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time )
         auto moveAction = cocos2d::MoveTo::create( Time, FinalPosition );
         moveAction->setTag( ACTION_TAG_MOVE );
         
+        // We cant just stop the move animation, incase theres a callback associated with it
+        // instead, were going to call the callback after cancelling the sequence
         Sprite->stopActionByTag( ACTION_TAG_MOVE );
         Sprite->runAction( moveAction );
+        
+        // Schedule Callback
+        if( Callback )
+            cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float Delay ) { if( Callback ) Callback(); }, this, Time, 0, 0.f, false, "MoveCallback" + std::to_string( To.x ) + std::to_string( To.y ) );
     }
     
     // Update entity position

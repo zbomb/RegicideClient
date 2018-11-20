@@ -1,14 +1,18 @@
 //
-//  Types.h
-//  Regicide
+//    Types.hpp
+//    Regicide Mobile
 //
-//  Created by Zachary Berry on 10/31/18.
+//    Created: 10/31/18
+//    Updated: 11/20/18
 //
+//    © 2018 Zachary Berry, All Rights Reserved
+//
+
 #pragma once
 
 #include <string>
-#include "Numeric.h"
-#include "Account.h"
+#include "Numeric.hpp"
+#include "Account.hpp"
 
 
 namespace Regicide

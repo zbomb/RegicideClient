@@ -1,11 +1,20 @@
+//
+//    LoginLayer.cpp
+//    Regicide Mobile
+//
+//    Created: 10/9/18
+//    Updated: 11/20/18
+//
+//    © 2018 Zachary Berry, All Rights Reserved
+//
 
-#include "LoginLayer.h"
-#include "CryptoLibrary.h"
+#include "LoginLayer.hpp"
+#include "CryptoLibrary.hpp"
 #include <vector>
-#include "MainMenuScene.h"
-#include "EventHub.h"
+#include "MainMenuScene.hpp"
+#include "EventHub.hpp"
 #include "utf8.h"
-#include "API.h"
+#include "API.hpp"
 
 
 bool LoginLayer::init()
