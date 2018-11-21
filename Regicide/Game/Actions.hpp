@@ -69,7 +69,8 @@ namespace Game
         
         std::unique_ptr< Game::Action >& AddAction( Game::Action* newAction )
         {
-            Children.push_back( std::move( std::unique_ptr< Game::Action >( newAction ) ) );
+            // Using Copy Ellison to move unique_ptr into children
+            Children.push_back( std::unique_ptr< Game::Action >( newAction )  );
             return Children.back();
         }
         
@@ -113,7 +114,8 @@ namespace Game
         
         std::unique_ptr< Game::Action >& AddAction( Game::Action* newAction )
         {
-            ActionTree.push_back( std::move( std::unique_ptr< Game::Action >( newAction ) ) );
+            // Using Copy Ellison to move unique_ptr into ActionTree
+            ActionTree.push_back( std::unique_ptr< Game::Action >( newAction )  );
             return ActionTree.back();
         }
         
@@ -259,11 +261,11 @@ namespace Game
         {}
     };
     
-    class BlitzErrorAction : public Action
+    class CardErrorAction : public Action
     {
     public:
         
-        BlitzErrorAction( EntityBase* In = nullptr )
+        CardErrorAction( EntityBase* In = nullptr )
         : Action( "BlitzError", In )
         {}
         
@@ -279,5 +281,32 @@ namespace Game
         {}
         
         PlayerTurn pState;
+    };
+    
+    // Damage
+    class DamageAction : public Action
+    {
+    public:
+        
+        DamageAction( EntityBase* In )
+        : Action( "Damage", In )
+        {}
+        
+        CardEntity* Target;
+        CardEntity* Inflictor;
+        uint16_t Amount;
+        int TargetPower;
+        int InflictorPower;
+    };
+    
+    class WinAction : public Action
+    {
+    public:
+        
+        WinAction( EntityBase* In )
+        : Action( "Win", In )
+        {}
+        
+        bool bDidWin;
     };
 }

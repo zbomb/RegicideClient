@@ -60,19 +60,23 @@ namespace Game
         bool ShouldCallHook() const;
         bool ShouldCallHook( const std::string& HookName );
         bool GetHook( const std::string& HookName, luabridge::LuaRef& outFunc );
-        void MoveAnimation( const cocos2d::Vec2& To, float Time, std::function< void() > Callback = nullptr );
+        void MoveAnimation( const cocos2d::Vec2& To, float Time, std::function< void() > Callback = nullptr, bool bKillFX = true );
         void RotateAnimation( float GlobalRot, float Time );
         void Flip( bool bFaceUp, float Time );
         bool InDeck() const;
         bool InHand() const;
         bool InGrave() const;
         bool OnField() const;
+        void SetHighlight( const cocos2d::Color3B& inColor = cocos2d::Color3B( 250, 20, 20 ), uint8_t Alpha = 200 );
+        void ClearHighlight();
+        void SetOverlay( const std::string& TextureName, uint8_t Alpha = 150 );
+        void ClearOverlay();
         
         // Getters/Setters
         inline Player* GetOwningPlayer()        { return OwningPlayer; }
         inline bool IsFaceUp() const            { return bFaceUp; }
         inline int GetZ() const                 { if( Sprite ) return Sprite->getGlobalZOrder(); return 0; }
-        inline void SetZ( int In ) const        { if( Sprite ) Sprite->setGlobalZOrder( In ); }
+        inline void SetZ( int In ) const        { if( Sprite ) { Sprite->setGlobalZOrder( In ); Highlight->setGlobalZOrder( In + 1 ); Overlay->setGlobalZOrder( In + 1 ); } }
         inline float GetWidth() const           { if( Sprite ) { return Sprite->getContentSize().width * Sprite->getScaleX(); } else return 0.f; }
         inline void SetIsDragging( bool In )    { _bDragging = In; }
         inline bool GetIsDragging() const       { return _bDragging; }
@@ -97,7 +101,12 @@ namespace Game
         bool bAllowPlayHooks;
         bool bAllowDeadHooks;
         
+        bool bAttacking;
+        
         cocos2d::Sprite* Sprite;
+        cocos2d::Sprite* Highlight;
+        cocos2d::Sprite* Overlay;
+        
         cocos2d::Texture2D* FrontTexture;
         cocos2d::Texture2D* BackTexture;
         cocos2d::Texture2D* FullSizedTexture;

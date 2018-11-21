@@ -16,13 +16,23 @@
 #include "GraveyardEntity.hpp"
 #include "FieldEntity.hpp"
 #include "UI/CardViewer.hpp"
+#include "Scenes/GameScene.hpp"
 
 using namespace Game;
 
 
+SingleplayerGameMode::SingleplayerGameMode()
+: GameModeBase()
+{
+    _bSelectionEnabled = true;
+    
+    using namespace std::placeholders;
+    SetActionCallback( "Win", std::bind( &SingleplayerGameMode::Action_GameWon, this, _1, _2 ) );
+}
+
 void SingleplayerGameMode::Initialize()
 {
-    
+    _bSelectionEnabled = true;
 }
 
 void SingleplayerGameMode::Cleanup()
@@ -31,11 +41,34 @@ void SingleplayerGameMode::Cleanup()
     _DoCloseViewer();
 }
 
+void SingleplayerGameMode::DisableSelection()
+{
+    _bSelectionEnabled = false;
+    
+    if( _bDrag && _touchedCard )
+        _touchedCard->SetIsDragging( false );
+}
+
+void SingleplayerGameMode::EnableSelection()
+{
+    _bSelectionEnabled = true;
+}
+
 /*=========================================================================================
     Input Layer
  =========================================================================================*/
 void SingleplayerGameMode::TouchBegan( cocos2d::Touch *inTouch, CardEntity *inCard )
 {
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
     _touchedCard = inCard;
     if( inCard && inCard->Sprite && inTouch )
     {
@@ -47,6 +80,16 @@ void SingleplayerGameMode::TouchBegan( cocos2d::Touch *inTouch, CardEntity *inCa
 
 void SingleplayerGameMode::TouchEnd( cocos2d::Touch *inTouch, CardEntity *inCard )
 {
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
     // First, check if we were dragging a card
     if( _bDrag )
     {
@@ -85,6 +128,16 @@ void SingleplayerGameMode::TouchEnd( cocos2d::Touch *inTouch, CardEntity *inCard
 
 void SingleplayerGameMode::TouchMoved( cocos2d::Touch *inTouch )
 {
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
     // Check if card is being dragged & in player's hand
     if( _touchedCard && !_touchedCard->GetIsDragging() && _touchedCard->InHand() )
     {
@@ -112,6 +165,16 @@ void SingleplayerGameMode::TouchMoved( cocos2d::Touch *inTouch )
 
 void SingleplayerGameMode::TouchCancel( cocos2d::Touch* inTouch )
 {
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
     // Stop dragging
     if( _bDrag && _touchedCard )
     {
@@ -185,9 +248,30 @@ void SingleplayerGameMode::OnCardClicked( CardEntity* inCard )
     }
     else if( inCard->OnField() )
     {
-        CloseGraveyardViewer();
-        CloseHandViewer();
-        OpenCardViewer( inCard );
+        // Check if were in attack phase
+        if( tState == TurnState::Attack )
+        {
+            if( inCard && inCard->bAttacking )
+            {
+                inCard->bAttacking = false;
+                inCard->ClearOverlay();
+            }
+            else if( inCard && !inCard->bAttacking )
+            {
+                // Check if the card is able to attack
+                if( CanCardAttack( inCard ) )
+                {
+                    inCard->bAttacking = true;
+                    inCard->SetOverlay( "icon_attack.png", 180 );
+                }
+            }
+        }
+        else
+        {
+            CloseGraveyardViewer();
+            CloseHandViewer();
+            OpenCardViewer( inCard );
+        }
         
         return;
     }
@@ -288,5 +372,72 @@ void SingleplayerGameMode::OpenHandViewer( CardEntity *inCard )
 void SingleplayerGameMode::OpenGraveyardViewer( GraveyardEntity *Grave )
 {
     cocos2d::log( "[DEBUG] OPENING GRAVEYARD VIEWER" );
+}
+
+void SingleplayerGameMode::Action_GameWon( Action* In, std::function< void() > Callback )
+{
+    // Cast to WinEvent
+    auto Win = dynamic_cast< WinAction* >( In );
+    if( !Win )
+    {
+        cocos2d::log( "[GM] Win event occured, but unable to cast to WinAction!" );
+        Callback();
+        return;
+    }
+    
+    cocos2d::Sprite* Sprite;
+    if( Win->bDidWin )
+        Sprite = cocos2d::Sprite::create( "win_banner.png" );
+    else
+        Sprite = cocos2d::Sprite::create( "loose_banner.png" );
+    
+    auto Dir = cocos2d::Director::getInstance();
+    auto Size = Dir->getVisibleSize();
+    auto Origin = Dir->getVisibleOrigin();
+    
+    Sprite->setGlobalZOrder( 99999 );
+    Sprite->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    Sprite->setPosition( Origin + Size * 0.5f );
+    
+    GetScene()->addChild( Sprite );
+    DisableSelection();
+    
+    Sprite->runAction( cocos2d::FadeIn::create( 0.3f ) );
+    Dir->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.35f, 0, 0.f, false, "WinCallback" );
+    
+    // Clear Card Overlays/Glows
+    auto Cards = IEntityManager::GetInstance().GetAllCards();
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It )
+        {
+            (*It)->ClearOverlay();
+            (*It)->ClearHighlight();
+        }
+    }
+    
+    Dir->getScheduler()->schedule( [=]( float f )
+    {
+        auto parentScene = GetScene();
+        if( parentScene )
+        {
+            auto Scene = dynamic_cast< GameScene* >( parentScene );
+            if( Scene )
+            {
+                Scene->ExitGame();
+            }
+        }
+        
+    }, this, 5.f, 0, 0.f, false, "ExitTimer" );
+    
+    auto parentScene = GetScene();
+    if( parentScene )
+    {
+        auto Scene = dynamic_cast< GameScene* >( parentScene );
+        if( Scene )
+        {
+            Scene->HideFinishButton();
+        }
+    }
 }
 

@@ -16,6 +16,7 @@
 #include "Actions.hpp"
 #include "World.hpp"
 #include "GameModeBase.hpp"
+#include "KingEntity.hpp"
 
 using namespace Game;
 
@@ -30,6 +31,7 @@ Player::Player()
     SetActionCallback( "PlayCard", std::bind( &Player::Action_PlayCard, this, _1, _2 ) );
     SetActionCallback( "UpdateMana", std::bind( &Player::Action_UpdateMana, this, _1, _2 ) );
     SetActionCallback( "DrawCard", std::bind( &Player::Action_DrawCard, this, _1, _2 ) );
+    SetActionCallback( "KingDamage", std::bind( &Player::Action_KingDamage, this, _1, _2 ) );
 }
 
 Player::~Player()
@@ -224,6 +226,44 @@ void Player::Action_DrawCard( Action* In, std::function< void() > Callback )
         Hand->AddToBottom( Card, true, Callback );
     
     InvalidatePossibleActions();
+}
+
+static uint32_t callbackNum = 0;
+
+void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
+{
+    auto damage = dynamic_cast< DamageAction* >( In );
+    if( !damage )
+    {
+        cocos2d::log( "[Player] Received king damage action that was invalid!" );
+        Callback();
+        return;
+    }
+    
+    if( damage->Amount <= 0 )
+    {
+        cocos2d::log( "[Player] Received king damage action with invalid damage amount" );
+        Callback();
+        return;
+    }
+    
+    // Perform Damage
+    Health = damage->TargetPower;
+    cocos2d::log( "[Player] %d damage dealt to king", damage->Amount );
+    
+    auto king = GetKing();
+    if( king )
+        king->UpdateHealth( Health );
+    
+    // TODO: Animation!
+    
+    // If we died, the Authority will detect it and send the needed actions
+    cocos2d::Director::getInstance()->getScheduler()->schedule( [=] ( float f )
+    {
+        if( Callback )
+            Callback();
+        
+    }, this, 0.5f, 0, 0.f, false, "KingDamageCallback" + std::to_string( callbackNum++ ) );
 }
 
 void Player::InvalidatePossibleActions()

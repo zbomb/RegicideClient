@@ -122,7 +122,7 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     CloseIcon->setPosition( cocos2d::Vec2( origin.x + size.width * 0.5f + CardSize.width / 2.f + 10.f + size.width / 30.f, origin.y + size.height * 0.5f + CardSize.height * 0.35f ) );
     CloseIcon->addTouchEventListener( [&] ( cocos2d::Ref* Caller, cocos2d::ui::Widget::TouchEventType Type )
                                      {
-                                         if( Type == cocos2d::ui::Widget::TouchEventType::ENDED && this )
+                                         if( Type == cocos2d::ui::Widget::TouchEventType::ENDED )
                                          {
                                              if( this->CloseCallback )
                                              {
@@ -146,7 +146,7 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
         PlayIcon->setPosition( cocos2d::Vec2( origin.x + size.width / 2.f + CardSize.width / 2.f + 10.f + size.width / 30.f, origin.y + size.height * 0.5f + CardSize.height * 0.175f ) );
         PlayIcon->addTouchEventListener( [&] ( cocos2d::Ref* Caller, cocos2d::ui::Widget::TouchEventType Type )
         {
-            if( Type == cocos2d::ui::Widget::TouchEventType::ENDED && this )
+            if( Type == cocos2d::ui::Widget::TouchEventType::ENDED )
             {
                 if( this->PlayCallback )
                     this->PlayCallback();

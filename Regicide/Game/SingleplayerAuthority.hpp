@@ -44,6 +44,10 @@ namespace Game
         virtual void SetBlockers( const std::map< CardEntity*, CardEntity* >& Cards ) override;
         virtual void TriggerAbility( CardEntity* Card, uint8_t AbilityId ) override;
         
+        void AI_PlayCard( CardEntity* In, std::function< void() > Callback );
+        void AI_SetAttackers( const std::vector< CardEntity* >& In );
+        void AI_SetBlockers( const std::map< CardEntity*, CardEntity* >& Cards );
+        
     protected:
         
         void WaitOnPlayer( std::function< void( float, bool ) > OnReady, float Timeout );
@@ -55,6 +59,9 @@ namespace Game
         T* GetGameMode();
         
         virtual bool DrawCard( Player* In, uint32_t Count = 1 ) override;
+        void Tick( float Delta );
+        
+        void OnGameWon( Player* Winner );
         
     private:
         

@@ -18,19 +18,21 @@ using namespace Game;
 
 CardEntity::CardEntity()
     : EntityBase( "card" ), Sprite( nullptr ), OwningPlayer( nullptr ), Container( nullptr ),
-    FullSizedTexture( nullptr ), FrontTexture( nullptr ), BackTexture( nullptr )
+    FullSizedTexture( nullptr ), FrontTexture( nullptr ), BackTexture( nullptr ), Highlight( nullptr ), Overlay( nullptr )
 {
     Power       = 0;
     Stamina     = 0;
     ManaCost    = 0;
     
-    _bDragging = false;
-    bSceneInit = false;
+    _bDragging  = false;
+    bSceneInit  = false;
+    _bIsCard    = true;
+    bAttacking  = false;
 }
 
 CardEntity::~CardEntity()
 {
-    if( Sprite && Sprite != NULL )
+    if( Sprite )
     {
         Sprite->removeFromParent();
     }
@@ -282,9 +284,24 @@ void CardEntity::AddToScene( cocos2d::Node* inNode )
     Sprite->setScale( 0.7f );
     Sprite->setName( "Card" );
     
+    Highlight = cocos2d::Sprite::create( "CardHighlight.png" );
+    Highlight->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    Highlight->setName( "Highlight" );
+    Highlight->setPosition( Sprite->getContentSize() * 0.5f );
+    Highlight->setOpacity( 0 );
+    Highlight->setColor( cocos2d::Color3B( 245, 25, 25 ) );
+    
+    Overlay = cocos2d::Sprite::create();
+    Overlay->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    Overlay->setName( "Overlay" );
+    Overlay->setPosition( Sprite->getContentSize() * 0.5f );
+    Overlay->setOpacity( 0 );
+    
     bFaceUp = false;
     
     inNode->addChild( Sprite );
+    Sprite->addChild( Highlight );
+    Sprite->addChild( Overlay );
 }
 
 
@@ -300,24 +317,50 @@ void CardEntity::Invalidate()
 }
 
 
-void CardEntity::Flip( bool bInFaceUp, float Time )
+void CardEntity::SetHighlight( const cocos2d::Color3B& inColor, uint8_t inAlpha )
 {
-    if( bInFaceUp == bFaceUp )
-        return;
-    
-    // Load correct texture
-    auto desired = bInFaceUp ? FrontTexture : BackTexture;
-    if( !desired )
-        cocos2d::log( "[Card] ERROR: Failed to flip card properly.. couldnt load texture" );
-    
-    if( Sprite && desired )
-        Sprite->runAction( cocos2d::Sequence::create( CardFlipY::Create( Time / 2.f, 0.f, 90.f ), CardFlipTex::Create( 0.f, desired ), CardFlipY::Create( Time / 2.f, -90.f, 0.f ), NULL ) );
-    
-    bFaceUp = bInFaceUp;
+    if( Highlight )
+    {
+        Highlight->setColor( inColor );
+        Highlight->setOpacity( inAlpha );
+    }
 }
 
-void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::function< void() > Callback )
+void CardEntity::ClearHighlight()
 {
+    if( Highlight )
+    {
+        Highlight->setOpacity( 0 );
+    }
+}
+
+void CardEntity::SetOverlay(const std::string &TextureName, uint8_t Opacity )
+{
+    if( Sprite && Overlay )
+    {
+        Overlay->setTexture( TextureName );
+        Overlay->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+        Overlay->setPosition( Sprite->getContentSize() * 0.5f );
+        Overlay->setOpacity( Opacity );
+    }
+}
+
+void CardEntity::ClearOverlay()
+{
+    if( Overlay )
+    {
+        Overlay->setOpacity( 0 );
+    }
+}
+
+void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::function< void() > Callback, bool bKillFX )
+{
+    if( bKillFX )
+    {
+        ClearHighlight();
+        ClearOverlay();
+    }
+    
     if( Sprite )
     {
         cocos2d::Vec2 FinalPosition = To;
@@ -334,7 +377,7 @@ void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::functi
         
         // Schedule Callback
         if( Callback )
-            cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float Delay ) { if( Callback ) Callback(); }, this, Time, 0, 0.f, false, "MoveCallback" + std::to_string( To.x ) + std::to_string( To.y ) );
+            cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float Delay ) { if( Callback ) Callback(); }, this, Time + 0.1f, 0, 0.f, false, "MoveCallback" + std::to_string( To.x ) + std::to_string( To.y ) );
     }
     
     // Update entity position
@@ -343,6 +386,9 @@ void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::functi
 
 void CardEntity::RotateAnimation( float GlobalRot, float Time )
 {
+    ClearHighlight();
+    ClearOverlay();
+    
     if( Sprite )
     {
         auto rotAction = cocos2d::RotateTo::create( Time, GlobalRot );
@@ -357,4 +403,24 @@ void CardEntity::RotateAnimation( float GlobalRot, float Time )
         GlobalRot -= GetOwner()->GetAbsoluteRotation();
     
     Rotation = GlobalRot;
+}
+
+void CardEntity::Flip( bool bInFaceUp, float Time )
+{
+    if( bInFaceUp == bFaceUp )
+        return;
+    
+    // Load correct texture
+    auto desired = bInFaceUp ? FrontTexture : BackTexture;
+    if( !desired )
+        cocos2d::log( "[Card] ERROR: Failed to flip card properly.. couldnt load texture" );
+    
+    ClearHighlight();
+    ClearOverlay();
+    
+    if( Sprite && desired )
+        Sprite->runAction( cocos2d::Sequence::create( CardFlipY::Create( Time / 2.f, 0.f, 90.f ), CardFlipTex::Create( 0.f, desired ), CardFlipY::Create( Time / 2.f, -90.f, 0.f ), NULL ) );
+    
+    bFaceUp = bInFaceUp;
+    
 }

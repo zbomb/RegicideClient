@@ -26,11 +26,12 @@ namespace Game
         
     public:
         
-        virtual void Cleanup();
+        SingleplayerGameMode();
+        virtual void Cleanup() override;
         
     protected:
         
-        virtual void Initialize();
+        virtual void Initialize() override;
         
         /*=============================================================================================
             Input Layer
@@ -38,10 +39,10 @@ namespace Game
         
     public:
         
-        virtual void TouchBegan( cocos2d::Touch* inTouch, CardEntity* inCard );
-        virtual void TouchEnd( cocos2d::Touch* inTouch, CardEntity* inCard );
-        virtual void TouchMoved( cocos2d::Touch* inTouch );
-        virtual void TouchCancel( cocos2d::Touch* inTouch );
+        virtual void TouchBegan( cocos2d::Touch* inTouch, CardEntity* inCard ) override;
+        virtual void TouchEnd( cocos2d::Touch* inTouch, CardEntity* inCard ) override;
+        virtual void TouchMoved( cocos2d::Touch* inTouch ) override;
+        virtual void TouchCancel( cocos2d::Touch* inTouch ) override;
         
         void OnCardClicked( CardEntity* inCard );
         void OpenGraveyardViewer( GraveyardEntity* Grave );
@@ -61,6 +62,13 @@ namespace Game
         
         CardViewer* _Viewer = nullptr;
         void _DoCloseViewer();
+        
+        virtual void DisableSelection() override;
+        virtual void EnableSelection() override;
+        
+        bool _bSelectionEnabled;
+        
+        void Action_GameWon( Action* In, std::function< void() > Callback );
 
         friend class SingleplayerLauncher;
         

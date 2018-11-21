@@ -429,8 +429,7 @@ void MainMenu::ShowPopup( std::string inMessage, Color4B inColor, float inScale,
     {
         TouchHandler->onTouchEnded = [ this ] ( Touch* inTouch, Event* inEvent )
         {
-            if( this )
-                this->HidePopup();
+            this->HidePopup();
         };
     }
     else
@@ -514,29 +513,26 @@ bool MainMenu::PerformLogin( std::string Username, std::string Password )
     
     return Client->LoginAsync( Request, [ this ]( LoginResponse Response )
        {
-           if( this )
+           if( Response.Result == LoginResult::BadRequest )
            {
-               if( Response.Result == LoginResult::BadRequest )
-               {
-                   if( this->LoginPanel ) this->LoginPanel->ShowError( "Please check input and try again" );
-               }
-               else if( Response.Result == LoginResult::DatabaseError ||
-                       Response.Result == LoginResult::OtherError )
-               {
-                   if( this->LoginPanel ) this->LoginPanel->ShowError( "An error has occured. Please retry momentarily" );
-               }
-               else if( Response.Result != LoginResult::Success )
-               {
-                   if( this->LoginPanel ) this->LoginPanel->ShowError( "Invalid Username/Password. Please retry" );
-               }
-               else
-               {
-                   // Update Login Status
-                   this->SetLoginState( LoginState::LoggedIn );
-                   
-                   // Close Login Panel
-                   this->CloseLoginMenu();
-               }
+               if( this->LoginPanel ) this->LoginPanel->ShowError( "Please check input and try again" );
+           }
+           else if( Response.Result == LoginResult::DatabaseError ||
+                   Response.Result == LoginResult::OtherError )
+           {
+               if( this->LoginPanel ) this->LoginPanel->ShowError( "An error has occured. Please retry momentarily" );
+           }
+           else if( Response.Result != LoginResult::Success )
+           {
+               if( this->LoginPanel ) this->LoginPanel->ShowError( "Invalid Username/Password. Please retry" );
+           }
+           else
+           {
+               // Update Login Status
+               this->SetLoginState( LoginState::LoggedIn );
+               
+               // Close Login Panel
+               this->CloseLoginMenu();
            }
        } );
 }
@@ -559,34 +555,33 @@ bool MainMenu::PerformRegister( std::string Username, std::string Password, std:
     
     return Client->RegisterAsync( Request, [ this ]( RegisterResponse Response )
          {
-             if( this )
+             if( Response.Result == RegisterResult::BadPassHash ||
+                Response.Result == RegisterResult::Error )
              {
-                 if( Response.Result == RegisterResult::BadPassHash ||
-                    Response.Result == RegisterResult::Error )
-                 {     if( RegisterPanel ) RegisterPanel->ShowError( "Please recheck input and try again!" ); }
-                else if( Response.Result == RegisterResult::EmailExists )
-                { if( RegisterPanel ) RegisterPanel->ShowError( "Email address already exists" ); }
-                else if( Response.Result == RegisterResult::InvalidDispName )
-                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Display Name" ); }
-                else if( Response.Result == RegisterResult::InvalidEmail )
-                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Email" ); }
-                else if( Response.Result == RegisterResult::InvalidUsername )
-                { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Username" ); }
-                else if( Response.Result == RegisterResult::SuccessBadResponse )
-                {
-                        this->CloseRegisterMenu();
-                        this->OpenLoginMenu();
-                        if( this->LoginPanel )
-                            this->LoginPanel->ShowError( "Account was registered, but an error occured. Please manually log in" );
-                }
-                 else
-                 {
-                    // Update Login Status
-                     this->SetLoginState( LoginState::LoggedIn );
-                     
-                     // Close Login Panel
-                     this->CloseRegisterMenu();
-                 }
+                 if( RegisterPanel ) RegisterPanel->ShowError( "Please recheck input and try again!" );
+             }
+            else if( Response.Result == RegisterResult::EmailExists )
+            { if( RegisterPanel ) RegisterPanel->ShowError( "Email address already exists" ); }
+            else if( Response.Result == RegisterResult::InvalidDispName )
+            { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Display Name" ); }
+            else if( Response.Result == RegisterResult::InvalidEmail )
+            { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Email" ); }
+            else if( Response.Result == RegisterResult::InvalidUsername )
+            { if( RegisterPanel ) RegisterPanel->ShowError( "Invalid Username" ); }
+            else if( Response.Result == RegisterResult::SuccessBadResponse )
+            {
+                    this->CloseRegisterMenu();
+                    this->OpenLoginMenu();
+                    if( this->LoginPanel )
+                        this->LoginPanel->ShowError( "Account was registered, but an error occured. Please manually log in" );
+            }
+             else
+             {
+                // Update Login Status
+                 this->SetLoginState( LoginState::LoggedIn );
+                 
+                 // Close Login Panel
+                 this->CloseRegisterMenu();
              }
          });
 }

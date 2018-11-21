@@ -33,14 +33,19 @@ public:
     void UpdateTurnState( const std::string& In );
     void UpdatePlayerTurn( const std::string& In );
     
+    void ShowFinishButton();
+    void HideFinishButton();
+    
+    virtual void ExitGame();
+    
 private:
     
     cocos2d::ui::Button* ExitButton;
-    cocos2d::ui::Button* TestButton;
+    cocos2d::ui::Button* FinishButton;
+    cocos2d::Label* FinishLabel; 
     cocos2d::Label* TurnLabel;
     cocos2d::Label* PlayerLabel;
     
     CardLayer* cardLayer;
     
-    virtual void ExitGame();
 };

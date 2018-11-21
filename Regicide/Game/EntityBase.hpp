@@ -57,6 +57,8 @@ namespace Game
         // Actions
         void PerformAction( Game::Action* In, std::function< void() > OnComplete );
         
+        inline bool GetIsCard() { return _bIsCard; }
+        
     protected:
         
         virtual void Cleanup();
@@ -79,6 +81,8 @@ namespace Game
         std::map< std::string, std::function< void( Game::Action* In, std::function< void() > ) > > ActionCallbacks;
         void SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback );
         
+        bool _bIsCard;
+        
     private:
         
         uint32 EID;
@@ -92,8 +96,10 @@ namespace Game
         friend class IEntityManager;
     };
     
+    
     typedef std::map< uint32, std::shared_ptr< EntityBase > >::iterator EntityIter;
     typedef std::map< uint32, std::shared_ptr< EntityBase > >::const_iterator ConstEntityIter;
+    class CardEntity;
     
     class IEntityManager
     {
@@ -121,6 +127,8 @@ namespace Game
         T* GetEntity( uint32 EntityId );
         
         static IEntityManager& GetInstance();
+        
+        std::vector< CardEntity* > GetAllCards();
         
         ~IEntityManager();
         

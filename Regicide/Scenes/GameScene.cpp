@@ -61,10 +61,11 @@ bool GameScene::init()
     } );
     addChild( ExitButton, 50 );
     
-    TestButton = ui::Button::create( "launch_button_normal.png" );
-    TestButton->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
-    TestButton->setPosition( Vec2( Origin.x + Size.width * 0.9f, Origin.y + Size.height * 0.05f ) );
-    TestButton->addTouchEventListener( [&]( cocos2d::Ref* Caller, ui::Widget::TouchEventType Type )
+    FinishButton = ui::Button::create( "generic_button.png" );
+    FinishButton->setCascadeOpacityEnabled( true );
+    FinishButton->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
+    FinishButton->setPosition( Vec2( Origin.x + Size.width * 0.9f, Origin.y + Size.height * 0.4f ) );
+    FinishButton->addTouchEventListener( [&]( cocos2d::Ref* Caller, ui::Widget::TouchEventType Type )
                                       {
                                           if( Type == ui::Widget::TouchEventType::ENDED )
                                           {
@@ -73,7 +74,14 @@ bool GameScene::init()
                                               GM->FinishTurn();
                                           }
                                       });
-    addChild( TestButton, 50 );
+    addChild( FinishButton, 50 );
+    
+    FinishLabel = cocos2d::Label::createWithTTF( "Finish", "fonts/arial.ttf", 35 );
+    FinishLabel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    FinishLabel->setPosition( FinishButton->getContentSize() * 0.5f );
+    
+    FinishButton->addChild( FinishLabel );
+    FinishButton->setOpacity( 0.f );
     
     // Add State Labels
     TurnLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 60 );
@@ -97,7 +105,7 @@ GameScene::~GameScene()
 void GameScene::ExitGame()
 {
     auto Overlay = ExitOverlay::create();
-    Overlay->setGlobalZOrder( 1000 );
+    Overlay->setGlobalZOrder( 100000 );
     addChild( Overlay, 100 );
     
     Overlay->runAction( cocos2d::Sequence::create( FadeIn::create( 0.5f ), CallFunc::create(
@@ -122,5 +130,21 @@ void GameScene::UpdatePlayerTurn( const std::string& In )
     if( PlayerLabel )
     {
         PlayerLabel->setString( In );
+    }
+}
+
+void GameScene::ShowFinishButton()
+{
+    if( FinishButton )
+    {
+        FinishButton->runAction( cocos2d::FadeIn::create( 0.25f ) );
+    }
+}
+
+void GameScene::HideFinishButton()
+{
+    if( FinishButton )
+    {
+        FinishButton->runAction( cocos2d::FadeOut::create( 0.25f ) );
     }
 }

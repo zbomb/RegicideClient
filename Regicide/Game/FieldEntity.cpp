@@ -343,11 +343,11 @@ void FieldEntity::InvalidateZOrder()
     // So, we need to order the cards
     // Default card Z order is 10
     
-    int Top = (int)Cards.size() + 11;
+    int Top = ( (int)Cards.size() * 2 ) + 11;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
-        int Order = Top - i;
+        int Order = Top - ( i * 2 );
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );

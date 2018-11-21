@@ -75,6 +75,7 @@ namespace Game
         void Action_PlayCard( Action* In, std::function< void() > Callback );
         void Action_UpdateMana( Action* In, std::function< void() > Callback );
         void Action_DrawCard( Action* In, std::function< void() > Callback );
+        void Action_KingDamage( Action* In, std::function< void() > Callback );
         
         // Friend the launcher
         friend class SingleplayerLauncher;

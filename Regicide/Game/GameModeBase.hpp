@@ -50,6 +50,9 @@ namespace Game
         inline Player* GetPlayer()  { return GetWorld()->GetLocalPlayer(); }
         inline Player* GetOpponent()   { return GetWorld()->GetOpponent(); }
     
+        virtual void DisableSelection() = 0;
+        virtual void EnableSelection() = 0;
+        
     protected:
         
         virtual void Initialize() override = 0;
@@ -90,11 +93,14 @@ namespace Game
         virtual void Action_BlitzQuery( Action* In, std::function< void() > Callback );
         virtual void Action_MainStart( Action* In, std::function< void() > Callback );
         virtual void Action_BlitzError( Action* In, std::function< void() > Callback );
+        virtual void Action_AttackError( Action* In, std::function< void() > Callback );
         virtual void Action_TurnStart( Action* In, std::function< void() > Callback );
         virtual void Action_MarshalStart( Action* In, std::function< void() > Callback );
         virtual void Action_AttackStart( Action* In, std::function< void() > Callback );
         virtual void Action_BlockStart( Action* In, std::function< void() > Callback );
         virtual void Action_PostTurnStart( Action* In, std::function< void() > Callback );
+        virtual void Action_CardDamage( Action* In, std::function< void() > Callback );
+        virtual void Action_DamageStart( Action* In, std::function< void() > Callback );
         
     public:
         

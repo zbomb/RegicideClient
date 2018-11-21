@@ -275,7 +275,7 @@ void HandEntity::InvalidateCards( CardEntity* Ignore, bool bExpanding )
         if( (*It) && *It != Ignore && !(*It)->GetIsDragging() )
         {
             // If were expanding, then were going to increate the animation speed
-            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f );
+            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f, nullptr, !bExpanding );
         }
         
         Index++;
@@ -336,11 +336,11 @@ void HandEntity::InvalidateZOrder()
     // So, we need to order the cards
     // Default card Z order is 10
     
-    int Top = (int)Cards.size() + 100;
+    int Top = ( (int)Cards.size() * 2 ) + 300;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
-        int Order = Top - i;
+        int Order = Top - ( i * 2 );
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );
