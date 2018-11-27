@@ -56,10 +56,12 @@ namespace Game
         // Boolean to track if the action has started
         bool bHasStarted;
         
+        Action* Owner;
+        
         std::vector< std::unique_ptr< Game::Action > > Children;
         
         Action( const std::string& In, EntityBase* InTarget = nullptr )
-        : ActionName( In ), bHasStarted( false )
+        : ActionName( In ), bHasStarted( false ), Owner( nullptr )
         {
             if( InTarget )
                 Target = InTarget->GetEntityId();
@@ -71,7 +73,9 @@ namespace Game
         {
             // Using Copy Ellison to move unique_ptr into children
             Children.push_back( std::unique_ptr< Game::Action >( newAction )  );
-            return Children.back();
+            auto& ret = Children.back();
+            ret->Owner = this;
+            return ret;
         }
         
         template< typename T >
@@ -83,6 +87,7 @@ namespace Game
             Children.push_back( std::move( std::unique_ptr< T >( new (std::nothrow) T( InTarget ) ) ) );
             
             auto& newEntry = Children.back();
+            newEntry->Owner = this;
             return dynamic_cast< T* >( newEntry.get() );
         }
         
@@ -130,6 +135,11 @@ namespace Game
             // We need to get the new unique_ptr we added, get the raw pointer and cast back to desired type
             auto& newEntry = ActionTree.back();
             return dynamic_cast< T* >( newEntry.get() );
+        }
+        
+        void AddActionLua( Game::Action* newAction )
+        {
+            AddAction( newAction );
         }
         
     private:
@@ -289,14 +299,28 @@ namespace Game
     public:
         
         DamageAction( EntityBase* In )
-        : Action( "Damage", In )
+        : Action( "Damage", In ), StaminaDrain( 0 )
+        {}
+        
+        CardEntity* Target;
+        CardEntity* Inflictor;
+        uint16_t Damage;
+        
+        uint16_t StaminaDrain;
+    };
+    
+    // Stamina Drain
+    class StaminaDrainAction : public Action
+    {
+    public:
+        
+        StaminaDrainAction( EntityBase* In )
+        : Action( "StaminaDrain", In )
         {}
         
         CardEntity* Target;
         CardEntity* Inflictor;
         uint16_t Amount;
-        int TargetPower;
-        int InflictorPower;
     };
     
     class WinAction : public Action
@@ -309,4 +333,6 @@ namespace Game
         
         bool bDidWin;
     };
+    
+    
 }

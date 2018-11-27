@@ -28,8 +28,13 @@ public:
     virtual void onTouchEnded( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
     virtual void onTouchCancelled( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
     
+    void RedrawBlockers();
+    
 protected:
     
     Game::CardEntity* TraceTouch( const cocos2d::Vec2& inPos );
+    
+    cocos2d::DrawNode* BlockDraw;
+    cocos2d::DrawNode* FXNode;
     
 };

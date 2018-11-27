@@ -63,6 +63,8 @@ namespace Game
         
         virtual void AddToScene( cocos2d::Node* In ) override;
         
+        inline std::string GetName() const { return DisplayName; }
+        
     protected:
         
         std::deque< CardEntity* > Cards;

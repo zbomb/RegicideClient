@@ -14,6 +14,7 @@
 #include "EntityBase.hpp"   // Base Class
 #include "cocos2d.h"        // For Sprite, Texture2D & TextureCache
 #include "LuaEngine.hpp"    // For luabridge::LuaRef
+#include "Actions.hpp"
 
 // Action Tags
 // These are assigned to cocos2d 'actions' to be able to cancel the animation if needed
@@ -45,6 +46,21 @@ namespace Game
     class Player;
     class ICardContainer;
     
+    // Ability Declaration
+    struct Ability
+    {
+        std::shared_ptr< luabridge::LuaRef > MainFunc;
+        std::shared_ptr< luabridge::LuaRef > CheckFunc;
+        
+        std::string Name;
+        std::string Description;
+        
+        uint16_t ManaCost;
+        uint16_t StaminaCost;
+        
+        uint8_t Index;
+    };
+    
     // Class Declaration
     class CardEntity : public EntityBase
     {
@@ -56,11 +72,11 @@ namespace Game
         ~CardEntity();
         
         // Public Methods
-        bool Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache );
+        bool Load( luabridge::LuaRef& inLua, Player* inOwner );
         bool ShouldCallHook() const;
         bool ShouldCallHook( const std::string& HookName );
         bool GetHook( const std::string& HookName, luabridge::LuaRef& outFunc );
-        void MoveAnimation( const cocos2d::Vec2& To, float Time, std::function< void() > Callback = nullptr, bool bKillFX = true );
+        void MoveAnimation( const cocos2d::Vec2& To, float Time, std::function< void() > Callback = nullptr );
         void RotateAnimation( float GlobalRot, float Time );
         void Flip( bool bFaceUp, float Time );
         bool InDeck() const;
@@ -76,7 +92,7 @@ namespace Game
         inline Player* GetOwningPlayer()        { return OwningPlayer; }
         inline bool IsFaceUp() const            { return bFaceUp; }
         inline int GetZ() const                 { if( Sprite ) return Sprite->getGlobalZOrder(); return 0; }
-        inline void SetZ( int In ) const        { if( Sprite ) { Sprite->setGlobalZOrder( In ); Highlight->setGlobalZOrder( In + 1 ); Overlay->setGlobalZOrder( In + 1 ); } }
+        void SetZ( int In );
         inline float GetWidth() const           { if( Sprite ) { return Sprite->getContentSize().width * Sprite->getScaleX(); } else return 0.f; }
         inline void SetIsDragging( bool In )    { _bDragging = In; }
         inline bool GetIsDragging() const       { return _bDragging; }
@@ -88,6 +104,15 @@ namespace Game
         virtual void AddToScene( cocos2d::Node* inNode ) override;
         virtual void Invalidate() override;
         
+        void CreateOverlays();
+        void DestroyOverlays();
+        
+        void UpdatePower( uint16 inPower );
+        void UpdateStamina( uint16 inStamina );
+        
+        void ShowPowerStamina();
+        void HidePowerStamina();
+        
         // Public Members
         std::string DisplayName;
         uint16 CardId;
@@ -95,6 +120,13 @@ namespace Game
         uint16 Power;
         uint16 Stamina;
         uint16 ManaCost;
+        
+        // Getters for Lua
+        int _lua_GetCardId() const { return CardId; }
+        int _lua_GetPower() const { return Power; }
+        int _lua_GetStamina() const { return Stamina; }
+        int _lua_GetManaCost() const { return ManaCost; }
+        std::string _lua_GetName() const { return DisplayName; }
         
         bool bAllowDeckHooks;
         bool bAllowHandHooks;
@@ -106,17 +138,24 @@ namespace Game
         cocos2d::Sprite* Sprite;
         cocos2d::Sprite* Highlight;
         cocos2d::Sprite* Overlay;
+        cocos2d::Label* PowerLabel;
+        cocos2d::Label* StaminaLabel;
         
         cocos2d::Texture2D* FrontTexture;
         cocos2d::Texture2D* BackTexture;
         cocos2d::Texture2D* FullSizedTexture;
         std::shared_ptr< luabridge::LuaRef > Hooks;
         
+        // Ability System
+        std::map< uint32_t, Ability > Abilities; 
+        
+        inline int GetAbilityCount() const { return (int)Abilities.size(); }
+        bool CanTriggerAbility( int Index );
+        
     protected:
         
         // EntityBase Overrides (Protected)
         virtual void Cleanup() override;
-        virtual int LoadResources( const std::function< void() >& Callback ) override;
         
         // Protected Members
         Player* OwningPlayer;
@@ -130,6 +169,8 @@ namespace Game
         bool bFaceUp;
         bool _bDragging;
         
+        uint32_t lastMoveId;
+        
         // Fiend Class Declarations
         friend class ICardContainer;
         friend class SingleplayerLauncher;
@@ -137,4 +178,7 @@ namespace Game
     
     // Card Container Iterator Typedef
     typedef std::deque< CardEntity* >::iterator CardIter;
+    
+
+    
 }

@@ -31,10 +31,14 @@ namespace Game
         
         virtual void Cleanup() override;
         
+        inline std::string GetName() const { return DisplayName; }
+        inline Player* GetOwningPlayer() { return OwningPlayer; }
+        
+        bool GetHook( const std::string& Name, luabridge::LuaRef& Out );
+        
     protected:
         
-        virtual int LoadResources( const std::function< void() >& Callback ) override;
-        bool Load( luabridge::LuaRef& inLua, Player* inOwner, cocos2d::TextureCache* Cache, bool bOpponent = false );
+        bool Load( luabridge::LuaRef& inLua, Player* inOwner, bool bOpponent = false );
         virtual void Invalidate() override;
         
         cocos2d::Sprite* Sprite;
@@ -44,6 +48,7 @@ namespace Game
         cocos2d::Texture2D* Texture;
         
         cocos2d::Label* HealthLabel;
+        Player* OwningPlayer;
         
         std::shared_ptr< luabridge::LuaRef > Hooks;
         

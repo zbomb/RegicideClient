@@ -45,6 +45,7 @@ bool CardViewer::init()
     CC_ASSERT( Listener );
     
     Listener->onTouchBegan = CC_CALLBACK_2( CardViewer::onTouch, this );
+    Listener->onTouchEnded = CC_CALLBACK_2( CardViewer::onTouchEnd, this );
     Listener->setSwallowTouches( true );
     
     _eventDispatcher->addEventListenerWithFixedPriority( Listener, -100 );
@@ -54,6 +55,19 @@ bool CardViewer::init()
 
 bool CardViewer::onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent )
 {
+    // Check if abilities were touched
+    for( auto It = Abilities.begin(); It != Abilities.end(); It++ )
+    {
+        if( It->second )
+        {
+            if( It->second->getBoundingBox().containsPoint( inTouch->getLocation() ) )
+            {
+                It->second->OnTouch( this, cocos2d::ui::Widget::TouchEventType::BEGAN );
+                return false;
+            }
+        }
+    }
+    
     if( CardImage )
     {
         if( CardImage->getBoundingBox().containsPoint( inTouch->getLocation() ) )
@@ -64,6 +78,27 @@ bool CardViewer::onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent )
     }
     
     return false;
+}
+
+void CardViewer::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
+{
+    if( CardImage )
+    {
+        for( auto It = Abilities.begin(); It != Abilities.end(); It++ )
+        {
+            if( It->second )
+            {
+                auto Box = It->second->getBoundingBox();
+                Box.origin = Box.origin + CardImage->getBoundingBox().origin;
+                
+                if( Box.containsPoint( inTouch->getLocation() ) )
+                {
+                    It->second->OnTouch( this, cocos2d::ui::Widget::TouchEventType::ENDED );
+                    return;
+                }
+            }
+        }
+    }
 }
 
 CardViewer::CardViewer()
@@ -87,6 +122,19 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     {
         removeChild( CardImage );
         CardImage = nullptr;
+    }
+    
+    if( Abilities.size() > 0 )
+    {
+        for( auto It = Abilities.begin(); It != Abilities.end(); It++ )
+        {
+            if( It->second )
+            {
+                removeChild( It->second );
+            }
+        }
+        
+        Abilities.clear();
     }
     
     if( !inCard )
@@ -165,5 +213,20 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     CardImage->setPosition( cocos2d::Vec2( origin.x + size.width * 0.5f, origin.y + size.height * 0.5f ) );
     CardImage->setGlobalZOrder( 400 );
     addChild( CardImage, 220 );
+    
+    float AbilityPosition = 10.f;
+    for( auto It = inCard->Abilities.begin(); It != inCard->Abilities.end(); It++ )
+    {
+        auto Text = AbilityText::Create( inCard, It->second, CardSize.width * 0.8f );
+        Text->setContentSize( cocos2d::Size( CardSize.width * 0.8f, Text->GetDesiredHeight() ) );
+        Text->setAnchorPoint( cocos2d::Vec2( 0.5f, 1.f ) );
+        Text->setPosition( cocos2d::Vec2( CardSize.width * 0.5f, CardSize.height * 0.42f - AbilityPosition ) );
+        Text->setGlobalZOrder( 410 );
+        CardImage->addChild( Text, 250 );
+        
+        Abilities[ It->first ] = Text;
+        AbilityPosition += Text->getContentSize().height + 10.f;
+        
+    }
 
 }

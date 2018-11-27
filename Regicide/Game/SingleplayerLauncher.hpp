@@ -57,7 +57,7 @@ namespace Game
         void Success();
         
         World* CreateWorld();
-        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, cocos2d::TextureCache* inCache, bool bOpponent = false );
+        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, bool bOpponent = false );
         
         void BeginLoadingTextures();
         int TextureCount = 0;

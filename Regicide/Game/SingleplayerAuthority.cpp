@@ -17,10 +17,16 @@
 #include "SingleplayerGameMode.hpp"
 #include "Actions.hpp"
 
-#define GAME_INITDRAW_COUNT 10
+#define GAME_INITDRAW_COUNT 8
 
 using namespace Game;
 
+ActionQueue* SingleplayerAuthority::Lua_RootQueue;
+Action* SingleplayerAuthority::Lua_RootAction( nullptr );
+Action* SingleplayerAuthority::Lua_LastSerial( nullptr );
+Action* SingleplayerAuthority::Lua_LastParallel( nullptr );
+uint32_t SingleplayerAuthority::OpponentDeckIndex( 0 );
+uint32_t SingleplayerAuthority::OwnerDeckIndex( 0 );
 
 SingleplayerAuthority::~SingleplayerAuthority()
 {
@@ -49,8 +55,6 @@ void SingleplayerAuthority::PostInit()
 void SingleplayerAuthority::SceneInit( cocos2d::Scene *inScene )
 {
     EntityBase::SceneInit( inScene );
-    
-    cocos2d::Director::getInstance()->getScheduler()->schedule( CC_CALLBACK_1( SingleplayerAuthority::Test, this ), this, 2.f, 0, 0.f, false, "test" );
 }
 
 
@@ -107,13 +111,15 @@ void SingleplayerAuthority::StartGame( float Delay, bool bTimeout )
     auto coinFlip = Queue.CreateAction< CoinFlipAction >( GM );
     coinFlip->StartingPlayer = pState;
     
+    SetLuaActionRoot( &Queue, coinFlip );
+    CallHook( "CoinFlip", pState == PlayerTurn::LocalPlayer ? GetPlayer() : GetOpponent() );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
 }
 
 void SingleplayerAuthority::CoinFlipFinish()
 {
-    cocos2d::log( "[DEBUG] FINISH COIN FLIP!" );
-    
     GameModeBase* GM = GetGameMode< GameModeBase >();
     CC_ASSERT( GM );
     
@@ -151,6 +157,11 @@ void SingleplayerAuthority::CoinFlipFinish()
             plDraw->TargetCard = plCard->GetEntityId();
             
             lastPlayerAction = plDraw;
+            
+            SetLuaActionRoot( &Queue, lastPlayerAction );
+            SetLuaDeckIndex( Pl, i + 1 );
+            CallHook( "DrawCard", plCard );
+            ClearLuaActionRoot();
         }
         
         auto opCard = OpDeck->At( i );
@@ -160,6 +171,11 @@ void SingleplayerAuthority::CoinFlipFinish()
             opDraw->TargetCard = opCard->GetEntityId();
             
             lastOpponentAction = opDraw;
+            
+            SetLuaActionRoot( &Queue, lastOpponentAction );
+            SetLuaDeckIndex( Op, i + 1 );
+            CallHook( "DrawCard", opCard );
+            ClearLuaActionRoot();
         }
     }
     
@@ -167,6 +183,10 @@ void SingleplayerAuthority::CoinFlipFinish()
     auto blitzQuery = lastPlayerAction->CreateAction< TimedQueryAction >( GM );
     blitzQuery->ActionName = "BlitzQuery";
     blitzQuery->Deadline = std::chrono::steady_clock::now() + std::chrono::seconds( 25 );
+    
+    SetLuaActionRoot( &Queue, blitzQuery );
+    CallHook( "BlitzStart" );
+    ClearLuaActionRoot();
     
     GM->RunActionQueue( std::move( Queue ) );
 }
@@ -273,6 +293,12 @@ void SingleplayerAuthority::FinishBlitz()
     auto updateMana = Queue.CreateAction< UpdateManaAction >( LocalPlayer );
     updateMana->UpdatedMana = UpdatedMana;
     
+    // TODO: AI Blitz Logic
+    
+    SetLuaActionRoot( &Queue, updateMana );
+    CallHook( "PostBlitz" );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
 }
 
@@ -302,6 +328,31 @@ void SingleplayerAuthority::PreTurn( PlayerTurn pTurn )
     mState = MatchState::Main;
     tState = TurnState::PreTurn;
     
+    // Set Player Turn
+    auto Pl = GetPlayer();
+    auto Op = GetOpponent();
+    if( pTurn == PlayerTurn::LocalPlayer )
+    {
+        if( Pl )
+            Pl->SetTurn( true );
+        if( Op )
+            Op->SetTurn( false );
+    }
+    else if( pTurn == PlayerTurn::Opponent )
+    {
+        if( Pl )
+            Pl->SetTurn( false );
+        if( Op )
+            Op->SetTurn( true );
+    }
+    else
+    {
+        if( Pl )
+            Pl->SetTurn( false );
+        if( Op )
+            Op->SetTurn( false );
+    }
+    
     // Perform Draw
     auto GM = GetGameMode< GameModeBase >();
     auto ActivePlayer = CurrentTurnPlayer();
@@ -314,7 +365,9 @@ void SingleplayerAuthority::PreTurn( PlayerTurn pTurn )
     if( !deck || deck->Count() <= 0 || !deck->At( 0 ) )
     {
         cocos2d::log( "[Auth] Player ran out of cards!" );
-        // TODO: Win Game Action
+        auto Winner = ActivePlayer == GetPlayer() ? GetOpponent() : GetPlayer();
+        OnGameWon( Winner );
+        
         return;
     }
     
@@ -330,9 +383,16 @@ void SingleplayerAuthority::PreTurn( PlayerTurn pTurn )
     auto drawAction = turnStart->CreateAction< DrawCardAction >( ActivePlayer );
     drawAction->TargetCard = deck->At( 0 )->GetEntityId();
     
+    // Setup Lua Hook
+    SetLuaActionRoot( &Queue, drawAction );
+    Lua_PopDeck( ActivePlayer ); // Ensure lua card draws start at proper index
+    CallHook( "PreTurn" );
+    ClearLuaActionRoot();
+    
     // On callback, advance round state
     Queue.Callback = std::bind( &SingleplayerAuthority::Marshal, this );
     GM->RunActionQueue( std::move( Queue ) );
+
 }
 
 void SingleplayerAuthority::Marshal()
@@ -352,6 +412,10 @@ void SingleplayerAuthority::Marshal()
     auto Queue = ActionQueue();
     auto Update = Queue.CreateAction< EventAction >( GM );
     Update->ActionName = "MarshalStart";
+    
+    SetLuaActionRoot( &Queue, Update );
+    CallHook( "Marshal" );
+    ClearLuaActionRoot();
     
     GM->RunActionQueue( std::move( Queue ) );
     
@@ -422,31 +486,40 @@ void SingleplayerAuthority::Attack()
     auto Update = Queue.CreateAction< EventAction >( GM );
     Update->ActionName = "AttackStart";
     
+    SetLuaActionRoot( &Queue, Update );
+    CallHook( "AttackStart" );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
+
     
     // Allow player/opponent to select attackers, the player must call FinishTurn
     // to advance the round state
     
     if( pState == PlayerTurn::Opponent )
     {
-        // Attack with everything
-        /*
-        auto Op = GetOpponent();
-        auto Field = Op->GetField();
-        
-        if( Field )
+        // Attack with one card
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
         {
-            std::vector< CardEntity* > Attackers;
-            for( auto It = Field->Begin(); It != Field->End(); It++ )
-            {
-                Attackers.push_back( *It );
-            }
+            auto Op = GetOpponent();
+            auto Field = Op->GetField();
             
-            AI_SetAttackers( Attackers );
-        }
-         */
-        
-        Block();
+            if( Field )
+            {
+                std::vector< CardEntity* > Attackers;
+                for( auto It = Field->Begin(); It != Field->End(); It++ )
+                {
+                    Attackers.push_back( *It );
+                    break;
+                }
+                
+                AI_SetAttackers( Attackers );
+            }
+            else
+            {
+                Block();
+            }
+        }, this, 1.f, 0, 0.f, false, "DEBUG_AI_Attack" );
     }
 }
 
@@ -477,6 +550,10 @@ void SingleplayerAuthority::Block()
     auto Update = Queue.CreateAction< EventAction >( GM );
     Update->ActionName = "BlockStart";
     
+    SetLuaActionRoot( &Queue, Update );
+    CallHook( "BlockStart" );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
     
     // Allow player/opponent to select blockers, the player must call FinishTurn
@@ -485,31 +562,41 @@ void SingleplayerAuthority::Block()
     // DEBUG
     if( pState == PlayerTurn::LocalPlayer )
     {
-        // Block opponent cards 1:1
-        auto Op = GetOpponent();
-        auto Field = Op->GetField();
-        
-        std::deque< CardEntity* > CardList( Field->Begin(), Field->End() );
-        std::map< CardEntity*, CardEntity* > Blockers;
-        for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
         {
-            if( It->first )
+            // Block opponent cards 1:1
+            auto Op = GetOpponent();
+            auto Field = Op->GetField();
+            
+            std::deque< CardEntity* > CardList( Field->Begin(), Field->End() );
+            std::map< CardEntity*, CardEntity* > Blockers;
+            for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
             {
-                // Find card to block this one
-                if( CardList.empty() )
-                    break;
-                
-                auto Blocker = CardList.front();
-                CardList.pop_front();
-                
-                if( Blocker )
+                if( It->first )
                 {
-                    Blockers[ Blocker ] = It->first;
+                    // Find card to block this one
+                    if( CardList.empty() )
+                        break;
+                    
+                    auto Blocker = CardList.front();
+                    CardList.pop_front();
+                    
+                    if( Blocker )
+                    {
+                        Blockers[ Blocker ] = It->first;
+                        GM->SetBlocker( Blocker, It->first );
+                        GM->RedrawBlockers();
+                    }
                 }
             }
-        }
-        
-        AI_SetBlockers( Blockers );
+            
+            cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
+            {
+                AI_SetBlockers( Blockers );
+                
+            }, this, 0.75f, 0, 0.f, false, "DEBUG_AI_Block_Finish" );
+            
+        }, this, 0.75f, 0, 0.f, false, "DEBUG_AI_Block" );
     }
     
 }
@@ -542,8 +629,11 @@ void SingleplayerAuthority::Damage()
         Action* lastAction = Queue.CreateAction< EventAction >( GM );
         lastAction->ActionName = "DamageStart";
         
+        SetLuaActionRoot( &Queue, lastAction );
+        CallHook( "DamageStart" );
+        ClearLuaActionRoot();
+        
         auto TargetPlayer = pState == PlayerTurn::LocalPlayer ? GetOpponent() : GetPlayer();
-        int FinalKingHealth = TargetPlayer->GetHealth();
         
         for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
         {
@@ -568,13 +658,19 @@ void SingleplayerAuthority::Damage()
                 else
                     Damage = Queue.CreateAction< DamageAction >( TargetPlayer );
                 
-                FinalKingHealth -= Attacker->Power;
+                Damage->ActionName  = "KingDamage";
+                Damage->Damage      = Attacker->Power;
+                Damage->Inflictor   = Attacker;
                 
-                Damage->ActionName = "KingDamage";
-                Damage->Amount = Attacker->Power;
-                Damage->TargetPower = FinalKingHealth;
-                Damage->InflictorPower = Attacker->Power;
-                Damage->Inflictor = Attacker;
+                StaminaDrainAction* Stamina;
+                if( lastAction )
+                    Stamina = lastAction->CreateAction< StaminaDrainAction >( GM );
+                else
+                    Stamina = Queue.CreateAction< StaminaDrainAction >( GM );
+                
+                Stamina->Target     = Attacker;
+                Stamina->Inflictor  = Attacker;
+                Stamina->Amount     = 1;
 
                 lastAction = Damage;
             }
@@ -588,7 +684,6 @@ void SingleplayerAuthority::Damage()
                     // Deal Damage to this card, maximum of card health, then subtract
                     // this damage from the remaining attack power
                     uint16_t DamageDealt = TotalAttack > (*It)->Power ? (*It)->Power : TotalAttack;
-                    uint16_t Remaining = (*It)->Power - DamageDealt;
                     
                     // Update remaining attack
                     TotalAttack -= DamageDealt;
@@ -600,12 +695,23 @@ void SingleplayerAuthority::Damage()
                     else
                         Damage = Queue.CreateAction< DamageAction >( GM );
                     
-                    Damage->ActionName = "CardDamage";
-                    Damage->Target = *It;
-                    Damage->Inflictor = Attacker;
-                    Damage->Amount = DamageDealt;
-                    Damage->TargetPower = Remaining;
-                    Damage->InflictorPower = TotalAttack;
+                    Damage->ActionName      = "CardDamage";
+                    Damage->Target          = *It;
+                    Damage->Inflictor       = Attacker;
+                    Damage->Damage          = DamageDealt;
+                    Damage->StaminaDrain    = 1;
+                    
+                    DamageAction* Blowback;
+                    if( lastAction )
+                        Blowback = lastAction->CreateAction< DamageAction >( GM );
+                    else
+                        Blowback = Queue.CreateAction< DamageAction >( GM );
+                    
+                    Blowback->ActionName    = "CardDamage";
+                    Blowback->Target        = Attacker;
+                    Blowback->Inflictor     = *It;
+                    Blowback->Damage        = DamageDealt;
+                    Blowback->StaminaDrain  = 1;
                     
                     lastAction = Damage;
                     
@@ -615,6 +721,10 @@ void SingleplayerAuthority::Damage()
                 }
             }
         }
+        
+        SetLuaActionRoot( &Queue, lastAction );
+        CallHook( "DamageFinish" );
+        ClearLuaActionRoot();
         
         Queue.Callback = std::bind( &SingleplayerAuthority::PostTurn, this );
         GM->RunActionQueue( std::move( Queue ) );
@@ -673,6 +783,10 @@ void SingleplayerAuthority::AI_PlayCard( CardEntity* In, std::function< void() >
         playCard->bWasSuccessful = true;
     }
     
+    SetLuaActionRoot( &Queue, playCard );
+    CallHook( "PlayCard", GetOpponent(), In );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
 }
 
@@ -726,6 +840,10 @@ void SingleplayerAuthority::PlayCard( CardEntity* card, int Index )
         playCard->bWasSuccessful = true;
     }
     
+    SetLuaActionRoot( &Queue, playCard );
+    CallHook( "PlayCard", GetPlayer(), card );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
 }
 
@@ -752,7 +870,12 @@ void SingleplayerAuthority::PostTurn()
     PlayerTurn nextTurn = pState == PlayerTurn::LocalPlayer ? PlayerTurn::Opponent : PlayerTurn::LocalPlayer;
     Queue.Callback = std::bind( &SingleplayerAuthority::PreTurn, this, nextTurn );
     
+    SetLuaActionRoot( &Queue, Update );
+    CallHook( "PostTurn" );
+    ClearLuaActionRoot();
+    
     GM->RunActionQueue( std::move( Queue ) );
+    
 }
 
 
@@ -828,7 +951,25 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< CardEntity* >& I
         }
         
         BattleMatrix.insert( std::make_pair( *It, std::vector< CardEntity* >() ) );
+        
+        (*It)->SetHighlight( cocos2d::Color3B( 240, 30, 30 ), 180 );
+        (*It)->SetOverlay( "icon_attack.png", 180 );
+        (*It)->bAttacking = true;
     }
+    
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    auto Table = luabridge::newTable( Engine->State() );
+    
+    int Index = 1;
+    for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+    {
+        if( It->first )
+            Table[ Index++ ] = It->first;
+    }
+    
+    SetLuaActionRoot( nullptr );
+    CallHook( "OnAttackers", Table );
+    ClearLuaActionRoot();
     
     Block();
 }
@@ -862,7 +1003,11 @@ void SingleplayerAuthority::SetAttackers( const std::vector<CardEntity *> &Cards
             continue;
         }
         
-        // TODO: Other reasons a card couldnt attack?
+        if( (*It)->Stamina <= 0 )
+        {
+            Errors.push_back( *It );
+            continue;
+        }
         
         // Check for duplicates
         if( BattleMatrix.count( *It ) > 0 )
@@ -889,6 +1034,22 @@ void SingleplayerAuthority::SetAttackers( const std::vector<CardEntity *> &Cards
     // Setup battle matrix with player selection
     for( auto It = Cards.begin(); It != Cards.end(); It++ )
         BattleMatrix.insert( std::make_pair( *It, std::vector< CardEntity* >() ) );
+    
+    // TODO: Inform Players of selection
+    
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    auto Table = luabridge::newTable( Engine->State() );
+    
+    int Index = 1;
+    for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+    {
+        if( It->first )
+            Table[ Index++ ] = It->first;
+    }
+    
+    SetLuaActionRoot( nullptr );
+    CallHook( "OnAttackers", Table );
+    ClearLuaActionRoot();
     
     // Advance Round State
     FinishTurn();
@@ -936,6 +1097,33 @@ void SingleplayerAuthority::AI_SetBlockers( const std::map<CardEntity *, CardEnt
         BattleMatrix[ It->second ].push_back( It->first );
     }
     
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    auto Table = luabridge::newTable( Engine->State() );
+    
+    for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+    {
+        if( It->first )
+        {
+            auto blockTable = luabridge::newTable( Engine->State() );
+            
+            if( It->second.size() > 0 )
+            {
+                int secondIndex = 1;
+                for( auto bIt = It->second.begin(); bIt != It->second.end(); bIt++ )
+                {
+                    if( *bIt )
+                        blockTable[ secondIndex ] = *bIt;
+                }
+            }
+            
+            Table[ It->first ] = blockTable;
+        }
+    }
+    
+    SetLuaActionRoot( nullptr );
+    CallHook( "OnBlockers", Table );
+    ClearLuaActionRoot();
+    
     Damage();
 }
 
@@ -970,6 +1158,12 @@ void SingleplayerAuthority::SetBlockers( const std::map<CardEntity *, CardEntity
             continue;
         }
         
+        if( It->first->Stamina <= 0 )
+        {
+            Errors.push_back( It->first );
+            continue;
+        }
+        
         // Ensure attacking card is valid
         if( BattleMatrix.count( It->second ) <= 0 )
         {
@@ -990,64 +1184,102 @@ void SingleplayerAuthority::SetBlockers( const std::map<CardEntity *, CardEntity
         return;
     }
     
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    auto Table = luabridge::newTable( Engine->State() );
+    
+    for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+    {
+        if( It->first )
+        {
+            auto blockTable = luabridge::newTable( Engine->State() );
+            
+            if( It->second.size() > 0 )
+            {
+                int secondIndex = 1;
+                for( auto bIt = It->second.begin(); bIt != It->second.end(); bIt++ )
+                {
+                    if( *bIt )
+                        blockTable[ secondIndex ] = *bIt;
+                }
+            }
+            
+            Table[ It->first ] = blockTable;
+        }
+    }
+    
+    SetLuaActionRoot( nullptr );
+    CallHook( "OnBlockers", Table );
+    ClearLuaActionRoot();
+    
     FinishTurn();
 }
 
 void SingleplayerAuthority::TriggerAbility( CardEntity *Card, uint8_t AbilityId )
 {
+    auto Player = GetPlayer();
+    auto GM = GetGameMode< GameModeBase >();
     
-}
-
-bool SingleplayerAuthority::DrawCard( Player *In, uint32_t Count )
-{
-    if( mState == MatchState::PostMatch )
-        return false;
-    
-    // Return false if invalid player, or no cards left to draw
-    if( !In )
-        return false;
-    
-    auto Deck = In->GetDeck();
-    if( !Deck || Deck->Count() < Count )
-        return false;
-
-    
-    // Build action queue to draw this card
-    auto Queue = ActionQueue();
-    Game::Action* lastAction = nullptr;
-    
-    for( int i = 0; i < Count; i++ )
+    if( !Card || !Player || !GM )
     {
-        auto tarCard = Deck->At( i );
-        if( !tarCard )
-            return false;
-        
-        DrawCardAction* drawAction;
-        if( lastAction )
-        {
-            drawAction = lastAction->CreateAction< DrawCardAction >( In );
-        }
-        else
-        {
-            drawAction = Queue.CreateAction< DrawCardAction >( In );
-        }
-        
-        lastAction = drawAction;
-        drawAction->TargetCard = tarCard->GetEntityId();
+        // TODO: Respond with error
+        cocos2d::log( "[Auth] Failed to trigger ability. No Card/Player/GM" );
+        return;
     }
     
-    auto GM = GetGameMode< GameModeBase >();
-    CC_ASSERT( GM );
+    // Check if ability exists
+    if( Card->Abilities.count( AbilityId ) <= 0 )
+    {
+        // TODO: Respond with error
+        cocos2d::log( "[Auth] Failed to trigger ability. Invalid Ability" );
+        return;
+    }
+    
+    auto& Ability = Card->Abilities.at( AbilityId );
+    
+    if( Ability.ManaCost > Player->GetMana() || Ability.StaminaCost > Card->Stamina )
+    {
+        // TODO: Respond with error
+        cocos2d::log( "[Auth] Failed to trigger ability. Not enough mana/stamina" );
+        return;
+    }
+    
+    if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
+    {
+        if( !( *Ability.CheckFunc )( Card ) )
+        {
+            // TODO: Respond with error
+            cocos2d::log( "[Auth] Failed to trigger ability. CheckFunc failed" );
+            return;
+        }
+    }
+    
+    // Build Action Queue
+    auto Queue = ActionQueue();
+    auto ManaAction = Queue.CreateAction< UpdateManaAction >( Player );
+    ManaAction->UpdatedMana = Player->GetMana() - Ability.ManaCost;
+    auto StaminaAction = Queue.CreateAction< StaminaDrainAction >( GM );
+    StaminaAction->Target = Card;
+    StaminaAction->Inflictor = Card;
+    StaminaAction->Amount = Ability.StaminaCost;
+    
+    SetLuaActionRoot( &Queue );
+    
+    try
+    {
+    ( *Ability.MainFunc )( Card );
+    }
+    catch( std::exception& e )
+    {
+        cocos2d::log( "[Lua] Error! %s", e.what() );
+    }
+    
+    // TODO: Call Hook?
+    ClearLuaActionRoot();
     
     GM->RunActionQueue( std::move( Queue ) );
-    return true;
-    
+    cocos2d::log( "[Auth] Triggered Ability. " );
 }
 
-void SingleplayerAuthority::Test( float Delta )
-{
-
-}
 
 void SingleplayerAuthority::OnGameWon( Player* Winner )
 {
@@ -1089,5 +1321,139 @@ void SingleplayerAuthority::Tick( float Delta )
         {
             OnGameWon( Pl );
         }
+    }
+}
+
+uint32_t SingleplayerAuthority::Lua_PopDeck( Player *In )
+{
+    if( !In )
+        return 0;
+    
+    if( In->IsOpponent() )
+        return OpponentDeckIndex++;
+    else
+        return OwnerDeckIndex++;
+}
+
+// Set the index for lua draw actions. If we draw a card in c++, and call a lua hook, we need to
+// be able to track which index to draw the next card from, so we dont draw the same card twice
+void SingleplayerAuthority::SetLuaDeckIndex( Player *Target, int Index )
+{
+    if( Target )
+    {
+        if( Target->IsOpponent() )
+            OpponentDeckIndex = Index;
+        else
+            OwnerDeckIndex = Index;
+    }
+}
+
+void SingleplayerAuthority::SetLuaActionRoot( ActionQueue* RootQueue, Action* RootAction /* = nullptr */ )
+{
+    Lua_RootQueue       = RootQueue;
+    Lua_RootAction      = RootAction;
+    Lua_LastSerial      = nullptr;
+    Lua_LastParallel    = nullptr;
+    OwnerDeckIndex      = 0;
+    OpponentDeckIndex   = 0;
+}
+
+void SingleplayerAuthority::ClearLuaActionRoot()
+{
+    Lua_RootQueue       = nullptr;
+    Lua_RootAction      = nullptr;
+    Lua_LastSerial      = nullptr;
+    Lua_LastParallel    = nullptr;
+    OwnerDeckIndex      = 0;
+    OpponentDeckIndex   = 0;
+}
+
+void SingleplayerAuthority::CallHook( const std::string& In )
+{
+    auto& Ent = IEntityManager::GetInstance();
+    auto lua = Regicide::LuaEngine::GetInstance();
+    
+    if( !lua )
+        return;
+    
+    // Check if theres an action queue set for lua to use
+    // If not, then we will just make our own for local use
+    auto Queue = ActionQueue();
+    bool bUseLocal = false;
+    
+    if( !Lua_RootQueue )
+    {
+        SetLuaActionRoot( &Queue );
+        bUseLocal = true;
+    }
+    
+    auto Player = GetPlayer();
+    auto Opponent = GetOpponent();
+    
+    if( Player )
+    {
+        auto King = Player->GetKing();
+        luabridge::LuaRef Func( lua->State() );
+        if( King && King->GetHook( In, Func ) )
+        {
+            try
+            {
+                Func( King );
+            }
+            catch( std::exception& e )
+            {
+                cocos2d::log( "[Lua] Error! %s", e.what() );
+            }
+        }
+    }
+    
+    if( Opponent )
+    {
+        auto King = Opponent->GetKing();
+        luabridge::LuaRef Func( lua->State() );
+        if( King && King->GetHook( In, Func ) )
+        {
+            try
+            {
+                Func( King );
+            }
+            catch( std::exception& e )
+            {
+                cocos2d::log( "[Lua] Error! %s", e.what() );
+            }
+        }
+    }
+    
+    for( auto It = Ent.Begin(); It != Ent.End(); It++ )
+    {
+        if( It->second && It->second->IsCard() )
+        {
+            auto Card = dynamic_cast< CardEntity* >( It->second.get() );
+            if( Card && Card->ShouldCallHook( In ) )
+            {
+                luabridge::LuaRef Func( lua->State() );
+                if( Card->GetHook( In, Func ) )
+                {
+                    try
+                    {
+                        Func( Card );
+                    }
+                    catch( std::exception& e )
+                    {
+                        cocos2d::log( "[Lua] Error! %s", e.what() );
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we created our own queue, then run it
+    if( bUseLocal && Queue.ActionTree.size() > 0 )
+    {
+        auto GM = Game::World::GetWorld()->GetGameMode< GameModeBase >();
+        CC_ASSERT( GM );
+        
+        ClearLuaActionRoot();
+        GM->RunActionQueue( std::move( Queue ) );
     }
 }

@@ -15,6 +15,7 @@
 #include "GameModeBase.hpp"
 #include "AuthorityBase.hpp"
 #include "Actions.hpp"
+#include "UI/CardViewer.hpp"
 
 
 namespace Game
@@ -27,13 +28,59 @@ namespace Game
         GameModeBase();
         ~GameModeBase();
         
+        virtual void Initialize() override;
         virtual void Cleanup() override;
         virtual void PostInit() override;
         
-        virtual void TouchBegan( cocos2d::Touch* inTouch, CardEntity* inCard ) = 0;
-        virtual void TouchEnd( cocos2d::Touch* inTouch, CardEntity* inCard ) = 0;
-        virtual void TouchMoved( cocos2d::Touch* inTouch ) = 0;
-        virtual void TouchCancel( cocos2d::Touch* inTouch ) = 0;
+        /*====================================================
+            Input Logic
+        ====================================================*/
+    public:
+        
+        virtual void TouchBegan( cocos2d::Touch* inTouch, CardEntity* inCard );
+        virtual void TouchEnd( cocos2d::Touch* inTouch, CardEntity* inCard, cocos2d::DrawNode* inDraw );
+        virtual void TouchMoved( cocos2d::Touch* inTouch, cocos2d::DrawNode* inDraw );
+        virtual void TouchCancel( cocos2d::Touch* inTouch, cocos2d::DrawNode* inDraw );
+        
+        virtual void OnCardClicked( CardEntity* inCard );
+        virtual void OpenGraveyardViewer( GraveyardEntity* Grave );
+        virtual void OpenCardViewer( CardEntity* inCard );
+        virtual void OpenHandViewer( CardEntity* inCard );
+        virtual void CloseGraveyardViewer();
+        virtual void CloseCardViewer();
+        virtual void CloseHandViewer();
+        virtual bool OnCardDragDrop( CardEntity* inCard, cocos2d::Touch* Info );
+        virtual void OnCardSwipedUp( CardEntity* inCard );
+        virtual bool OnBlockerSelect( CardEntity* inBlocker, CardEntity* inAttacker );
+        
+        void RedrawBlockers();
+        inline std::map< CardEntity*, CardEntity* > GetBlockMatrix() { return BlockMatrix; }
+        inline void SetBlocker( CardEntity* InBlocker, CardEntity* InAttacker ) { if( InBlocker && InAttacker ) BlockMatrix[ InBlocker ] = InAttacker; }
+        
+    protected:
+        
+        std::map< CardEntity*, CardEntity* > BlockMatrix;
+        
+        CardEntity* _touchedCard;
+        CardEntity* _viewCard;
+        CardViewer* _Viewer;
+        
+        bool _bDrag = false;
+        bool _bBlockerDrag = false;
+        cocos2d::Vec2 _DragOffset = cocos2d::Vec2::ZERO;
+        cocos2d::Vec2 _TouchStart = cocos2d::Vec2::ZERO;
+        
+        
+        void _DoCloseViewer();
+        
+        virtual void DisableSelection();
+        virtual void EnableSelection();
+        
+        bool _bSelectionEnabled;
+        
+        /*====================================================
+            End of Input Logic
+         ====================================================*/
         
         virtual bool CouldPlayCard( CardEntity* In );
         virtual bool CanPlayCard( CardEntity* In );
@@ -49,13 +96,6 @@ namespace Game
         
         inline Player* GetPlayer()  { return GetWorld()->GetLocalPlayer(); }
         inline Player* GetOpponent()   { return GetWorld()->GetOpponent(); }
-    
-        virtual void DisableSelection() = 0;
-        virtual void EnableSelection() = 0;
-        
-    protected:
-        
-        virtual void Initialize() override = 0;
         
     public:
         
@@ -79,6 +119,8 @@ namespace Game
         
         void Tick( float Delta );
         bool _bCheckPossibleActions = false;
+        uint32_t lastDamageId;
+        uint32_t lastDrainId;
         
     private:
         
@@ -101,6 +143,9 @@ namespace Game
         virtual void Action_PostTurnStart( Action* In, std::function< void() > Callback );
         virtual void Action_CardDamage( Action* In, std::function< void() > Callback );
         virtual void Action_DamageStart( Action* In, std::function< void() > Callback );
+        virtual void Action_StaminaDrain( Action* In, std::function< void() > Callback );
+        
+        virtual void OnActionQueue();
         
     public:
         

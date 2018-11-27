@@ -105,40 +105,7 @@ void KingEntity::Invalidate()
     }
 }
 
-int KingEntity::LoadResources( const std::function<void ()> &Callback )
-{
-    auto Cache = cocos2d::Director::getInstance()->getTextureCache();
-    CC_ASSERT( Cache );
-    
-    if( TextureName.empty() )
-    {
-        cocos2d::log( "[King] ERROR: Failed to load texture!" );
-        Texture = nullptr;
-        
-        return 0;
-    }
-    
-    Cache->addImageAsync( TextureName, [ = ] ( cocos2d::Texture2D* t )
-    {
-        
-        if( !t )
-        {
-            cocos2d::log( "[King] Failed to load texture '%s'", TextureName.c_str() );
-            this->Texture = nullptr;
-        }
-        else
-        {
-            this->Texture = t;
-        }
-        
-        Callback();
-        
-    } );
-    
-    return 1;
-}
-
-bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, cocos2d::TextureCache *Cache, bool bOpponent )
+bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, bool bOpponent )
 {
     bIsOpponent = bOpponent;
     
@@ -161,6 +128,19 @@ bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, cocos2d::Textu
     DisplayName = inLua[ "Name" ].tostring();
     TextureName = bOpponent ? inLua[ "OpponentTexture" ].tostring() : inLua[ "PlayerTexture" ].tostring();
     
+    RequireTexture( TextureName, [ = ]( cocos2d::Texture2D* InTex )
+    {
+        if( !InTex )
+        {
+            cocos2d::log( "[King] ERROR! Failed to load king texture '%s'", TextureName.c_str() );
+            Texture = nullptr;
+        }
+        else
+        {
+            Texture = InTex;
+        }
+    } );
+    
     // Store Hook Table
     if( inLua[ "Hooks" ].isTable() )
     {
@@ -172,4 +152,18 @@ bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, cocos2d::Textu
     }
     
     return true;
+}
+
+bool KingEntity::GetHook( const std::string &Name, luabridge::LuaRef &Out )
+{
+    if( !Hooks || !Hooks->isTable() )
+        return false;
+    
+    if( (*Hooks)[ Name ].isFunction() )
+    {
+        Out = (*Hooks)[ Name ];
+        return true;
+    }
+    
+    return false;
 }

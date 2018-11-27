@@ -103,11 +103,16 @@ void SingleplayerLauncherScene::OnLaunchClicked( cocos2d::Ref *Caller )
     for( int i = 0; i < 1; i++ )
     {
         Regicide::Card newCard;
-        newCard.Id = i + 5;
-        newCard.Ct = 30;
+        newCard.Id = 5;
+        newCard.Ct = 20;
         
         TestDeck.Cards.push_back( newCard );
     }
+    
+    Regicide::Card otherCard;
+    otherCard.Id = 6;
+    otherCard.Ct = 10;
+    TestDeck.Cards.push_back( otherCard );
     
     Args.PlayerDeck = TestDeck;
     Args.OpponentDeck = TestDeck;

@@ -84,6 +84,7 @@
 		D03C671B219B555D00A177A7 /* CardViewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D03C6719219B555D00A177A7 /* CardViewer.cpp */; };
 		D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B702195DF5600D0BA2F /* SingleplayerLauncher.cpp */; };
 		D0414B762195DF7100D0BA2F /* OnlineLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */; };
+		D05431C021A64571008AA907 /* SpriteEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05431BE21A64571008AA907 /* SpriteEntity.cpp */; };
 		D05E9BC12189C27A0026E33A /* API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BBE2189C27A0026E33A /* API.cpp */; };
 		D05E9BC22189C27A0026E33A /* API.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BBE2189C27A0026E33A /* API.cpp */; };
 		D05E9BC5218AB7EF0026E33A /* Utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D05E9BC4218AB7EF0026E33A /* Utils.cpp */; };
@@ -97,8 +98,10 @@
 		D082EBDF218BC445004CD6DE /* iOSUtil.mm in Sources */ = {isa = PBXBuildFile; fileRef = D082EBDE218BC445004CD6DE /* iOSUtil.mm */; };
 		D082EBE6218C1BE4004CD6DE /* AccountManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D082EBE4218C1BE4004CD6DE /* AccountManager.cpp */; };
 		D082EBE9218C47FA004CD6DE /* ContentManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D082EBE7218C47FA004CD6DE /* ContentManager.cpp */; };
+		D0893B9121ACB19E0062F632 /* IconCount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0893B8F21ACB19E0062F632 /* IconCount.cpp */; };
 		D0947ADA21916DE40097F326 /* VerifyFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947AD921916DE40097F326 /* VerifyFunction.cpp */; };
 		D0947ADD21916DFA0097F326 /* LogoutFunction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */; };
+		D0A29FC521AB7BD700E3C674 /* AbilityText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A29FC321AB7BD700E3C674 /* AbilityText.cpp */; };
 		D0A5CDAD218D60CD004AC648 /* ContentStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */; };
 		D0AFCE0721A3444200B11AC9 /* KingEntity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */; };
 		D0AFCE0B21A3D6DF00B11AC9 /* CardSelector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0AFCE0921A3D6DF00B11AC9 /* CardSelector.cpp */; };
@@ -324,6 +327,9 @@
 		D0414B712195DF5600D0BA2F /* SingleplayerLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SingleplayerLauncher.hpp; sourceTree = "<group>"; };
 		D0414B742195DF7100D0BA2F /* OnlineLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = OnlineLauncher.cpp; sourceTree = "<group>"; };
 		D0414B752195DF7100D0BA2F /* OnlineLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = OnlineLauncher.hpp; sourceTree = "<group>"; };
+		D05431BE21A64571008AA907 /* SpriteEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SpriteEntity.cpp; sourceTree = "<group>"; };
+		D05431BF21A64571008AA907 /* SpriteEntity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SpriteEntity.hpp; sourceTree = "<group>"; };
+		D05431C221A672BE008AA907 /* Game_LuaBindings.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Game_LuaBindings.hpp; sourceTree = "<group>"; };
 		D058CB6E217592160074ECB7 /* checked.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = checked.h; sourceTree = "<group>"; };
 		D058CB6F217592160074ECB7 /* core.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = core.h; sourceTree = "<group>"; };
 		D058CB70217592160074ECB7 /* unchecked.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = unchecked.h; sourceTree = "<group>"; };
@@ -348,8 +354,12 @@
 		D082EBE5218C1BE4004CD6DE /* AccountManager.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AccountManager.hpp; sourceTree = "<group>"; };
 		D082EBE7218C47FA004CD6DE /* ContentManager.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ContentManager.cpp; sourceTree = "<group>"; };
 		D082EBE8218C47FA004CD6DE /* ContentManager.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ContentManager.hpp; sourceTree = "<group>"; };
+		D0893B8F21ACB19E0062F632 /* IconCount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IconCount.cpp; sourceTree = "<group>"; };
+		D0893B9021ACB19E0062F632 /* IconCount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IconCount.hpp; sourceTree = "<group>"; };
 		D0947AD921916DE40097F326 /* VerifyFunction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = VerifyFunction.cpp; sourceTree = "<group>"; };
 		D0947ADC21916DFA0097F326 /* LogoutFunction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LogoutFunction.cpp; sourceTree = "<group>"; };
+		D0A29FC321AB7BD700E3C674 /* AbilityText.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AbilityText.cpp; sourceTree = "<group>"; };
+		D0A29FC421AB7BD700E3C674 /* AbilityText.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AbilityText.hpp; sourceTree = "<group>"; };
 		D0A5CDAB218D60CD004AC648 /* ContentStorage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ContentStorage.cpp; sourceTree = "<group>"; };
 		D0A5CDAC218D60CD004AC648 /* ContentStorage.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ContentStorage.hpp; sourceTree = "<group>"; };
 		D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KingEntity.cpp; sourceTree = "<group>"; };
@@ -702,8 +712,8 @@
 				D0B12CFC2196A45100B7C674 /* EntityBase.hpp */,
 				D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */,
 				D0B12CFF2196B05F00B7C674 /* CardEntity.hpp */,
-				D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */,
 				D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */,
+				D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */,
 				D02F8DC821974DE300B5C65A /* Player.cpp */,
 				D02F8DC921974DE300B5C65A /* Player.hpp */,
 				D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */,
@@ -730,6 +740,9 @@
 				D0699E9C219E402700EBA40B /* Actions.hpp */,
 				D0AFCE0521A3444200B11AC9 /* KingEntity.cpp */,
 				D0AFCE0621A3444200B11AC9 /* KingEntity.hpp */,
+				D05431BE21A64571008AA907 /* SpriteEntity.cpp */,
+				D05431BF21A64571008AA907 /* SpriteEntity.hpp */,
+				D05431C221A672BE008AA907 /* Game_LuaBindings.hpp */,
 			);
 			name = Game;
 			path = ../Game;
@@ -791,6 +804,10 @@
 				D0C67FFB219BBF070072233F /* ExitOverlay.hpp */,
 				D0AFCE0921A3D6DF00B11AC9 /* CardSelector.cpp */,
 				D0AFCE0A21A3D6DF00B11AC9 /* CardSelector.hpp */,
+				D0A29FC321AB7BD700E3C674 /* AbilityText.cpp */,
+				D0A29FC421AB7BD700E3C674 /* AbilityText.hpp */,
+				D0893B8F21ACB19E0062F632 /* IconCount.cpp */,
+				D0893B9021ACB19E0062F632 /* IconCount.hpp */,
 			);
 			name = UI;
 			path = ../UI;
@@ -799,10 +816,10 @@
 		D07A7F7F21913A56008B7667 /* Scenes */ = {
 			isa = PBXGroup;
 			children = (
+				D0B9FD5C217128ED0097E97B /* IntroScene.hpp */,
 				D0B9FD63217128ED0097E97B /* MainMenuScene.cpp */,
 				D0B9FD59217128EC0097E97B /* MainMenuScene.hpp */,
 				D0B9FD68217128ED0097E97B /* IntroScene.cpp */,
-				D0B9FD5C217128ED0097E97B /* IntroScene.hpp */,
 				D0CC20622190B76500B01994 /* UpdateScene.cpp */,
 				D0CC20632190B76500B01994 /* UpdateScene.hpp */,
 				D0E6C81521940B7C00064670 /* OptionsScene.cpp */,
@@ -1017,6 +1034,7 @@
 				D0189BEA2192877A007A8BD6 /* lopcodes.cpp in Sources */,
 				D0B75D262198E66300EC80F5 /* AuthorityBase.cpp in Sources */,
 				D0189BF82192877A007A8BD6 /* lzio.cpp in Sources */,
+				D05431C021A64571008AA907 /* SpriteEntity.cpp in Sources */,
 				D0189BEC2192877A007A8BD6 /* lparser.cpp in Sources */,
 				D0E6C81B2194218A00064670 /* UpdatePrompt.cpp in Sources */,
 				D01B61C82198167700D77D43 /* GraveyardEntity.cpp in Sources */,
@@ -1028,6 +1046,7 @@
 				D0189BEB2192877A007A8BD6 /* loslib.cpp in Sources */,
 				D05E9BC12189C27A0026E33A /* API.cpp in Sources */,
 				D0947ADD21916DFA0097F326 /* LogoutFunction.cpp in Sources */,
+				D0A29FC521AB7BD700E3C674 /* AbilityText.cpp in Sources */,
 				D0189BE52192877A007A8BD6 /* llex.cpp in Sources */,
 				D0B9FD6F217128ED0097E97B /* LoginLayer.cpp in Sources */,
 				D0E6C81721940B7C00064670 /* OptionsScene.cpp in Sources */,
@@ -1047,6 +1066,7 @@
 				D0414B722195DF5600D0BA2F /* SingleplayerLauncher.cpp in Sources */,
 				D0CC206821910FB000B01994 /* IContentSystem.cpp in Sources */,
 				1AF87B8A1F6F7822007BE51C /* main.m in Sources */,
+				D0893B9121ACB19E0062F632 /* IconCount.cpp in Sources */,
 				D0C67FFC219BBF070072233F /* ExitOverlay.cpp in Sources */,
 				D0189BE02192877A007A8BD6 /* ldump.cpp in Sources */,
 				D0189BF22192877A007A8BD6 /* ltm.cpp in Sources */,

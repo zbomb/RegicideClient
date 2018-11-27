@@ -12,6 +12,7 @@
 
 #include "cocos2d.h"
 #include "Game/CardEntity.hpp"
+#include "AbilityText.hpp"
 
 
 class CardViewer : public cocos2d::Layer
@@ -35,8 +36,11 @@ protected:
     Game::CardEntity* TargetCard;
     cocos2d::Sprite* CardImage;
     cocos2d::DrawNode* Background;
+    std::map< int, AbilityText* > Abilities;
     
     bool onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
+    void onTouchEnd( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
+    
     cocos2d::EventListenerTouchOneByOne* Listener;
     std::function< void() > CloseCallback;
     std::function< void() > PlayCallback;

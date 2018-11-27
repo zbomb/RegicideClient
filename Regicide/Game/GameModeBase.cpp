@@ -38,16 +38,36 @@ GameModeBase::GameModeBase()
     SetActionCallback( "TurnStart",     std::bind( &GameModeBase::Action_TurnStart,     this, _1, _2 ) );
     SetActionCallback( "CardDamage",    std::bind( &GameModeBase::Action_CardDamage,    this, _1, _2 ) );
     SetActionCallback( "DamageStart",   std::bind( &GameModeBase::Action_DamageStart,   this, _1, _2 ) );
+    SetActionCallback( "StaminaDrain",  std::bind( &GameModeBase::Action_StaminaDrain,  this, _1, _2 ) );
     
     // Default State
     mState  = MatchState::PreMatch;
     tState  = TurnState::PreTurn;
     pState  = PlayerTurn::LocalPlayer;
+    
+    lastDamageId    = 0;
+    lastDrainId     = 0;
+    
+    _Viewer         = nullptr;
+    _touchedCard    = nullptr;
+    _viewCard       = nullptr;
+    
+    _bSelectionEnabled  = true;
+    
+    // TODO: Preload Textures?
+    
 }
 
 GameModeBase::~GameModeBase()
 {
 
+}
+
+void GameModeBase::Initialize()
+{
+    EntityBase::Initialize();
+    
+    _bSelectionEnabled = true;
 }
 
 void GameModeBase::Cleanup()
@@ -61,7 +81,503 @@ void GameModeBase::Cleanup()
     }
     
     ActiveQueues.clear();
+    
+    _DoCloseViewer();
 }
+
+
+/*==========================================================================================================
+    GameModeBase -> Input Logic
+==========================================================================================================*/
+void GameModeBase::TouchBegan( cocos2d::Touch *inTouch, CardEntity *inCard )
+{
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
+    _touchedCard = inCard;
+    _TouchStart = inTouch->getLocation();
+    
+    if( inCard && inCard->Sprite && inTouch )
+    {
+        // Set drag offset to the difference of the card center
+        // and the click position
+        _DragOffset = inCard->Sprite->getPosition() - inTouch->getLocation();
+    }
+}
+
+
+void GameModeBase::TouchEnd( cocos2d::Touch *inTouch, CardEntity *inCard, cocos2d::DrawNode* inDraw )
+{
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
+    auto dir = cocos2d::Director::getInstance();
+    
+    // First, check if we were dragging a card
+    if( _bDrag )
+    {
+        if( _touchedCard )
+        {
+            // Call DragDrop handler to see if this was a valid operation
+            // If not, were going to release the card back to the original container
+            bool bResult = OnCardDragDrop( _touchedCard, inTouch );
+            _touchedCard->SetIsDragging( false );
+            auto cont = _touchedCard->GetContainer();
+            
+            if( !bResult )
+            {
+                if( cont )
+                    cont->InvalidateCards();
+            }
+        }
+        
+        _bDrag = false;
+    }
+    else
+    {
+        // Check if were setting blockers
+        if( _bBlockerDrag )
+        {
+            OnBlockerSelect( _touchedCard, inCard );
+            
+            if( inDraw )
+                inDraw->clear();
+            
+            _bBlockerDrag = false;
+        }
+        else
+        {
+            auto delta = inTouch->getLocation() - _TouchStart;
+            auto Size = dir->getVisibleSize();
+            
+            if( _touchedCard && _touchedCard->OnField() && !_TouchStart.isZero() &&
+               abs( delta.x ) < Size.width / 50.f && delta.length() > Size.width / 20.f )
+            {
+                OnCardSwipedUp( _touchedCard );
+            }
+            else if( inCard && inCard == _touchedCard )
+            {
+                OnCardClicked( inCard );
+            }
+            else
+            {
+                CloseCardViewer();
+                CloseHandViewer();
+                CloseGraveyardViewer();
+            }
+        }
+    }
+    
+    _DragOffset = cocos2d::Vec2::ZERO;
+    _TouchStart = cocos2d::Vec2::ZERO;
+    _touchedCard = nullptr;
+}
+
+
+void GameModeBase::TouchMoved( cocos2d::Touch *inTouch, cocos2d::DrawNode* inDraw )
+{
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
+    // Check if card is being dragged & in player's hand
+    if( _touchedCard && !_touchedCard->GetIsDragging() && _touchedCard->InHand() )
+    {
+        // Check if the gamemode thinks we can even play this card
+        if( CanPlayCard( _touchedCard ) )
+        {
+            // We need to make sure that its fairly explicit that the user is trying to drag and not click
+            auto deltaVec = inTouch->getDelta();
+            
+            if( deltaVec.length() > 9.f )
+            {
+                _touchedCard->SetIsDragging( true );
+                _bDrag = true;
+            }
+        }
+    }
+    else if( _touchedCard && !_bBlockerDrag && tState == TurnState::Block && pState == PlayerTurn::Opponent )
+    {
+        if( CanCardBlock( _touchedCard ) )
+        {
+            auto delta = inTouch->getDelta();
+            if( delta.length() > 9.f )
+            {
+                _bBlockerDrag = true;
+            }
+        }
+    }
+    
+    // Position card while dragging
+    if( _bDrag && _touchedCard && inTouch &&_touchedCard->Sprite )
+    {
+        // Move card with the touch
+        auto pos = inTouch->getLocation();
+        _touchedCard->Sprite->setPosition( pos + _DragOffset );
+    }
+    else if( _bBlockerDrag && _touchedCard && inTouch && inDraw )
+    {
+        inDraw->clear();
+        inDraw->drawSolidCircle( inTouch->getLocation(), 64.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        inDraw->drawSolidCircle( _touchedCard->GetAbsolutePosition(), 64.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        inDraw->drawSegment( _touchedCard->GetAbsolutePosition(), inTouch->getLocation(), 16.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        
+    }
+}
+
+
+void GameModeBase::TouchCancel( cocos2d::Touch* inTouch, cocos2d::DrawNode* inDraw )
+{
+    if( !_bSelectionEnabled )
+    {
+        _bDrag = false;
+        if( _touchedCard )
+            _touchedCard->SetIsDragging( false );
+        
+        _touchedCard = nullptr;
+        return;
+    }
+    
+    // Stop dragging
+    if( _bDrag && _touchedCard )
+    {
+        _touchedCard->SetIsDragging( false );
+        
+        // Force the container that holds this card to reposition
+        // so the sprite will automtaically animate back
+        auto cont = _touchedCard->GetContainer();
+        if( cont )
+            cont->InvalidateCards();
+    }
+    
+    if( inDraw )
+        inDraw->clear();
+    
+    _DragOffset = cocos2d::Vec2::ZERO;
+    _bDrag = false;
+    _touchedCard = nullptr;
+    _bBlockerDrag = false;
+}
+
+void GameModeBase::RedrawBlockers()
+{
+    auto GameScene = dynamic_cast< class GameScene* >( GetScene() );
+    if( GameScene )
+    {
+        // Force scene to redraw blocker FX
+        GameScene->RedrawBlockers();
+    }
+}
+
+bool GameModeBase::OnBlockerSelect( CardEntity *inBlocker, CardEntity *inAttacker )
+{
+    // Check Pointers
+    if( !inBlocker || !inAttacker || inBlocker == inAttacker )
+        return false;
+    
+    // Check Ownership
+    if( inBlocker->GetOwningPlayer() != GetPlayer() || inAttacker->GetOwningPlayer() != GetOpponent() )
+        return false;
+
+    // Check Stamina
+    if( inBlocker->Stamina <= 0 )
+        return false;
+
+    // Ensure Attacker
+    if( !inAttacker->bAttacking )
+        return false;
+
+    // Call 'CanBeBlock' and 'CanBlock' hooks
+    // TODO: Should move to Authority? Or different system for checking this?
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    luabridge::LuaRef BlockHook( Engine->State() );
+    luabridge::LuaRef CanBlockHook( Engine->State() );
+    
+    if( inAttacker->GetHook( "CanBeBlocked", BlockHook ) && BlockHook.isFunction() )
+    {
+        if( !BlockHook( inAttacker, inBlocker ) )
+        {
+            return false;
+        }
+    }
+    
+    if( inBlocker->GetHook( "CanBlock", CanBlockHook ) && CanBlockHook.isFunction() )
+    {
+        if( !CanBlockHook( inBlocker, inAttacker ) )
+        {
+            return false;
+        }
+    }
+    
+    // Looks good, store this choice
+    BlockMatrix[ inBlocker ] = inAttacker;
+    RedrawBlockers();
+
+    return true;
+}
+
+bool GameModeBase::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *Info )
+{
+    // Determine if the player attempted to drop the card on the field
+    // TODO: Maybe handle spells different, since they arent static, and dont need to stay on
+    // the field, maybe just display something on the screen and query any user input without placing the
+    // card in the battlefield
+    
+    if( !inCard || !Info )
+        return false;
+    
+    // In the future, we can alter this method to allow dropping cards onto other entities
+    // besides just the field & hand
+    
+    auto DropPos = Info->getLocation(); // Were not going to factor the offset when dropping, use actual touch pos
+    auto pl = GetPlayer();
+    auto hand = pl ? pl->GetHand() : nullptr;
+    auto field = pl ? pl->GetField() : nullptr;
+    
+    // First, attempt to drop into different hand position
+    if( hand && hand->AttemptDrop( inCard, DropPos ) )
+        return true;
+    
+    // If not, then try the field
+    if( field )
+    {
+        int BestIndex = field->AttemptDrop( inCard, DropPos );
+        if( BestIndex < 0 )
+            return false;
+        
+        // Player attempted to drop card onto field, so we need to pass call along
+        // to the authority to be processed
+        auto Auth = GetAuthority< AuthorityBase >();
+        CC_ASSERT( Auth );
+        
+        Auth->PlayCard( inCard, BestIndex );
+    }
+    
+    return false;
+}
+
+
+void GameModeBase::OnCardClicked( CardEntity* inCard )
+{
+    auto LocalPlayer = GetPlayer();
+    bool bLocalOwner = inCard->GetOwningPlayer() == LocalPlayer;
+    
+    if( inCard->InGrave() )
+    {
+        CloseCardViewer();
+        CloseHandViewer();
+        OpenGraveyardViewer( inCard->GetOwningPlayer()->GetGraveyard() );
+        
+        return;
+    }
+    else if( inCard->OnField() )
+    {
+        // Check if were in attack phase
+        if( tState == TurnState::Attack )
+        {
+            if( inCard && inCard->bAttacking )
+            {
+                inCard->bAttacking = false;
+                inCard->ClearOverlay();
+            }
+            else if( inCard && !inCard->bAttacking )
+            {
+                // Check if the card is able to attack
+                if( CanCardAttack( inCard ) )
+                {
+                    inCard->bAttacking = true;
+                    inCard->SetOverlay( "icon_attack.png", 180 );
+                }
+            }
+        }
+        else
+        {
+            CloseGraveyardViewer();
+            CloseHandViewer();
+            OpenCardViewer( inCard );
+        }
+        
+        return;
+    }
+    else if( inCard->InHand() && bLocalOwner )
+    {
+        CloseGraveyardViewer();
+        CloseCardViewer();
+        OpenHandViewer( inCard );
+        
+        return;
+    }
+    
+    CloseGraveyardViewer();
+    CloseCardViewer();
+    CloseHandViewer();
+}
+
+
+void GameModeBase::CloseCardViewer()
+{
+    // We need to force the hand and field to invalidate, which will
+    // move the card back to where it should be
+    _DoCloseViewer();
+    _viewCard = nullptr;
+}
+
+
+void GameModeBase::CloseGraveyardViewer()
+{
+    
+}
+
+
+void GameModeBase::CloseHandViewer()
+{
+    auto pl = GetPlayer();
+    auto hand = pl ? pl->GetHand() : nullptr;
+    
+    if( hand && hand->IsExpanded() )
+        hand->SetExpanded( false );
+}
+
+
+void GameModeBase::OpenCardViewer( CardEntity *inCard )
+{
+    if( !inCard || inCard == _viewCard )
+        return;
+    
+    _viewCard = inCard;
+    
+    auto dir = cocos2d::Director::getInstance();
+    auto origin = dir->getVisibleOrigin();
+    auto scene = dir->getRunningScene();
+    
+    // For now, were just going to create a new UI menu, that fades in containing
+    // the full sized card image, instead of trying to perform a sprite animation
+    // TODO: Better looking animation
+    
+    // Determine if the card is in the hand or not
+    bool bCanPlay = CanPlayCard( inCard );
+    
+    _DoCloseViewer();
+    _Viewer = CardViewer::create( inCard, bCanPlay );
+    _Viewer->SetCloseCallback( std::bind( &GameModeBase::_DoCloseViewer, this ) );
+    if( bCanPlay )
+        _Viewer->SetPlayCallback( std::bind( &GameModeBase::PlayCard, this, inCard, -1 ) );
+    
+    _Viewer->setGlobalZOrder( 300 );
+    scene->addChild( _Viewer, 200 );
+}
+
+
+void GameModeBase::_DoCloseViewer()
+{
+    if( _Viewer )
+    {
+        _Viewer->removeFromParent();
+        _Viewer = nullptr;
+    }
+}
+
+
+void GameModeBase::OpenHandViewer( CardEntity *inCard )
+{
+    auto Player = GetPlayer();
+    if( Player == inCard->GetOwningPlayer() )
+    {
+        auto hand = Player->GetHand();
+        
+        // If the hand isnt expanded, then exapnd it
+        if( !hand->IsExpanded() )
+        {
+            hand->SetExpanded( true );
+        }
+        else
+        {
+            // Fully open card viewer for this card
+            OpenCardViewer( inCard );
+        }
+    }
+}
+
+
+void GameModeBase::OpenGraveyardViewer( GraveyardEntity *Grave )
+{
+    cocos2d::log( "[DEBUG] OPENING GRAVEYARD VIEWER" );
+}
+
+
+void GameModeBase::OnCardSwipedUp( CardEntity *inCard )
+{
+    if( !inCard )
+        return;
+    
+    if( pState == PlayerTurn::LocalPlayer && tState == TurnState::Attack )
+    {
+        if( inCard && inCard->bAttacking )
+        {
+            inCard->bAttacking = false;
+            inCard->ClearOverlay();
+        }
+        else if( inCard && !inCard->bAttacking )
+        {
+            // Check if the card is able to attack
+            if( CanCardAttack( inCard ) )
+            {
+                inCard->bAttacking = true;
+                inCard->SetOverlay( "icon_attack.png", 180 );
+            }
+        }
+    }
+    else if( pState == PlayerTurn::Opponent && tState == TurnState::Block )
+    {
+        
+    }
+}
+
+
+void GameModeBase::OnActionQueue()
+{
+    CloseGraveyardViewer();
+    CloseHandViewer();
+    CloseCardViewer();
+}
+
+
+void GameModeBase::EnableSelection()
+{
+    _bSelectionEnabled = true;
+}
+
+void GameModeBase::DisableSelection()
+{
+    _bSelectionEnabled = false;
+    
+    if( _bDrag && _touchedCard )
+        _touchedCard->SetIsDragging( false );
+}
+
+/*==========================================================================================================
+    GameModeBase -> End of Input Logic
+ ==========================================================================================================*/
 
 void GameModeBase::UpdateMatchState( MatchState In )
 {
@@ -185,7 +701,7 @@ void GameModeBase::PostInit()
     PlayerDeck->SetPosition( cocos2d::Vec2( Size.width * 0.45f, Size.height * 0.15f ) );
     PlayerDeck->SetRotation( 0.f );
     
-    OpponentDeck->SetPosition( cocos2d::Vec2( Size.width * -0.45f, -Size.height * 0.15f ) );
+    OpponentDeck->SetPosition( cocos2d::Vec2( Size.width * -0.45f, -Size.height * 0.112f ) );
     OpponentDeck->SetRotation( 180.f );
     
     // Invalidate deck Z-Order
@@ -212,9 +728,9 @@ void GameModeBase::PostInit()
     auto PlayerGrave = LocalPlayer->GetGraveyard();
     auto OpponentGrave = Opponent->GetGraveyard();
     
-    PlayerGrave->SetPosition( cocos2d::Vec2( -Size.width * 0.4f, Size.height * 0.25f ) );
+    PlayerGrave->SetPosition( cocos2d::Vec2( Size.width * -0.45f, Size.height * 0.35f ) );
     PlayerGrave->SetRotation( 0.f );
-    OpponentGrave->SetPosition( cocos2d::Vec2( -Size.width * 0.35f, -Size.height * 0.25f ) );
+    OpponentGrave->SetPosition( cocos2d::Vec2( -Size.width * -0.45f, -Size.height * 0.35f ) );
     OpponentGrave->SetRotation( 180.f );
     
     // Setup starting state on everything
@@ -272,6 +788,9 @@ void GameModeBase::RunActionQueue( ActionQueue&& In )
         cocos2d::log( "[GM] Warning: Failed to add new action to the execution list!" );
         return;
     }
+    
+    OnActionQueue();
+    DisableSelection();
 
     // Begin execution
     ExecuteActions( NewEntry.first->second.ActionTree, NewEntry.first->first );
@@ -301,6 +820,13 @@ void GameModeBase::_OnEndOfBranch( uint32_t QueueId )
             // Execution finished!
             if( It->second.Callback )
                 It->second.Callback();
+            
+            // Invalidate Possible Actions
+            _bCheckPossibleActions = true;
+            
+            // If theres no queues left, re-enable input
+            if( ActiveQueues.size() == 1 )
+                EnableSelection();
             
             // If the actions run syncronously, erasing the entry will cause the loop
             // to continue, which will cause an exception to be thrown
@@ -378,7 +904,10 @@ bool GameModeBase::CanPlayCard( CardEntity* In )
 {
     // Dont let player play any cards while actions are in progress
     if( ActiveQueues.size() > 0 )
+    {
+        cocos2d::log( "Cant play card.. active queues!" );
         return false;
+    }
     else
         return CouldPlayCard( In );
 }
@@ -406,6 +935,9 @@ bool GameModeBase::CanCardAttack( CardEntity *In )
     if( mState != MatchState::Main || tState != TurnState::Attack || pState != PlayerTurn::LocalPlayer )
         return false;
     
+    if( In->Stamina <= 0 )
+        return false;
+    
     return In->GetOwningPlayer() == LocalPlayer;
 }
 
@@ -418,11 +950,34 @@ bool GameModeBase::CanCardBlock( CardEntity *In, CardEntity *Target )
     if( mState != MatchState::Main || tState != TurnState::Block || pState != PlayerTurn::Opponent )
         return false;
     
+    if( In->Stamina <= 0 )
+        return false;
+    
     return In->GetOwningPlayer() == LocalPlayer;
 }
 
 bool GameModeBase::CanTriggerAbility( CardEntity* In )
 {
+    // Check if any abilities can be activated
+    
+    if( !In )
+        return false;
+    
+    auto Player = GetPlayer();
+    if( !Player )
+        return false;
+    
+    for( auto It = In->Abilities.begin(); It != In->Abilities.end(); It++ )
+    {
+        auto& Ability = It->second;
+        
+        if( Ability.ManaCost > Player->GetMana() || Ability.StaminaCost > In->Stamina )
+            continue;
+        
+        if( ( *Ability.CheckFunc )( In ) )
+            return true;
+    }
+    
     return false;
 }
 
@@ -486,33 +1041,14 @@ void GameModeBase::FinishTurn()
         {
             if( tState == TurnState::Block )
             {
-                /*
-                std::vector< CardEntity* > BlockCards;
-                auto pl = GetPlayer();
-                auto field = pl ? pl->GetField() : nullptr;
-                
-                if( field )
-                {
-                    for( auto It = field->Begin(); It != field->End(); It++ )
-                    {
-                        if( *It && (*It)->bAttacking )
-                            BlockCards.push_back( *It );
-                    }
-                }
-                
-                // Check if any cards are selected
-                if( BlockCards.size() <= 0 )
+                if( BlockMatrix.size() <= 0 )
                 {
                     Auth->FinishTurn();
                 }
                 else
                 {
-                    //Auth->SetBlockers( BlockCards );
+                    Auth->SetBlockers( BlockMatrix );
                 }
-                 */
-                
-                // For now, were just going to advnace turn state
-                Auth->FinishTurn();
             }
         }
     }
@@ -531,11 +1067,6 @@ void GameModeBase::Action_CoinFlip( Action* In, std::function< void() > Callback
         Callback();
         return;
     }
-    
-    if( coinFlip->StartingPlayer == PlayerTurn::LocalPlayer )
-        cocos2d::log( "[GM] LOCAL PLAYER STARTS FIRST" );
-    else
-        cocos2d::log( "[GM] OPPONENT STARTS FIRST" );
     
     UpdatePlayerTurn( coinFlip->StartingPlayer );
     
@@ -767,7 +1298,7 @@ void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callba
     cocos2d::log( "[GM] Block Started..." );
     _bCheckPossibleActions = true;
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.25f, 0, 0.f, false, "FinishBlockStart" );
+    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.26f, 0, 0.f, false, "FinishBlockStart" );
 }
 
 void GameModeBase::Action_PostTurnStart( Action *In, std::function<void ()> Callback )
@@ -798,6 +1329,48 @@ void GameModeBase::Action_DamageStart( Action* In, std::function< void() > Callb
     Callback();
 }
 
+void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callback )
+{
+    auto Drain = dynamic_cast< StaminaDrainAction* >( In );
+    if( !Drain )
+    {
+        cocos2d::log( "[GM] Recieved stamina drain, but the event was invalid" );
+        Callback();
+        return;
+    }
+    
+    if( Drain->Target )
+    {
+        // TODO: Hooks
+        
+        Drain->Target->UpdateStamina( Drain->Target->Stamina - Drain->Amount );
+        
+        // Check for death
+        if( Drain->Target->Power <= 0 || Drain->Target->Stamina <= 0 )
+        {
+            cocos2d::log( "[GM] Card Died!" );
+            auto cont = Drain->Target->GetContainer();
+            if( cont )
+                cont->Remove( Drain->Target );
+            
+            auto Pl = Drain->Target->GetOwningPlayer();
+            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
+            
+            if( Grave )
+            {
+                Drain->Target->DestroyOverlays();
+                Grave->AddToTop( Drain->Target );
+            }
+            else
+            {
+                IEntityManager::GetInstance().DestroyEntity( Drain->Target );
+            }
+        }
+    }
+    
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.5f, 0, 0.f, false, "StaminaCallback" + std::to_string( lastDrainId++ ) );
+}
+
 void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callback )
 {
     auto Damage = dynamic_cast< DamageAction* >( In );
@@ -808,42 +1381,81 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
         return;
     }
     
-    // Update Health of both attacker, and blocker
     if( Damage->Target )
     {
-        Damage->Target->Power = Damage->TargetPower;
+        // TODO: Hooks
+        
+        Damage->Target->UpdatePower( Damage->Target->Power - Damage->Damage );
         
         // Check for death
-        if( Damage->Target->Power <= 0 )
+        if( Damage->Target->Power <= 0 || Damage->Target->Stamina <= 0 )
         {
-            cocos2d::log( "[GM] Blocking Card Died!" );
+            cocos2d::log( "[GM] Card Died!" );
             auto cont = Damage->Target->GetContainer();
             if( cont )
                 cont->Remove( Damage->Target );
             
-            IEntityManager::GetInstance().DestroyEntity( Damage->Target );
+            auto Pl = Damage->Target->GetOwningPlayer();
+            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
+            
+            if( Grave )
+            {
+                Damage->Target->DestroyOverlays();
+                Grave->AddToTop( Damage->Target );
+            }
+            else
+            {
+                IEntityManager::GetInstance().DestroyEntity( Damage->Target );
+            }
         }
     }
     
-    if( Damage->Inflictor )
+    if( Damage->Inflictor && Damage->StaminaDrain > 0 )
     {
-        // Update Power
-        Damage->Inflictor->Power = Damage->InflictorPower;
+        Damage->Inflictor->UpdateStamina( Damage->Inflictor->Stamina - Damage->StaminaDrain );
         
-        if( Damage->Inflictor->Power <= 0 )
+        // Check for death
+        if( Damage->Inflictor->Power <= 0 || Damage->Inflictor->Stamina <= 0 )
         {
-            cocos2d::log( "[GM] Attacking Card Died!" );
-            
+            cocos2d::log( "[GM] Card Died!" );
             auto cont = Damage->Inflictor->GetContainer();
             if( cont )
                 cont->Remove( Damage->Inflictor );
             
-            IEntityManager::GetInstance().DestroyEntity( Damage->Inflictor );
+            auto Pl = Damage->Inflictor->GetOwningPlayer();
+            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
+            
+            if( Grave )
+            {
+                Damage->Inflictor->DestroyOverlays();
+                Grave->AddToTop( Damage->Inflictor );
+            }
+            else
+            {
+                IEntityManager::GetInstance().DestroyEntity( Damage->Inflictor );
+            }
         }
     }
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.5f, 0, 0.f, false, "DamageCallback" );
+    bool bDirty = false;
+    if( BlockMatrix.count( Damage->Target ) > 0 )
+    {
+        BlockMatrix.erase( Damage->Target );
+        bDirty = true;
+    }
+    
+    if( BlockMatrix.count( Damage->Inflictor ) > 0 )
+    {
+        BlockMatrix.erase( Damage->Inflictor );
+        bDirty = true;
+    }
+    
+    if( bDirty )
+        RedrawBlockers();
+    
+    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.5f, 0, 0.f, false, "DamageCallback" + std::to_string( lastDamageId++ ) );
 }
+
 
 void GameModeBase::Tick( float Delta )
 {
@@ -851,6 +1463,7 @@ void GameModeBase::Tick( float Delta )
     {
         _bCheckPossibleActions = false;
         std::vector< CardEntity* > ActionableCards;
+        std::vector< CardEntity* > AbilityCards;
         bool bPlayersMove = false;
         auto Pl = GetPlayer();
         auto Hand = Pl ? Pl->GetHand() : nullptr;
@@ -867,7 +1480,11 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Hand->Begin(); It != Hand->End(); It++ )
                         {
-                            if( *It && CouldPlayCard( *It ) )
+                            if( *It && CanTriggerAbility( *It ) )
+                            {
+                                AbilityCards.push_back( *It );
+                            }
+                            else if( *It && CouldPlayCard( *It ) )
                             {
                                 ActionableCards.push_back( *It );
                             }
@@ -881,7 +1498,7 @@ void GameModeBase::Tick( float Delta )
                         {
                             if( *It && CanTriggerAbility( *It ) )
                             {
-                                ActionableCards.push_back( *It );
+                                AbilityCards.push_back( *It );
                             }
                         }
                     }
@@ -898,6 +1515,23 @@ void GameModeBase::Tick( float Delta )
                             if( *It && CanCardAttack( *It ) )
                             {
                                 ActionableCards.push_back( *It );
+                            }
+                            else if( *It && CanTriggerAbility( *It ) )
+                            {
+                                AbilityCards.push_back( *It );
+                            }
+                            
+                        }
+                    }
+                    
+                    // Check if any abilities can be played in-hand
+                    if( Hand )
+                    {
+                        for( auto It = Hand->Begin(); It != Hand->End(); It++ )
+                        {
+                            if( *It && CanTriggerAbility( *It ) )
+                            {
+                                AbilityCards.push_back( *It );
                             }
                         }
                     }
@@ -918,6 +1552,22 @@ void GameModeBase::Tick( float Delta )
                             {
                                 ActionableCards.push_back( *It );
                             }
+                            else if( *It && CanTriggerAbility( *It ) )
+                            {
+                                AbilityCards.push_back( *It );
+                            }
+                            
+                        }
+                    }
+                    
+                    if( Hand )
+                    {
+                        for( auto It = Hand->Begin(); It != Hand->End(); It++ )
+                        {
+                            if( *It && CanTriggerAbility( *It ) )
+                            {
+                                AbilityCards.push_back( *It );
+                            }
                         }
                     }
                     
@@ -930,7 +1580,7 @@ void GameModeBase::Tick( float Delta )
         // moves they can make, highlight them, or if not, advance round state
         if( bPlayersMove )
         {
-            if( ActionableCards.empty() )
+            if( ActionableCards.empty() && AbilityCards.empty() )
             {
                 FinishTurn();
             }
@@ -974,6 +1624,17 @@ void GameModeBase::Tick( float Delta )
                 if( *It )
                 {
                     (*It)->SetHighlight( highlightColor, 180 );
+                }
+            }
+        }
+        
+        if( !AbilityCards.empty() )
+        {
+            for( auto It = AbilityCards.begin(); It != AbilityCards.end(); It++ )
+            {
+                if( *It )
+                {
+                    (*It)->SetHighlight( cocos2d::Color3B( 250, 250, 45 ), 180 );
                 }
             }
         }

@@ -57,8 +57,6 @@ namespace Game
         template< typename T >
         T* GetGameMode();
         
-        virtual bool DrawCard( Player* In, uint32_t Count = 1 ) = 0;
-        
         
     };
     

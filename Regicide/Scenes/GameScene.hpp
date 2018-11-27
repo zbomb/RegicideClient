@@ -14,6 +14,7 @@
 #include "Numeric.hpp"
 #include "ui/CocosGUI.h"
 #include "UI/CardLayer.hpp"
+#include "Game/CardEntity.hpp"
 
 #define TAG_GAME 4321
 
@@ -37,6 +38,8 @@ public:
     void HideFinishButton();
     
     virtual void ExitGame();
+    
+    void RedrawBlockers();
     
 private:
     

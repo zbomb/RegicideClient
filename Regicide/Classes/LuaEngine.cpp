@@ -16,6 +16,7 @@
 #include "RegicideAPI/APILuaBindings.hpp"
 #include "CryptoLibrary.hpp"
 #include "CMS/LuaBindings_CMS.hpp"
+#include "Game/Game_LuaBindings.hpp"
 
 
 using namespace Regicide;
@@ -59,11 +60,18 @@ void lua_Include( const std::string& Path, lua_State* L )
     }
     
     std::string FullPath = FileUtils::getInstance()->fullPathForFilename( Path );
-    auto Result = luaL_dofile( L, FullPath.c_str() );
-    
-    if( Result != 0 )
+    if( FileUtils::getInstance()->isFileExist( FullPath ) )
     {
-            cocos2d::log( "[Lua] Failed to include '%s'! (%d) An error occured while loading the file.\nError: %s", FullPath.c_str(), Result, lua_tostring( L, -1 ) );
+        auto Result = luaL_dofile( L, FullPath.c_str() );
+        
+        if( Result != 0 )
+        {
+                cocos2d::log( "[Lua] Failed to include '%s'! (%d) An error occured while loading the file.\nError: %s", FullPath.c_str(), Result, lua_tostring( L, -1 ) );
+        }
+    }
+    else
+    {
+        cocos2d::log( "[Lua] Failed to include '%s'! The file doesnt exist", FullPath.c_str() );
     }
     
 }
@@ -202,17 +210,17 @@ void LuaEngine::Init()
     .addFunction( "__c_hook_string", &__lua_callhook_string )
     .addFunction( "__c_hook_number", &__lua_callhook_number );
     
-    luabridge::setGlobal( luaState, true, "CLIENT" );
     luabridge::setGlobal( luaState, false, "SERVER" );
     
     using namespace luabridge;
     auto printf = getGlobal( luaState, "__print" );
-    printf( "[Regicide] Initializing Lua Client..." );
+    printf( "[Regicide] Initializing Lua Engine..." );
     
     // Bind everything..
     Regicide::LuaBind_API( luaState );
     CryptoLibrary::LuaBind( luaState );
     Regicide::LuaBind_CMS( luaState );
+    Regicide::LuaBind_Game( luaState );
     
     // Run Lua entry point
     lua_Include( "core/main.lua", luaState );

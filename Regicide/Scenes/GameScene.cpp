@@ -148,3 +148,9 @@ void GameScene::HideFinishButton()
         FinishButton->runAction( cocos2d::FadeOut::create( 0.25f ) );
     }
 }
+
+void GameScene::RedrawBlockers()
+{
+    if( cardLayer )
+        cardLayer->RedrawBlockers();
+}

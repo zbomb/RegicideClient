@@ -48,11 +48,18 @@ namespace Game
         void SetHealth( int In ) { Health = In; }
         
         inline bool IsOpponent() const { return bOpponent; }
-        void InvalidatePossibleActions();
+        
+        inline void SetTurn( bool bIn ) { _bIsTurn = bIn; }
+        inline bool IsTurn() const { return _bIsTurn; }
+        
+        // Custom Card Back Textures
+        inline std::string GetBackTexture() { return CardBackTexture; }
         
     private:
         
         CardEntity* _Impl_TraceTouch( std::deque< CardEntity* >::iterator Begin, std::deque< CardEntity* >::iterator End, const cocos2d::Vec2& inPos );
+        
+        bool _bIsTurn = false;
         
     protected:
         
@@ -62,6 +69,8 @@ namespace Game
         FieldEntity* Field;
         GraveyardEntity* Graveyard;
         KingEntity* King;
+        
+        std::string CardBackTexture;
         
         // Traits
         std::string DisplayName;
@@ -76,6 +85,8 @@ namespace Game
         void Action_UpdateMana( Action* In, std::function< void() > Callback );
         void Action_DrawCard( Action* In, std::function< void() > Callback );
         void Action_KingDamage( Action* In, std::function< void() > Callback );
+
+        uint32_t lastDrawId = 0;
         
         // Friend the launcher
         friend class SingleplayerLauncher;

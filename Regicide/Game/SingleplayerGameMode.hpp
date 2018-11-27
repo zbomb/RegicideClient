@@ -33,41 +33,6 @@ namespace Game
         
         virtual void Initialize() override;
         
-        /*=============================================================================================
-            Input Layer
-         =============================================================================================*/
-        
-    public:
-        
-        virtual void TouchBegan( cocos2d::Touch* inTouch, CardEntity* inCard ) override;
-        virtual void TouchEnd( cocos2d::Touch* inTouch, CardEntity* inCard ) override;
-        virtual void TouchMoved( cocos2d::Touch* inTouch ) override;
-        virtual void TouchCancel( cocos2d::Touch* inTouch ) override;
-        
-        void OnCardClicked( CardEntity* inCard );
-        void OpenGraveyardViewer( GraveyardEntity* Grave );
-        void OpenCardViewer( CardEntity* inCard );
-        void OpenHandViewer( CardEntity* inCard );
-        void CloseGraveyardViewer();
-        void CloseCardViewer();
-        void CloseHandViewer();
-        bool OnCardDragDrop( CardEntity* inCard, cocos2d::Touch* Info );
-        
-    protected:
-        
-        CardEntity* _touchedCard = nullptr;
-        CardEntity* _viewCard = nullptr;
-        bool _bDrag = false;
-        cocos2d::Vec2 _DragOffset = cocos2d::Vec2::ZERO;
-        
-        CardViewer* _Viewer = nullptr;
-        void _DoCloseViewer();
-        
-        virtual void DisableSelection() override;
-        virtual void EnableSelection() override;
-        
-        bool _bSelectionEnabled;
-        
         void Action_GameWon( Action* In, std::function< void() > Callback );
 
         friend class SingleplayerLauncher;

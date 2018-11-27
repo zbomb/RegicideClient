@@ -37,6 +37,14 @@ bool CardLayer::init()
     
     _eventDispatcher->addEventListenerWithSceneGraphPriority( Listener, this );
     
+    FXNode = cocos2d::DrawNode::create();
+    FXNode->setGlobalZOrder( 10000 );
+    addChild( FXNode );
+    
+    BlockDraw = cocos2d::DrawNode::create();
+    BlockDraw->setGlobalZOrder( 10000 );
+    addChild( BlockDraw );
+    
     return true;
 }
 
@@ -98,7 +106,7 @@ void CardLayer::onTouchMoved( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
     
     if( GM )
     {
-        GM->TouchMoved( inTouch );
+        GM->TouchMoved( inTouch, FXNode );
     }
 }
 
@@ -110,7 +118,7 @@ void CardLayer::onTouchEnded( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
     
     if( GM )
     {
-        GM->TouchEnd( inTouch, TouchedCard );
+        GM->TouchEnd( inTouch, TouchedCard, FXNode );
     }
 }
 
@@ -121,6 +129,27 @@ void CardLayer::onTouchCancelled( cocos2d::Touch *inTouch, cocos2d::Event *inEve
     
     if( GM )
     {
-        GM->TouchCancel( inTouch );
+        GM->TouchCancel( inTouch, FXNode );
+    }
+}
+
+void CardLayer::RedrawBlockers()
+{
+    auto World = Game::World::GetWorld();
+    auto GM = World ? World->GetGameMode() : nullptr;
+    
+    if( GM && BlockDraw )
+    {
+        BlockDraw->clear();
+        
+        // Draw a line connecting each blocker to the corresponding attacker
+        auto Blockers = GM->GetBlockMatrix();
+        for( auto It = Blockers.begin(); It != Blockers.end(); It++ )
+        {
+            if( It->first && It->second )
+            {
+                BlockDraw->drawSegment( It->first->GetAbsolutePosition(), It->second->GetAbsolutePosition(), 16.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+            }
+        }
     }
 }

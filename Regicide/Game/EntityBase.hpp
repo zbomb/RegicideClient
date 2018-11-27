@@ -57,13 +57,13 @@ namespace Game
         // Actions
         void PerformAction( Game::Action* In, std::function< void() > OnComplete );
         
-        inline bool GetIsCard() { return _bIsCard; }
+        inline bool IsCard() const { return _bIsCard; }
         
     protected:
         
         virtual void Cleanup();
         EntityBase( const std::string& Name );
-        ~EntityBase();
+        virtual ~EntityBase();
         
         cocos2d::Scene* LinkedScene;
         
@@ -82,6 +82,9 @@ namespace Game
         void SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback );
         
         bool _bIsCard;
+        
+        void RequireTexture( const std::string& InTex, std::function< void( cocos2d::Texture2D* ) > Callback );
+        std::map< std::string, std::function< void( cocos2d::Texture2D* ) > > ResourceList;
         
     private:
         

@@ -275,7 +275,7 @@ void HandEntity::InvalidateCards( CardEntity* Ignore, bool bExpanding )
         if( (*It) && *It != Ignore && !(*It)->GetIsDragging() )
         {
             // If were expanding, then were going to increate the animation speed
-            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f, nullptr, !bExpanding );
+            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f, nullptr );
         }
         
         Index++;

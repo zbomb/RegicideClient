@@ -10,6 +10,7 @@
 
 #include "AuthorityBase.hpp"
 #include "Scenes/GameScene.hpp"
+#include "GameModeBase.hpp"
 
 using namespace Game;
 

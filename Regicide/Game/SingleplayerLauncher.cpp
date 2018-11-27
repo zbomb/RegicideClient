@@ -188,9 +188,6 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
         return;
     }
     
-    // Get cache ref, so when we load cards we can also preload textures for them
-    auto cache = cocos2d::Director::getInstance()->getTextureCache();
-    
     auto& EntityManager = Game::IEntityManager::GetInstance();
     
     // Create Authority
@@ -223,7 +220,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     auto Origin = dir->getVisibleOrigin();
     
     // Create players
-    auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, cache, false );
+    auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, false );
     
     if( !NewLocalPlayer )
     {
@@ -239,7 +236,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     NewWorld->AddChild( NewLocalPlayer );
     NewWorld->LocalPlayer = NewLocalPlayer;
     
-    auto NewOpponent = CreatePlayer( OpponentName, OpponentDeck, cache, true );
+    auto NewOpponent = CreatePlayer( OpponentName, OpponentDeck, true );
     
     if( !NewOpponent )
     {
@@ -255,7 +252,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
 }
 
 
-Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName, const Regicide::Deck &inDeck, cocos2d::TextureCache* cache, bool bOpponent /* = false */ )
+Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName, const Regicide::Deck &inDeck, bool bOpponent /* = false */ )
 {
     // Create new player entity
     auto& EntityManager = Game::IEntityManager::GetInstance();
@@ -282,6 +279,9 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     NewPlayer->bOpponent = bOpponent;
     NewPlayer->Health   = 30;
     
+    // TODO: Player Back Card Texture?
+    NewPlayer->CardBackTexture = "CardBack.png"; // inDeck.BackTexture;
+    
     // Load King
     auto KingTable = luabridge::newTable( L );
     luabridge::setGlobal( L, KingTable, "KING" );
@@ -307,7 +307,7 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
         return nullptr;
     }
     
-    if( !newKing->Load( KingTable, NewPlayer, cache, bOpponent ) )
+    if( !newKing->Load( KingTable, NewPlayer, bOpponent ) )
     {
         EntityManager.DestroyEntity( NewPlayer );
         luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
@@ -321,6 +321,7 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     NewPlayer->King = newKing;
     
     newKing->UpdateHealth( NewPlayer->Health );
+    newKing->OwningPlayer = NewPlayer;
     
     // Create Deck
     auto* NewDeck = EntityManager.CreateEntity< Game::DeckEntity >();
@@ -386,7 +387,7 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
                 continue;
             }
             
-            if( !NewCard->Load( newTable, NewPlayer, cache ) )
+            if( !NewCard->Load( newTable, NewPlayer ) )
             {
                 cocos2d::log( "[Launcher] Failed to load a card '%d' for player!", C.Id );
                 EntityManager.DestroyEntity( NewCard );

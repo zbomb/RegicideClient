@@ -171,7 +171,7 @@ std::vector< CardEntity* > IEntityManager::GetAllCards()
     
     for( auto It = Begin(); It != End(); It++ )
     {
-        if( It->second && It->second->GetIsCard() )
+        if( It->second && It->second->IsCard() )
         {
             auto Card = dynamic_cast< CardEntity* >( It->second.get() );
             if( Card )
@@ -439,10 +439,38 @@ void EntityBase::Invalidate()
        and be sure to return the number of times 'Callback' will be called by this Entity
     -> If the returned int, and number of Callbacks dont match, it could cause loading to hang
  =================================================================================================*/
+void EntityBase::RequireTexture( const std::string& InTex, std::function< void( cocos2d::Texture2D* ) > Callback )
+{
+    ResourceList[ InTex ] = Callback;
+}
+
 int EntityBase::LoadResources( const std::function<void ()> &Callback )
 {
-    // Return the number of times the callback will be executed
-    return 0;
+    int Output = 0;
+    auto Cache = cocos2d::Director::getInstance()->getTextureCache();
+    
+    CC_ASSERT( Cache );
+    
+    for( auto It = ResourceList.begin(); It != ResourceList.end(); It++ )
+    {
+        auto UserCallback = It->second;
+        
+        Cache->addImageAsync( It->first, [ = ]( cocos2d::Texture2D* Texture )
+        {
+            // Run the callback provided by user
+            if( UserCallback )
+                UserCallback( Texture );
+            
+            // Run the callback for the loading system
+            if( Callback )
+                Callback();
+            
+        } );
+        
+        Output++;
+    }
+    
+    return Output;
 }
 
 /*=================================================================================================

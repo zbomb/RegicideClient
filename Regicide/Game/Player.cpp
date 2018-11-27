@@ -24,7 +24,13 @@ using namespace Game;
 Player::Player()
 : EntityBase( "Player" )
 {
-    Mana = 100;
+    Mana                = 10;
+    CardBackTexture     = "CardBack.png";
+    
+    Deck                = nullptr;
+    Field               = nullptr;
+    Hand                = nullptr;
+    Graveyard           = nullptr;
     
     using namespace std::placeholders;
     
@@ -36,11 +42,12 @@ Player::Player()
 
 Player::~Player()
 {
-    Deck        = nullptr;
-    Field       = nullptr;
-    Hand        = nullptr;
-    Graveyard   = nullptr;
+    Deck                = nullptr;
+    Field               = nullptr;
+    Hand                = nullptr;
+    Graveyard           = nullptr;
     
+    CardBackTexture.clear();
     DisplayName.clear();
 }
 
@@ -122,7 +129,6 @@ CardEntity* Player::_Impl_TraceTouch( std::deque< CardEntity* >::iterator Begin,
 
 void Player::Action_PlayCard( Action *In, std::function<void ()> Callback )
 {
-    cocos2d::log( "[DEBUG] PLAY CARD ACTION" );
     // Cast action to PlayCardAction
     auto playAction = dynamic_cast< PlayCardAction* >( In );
     if( !playAction )
@@ -172,13 +178,11 @@ void Player::Action_PlayCard( Action *In, std::function<void ()> Callback )
         if( Cont )
             Cont->InvalidateCards();
     }
-    
-    InvalidatePossibleActions();
+
 }
 
 void Player::Action_UpdateMana( Action* In, std::function<void ()> Callback )
 {
-    cocos2d::log( "[DEBUG] UPDATE MANA ACTION" );
     // Cast to UpdateManaAction
     auto* updateMana = dynamic_cast< UpdateManaAction* >( In );
     if( !updateMana )
@@ -190,8 +194,6 @@ void Player::Action_UpdateMana( Action* In, std::function<void ()> Callback )
     
     Mana = updateMana->UpdatedMana;
     Callback();
-    
-    InvalidatePossibleActions();
     
 }
 
@@ -215,6 +217,8 @@ void Player::Action_DrawCard( Action* In, std::function< void() > Callback )
         return;
     }
     
+    Card->CreateOverlays();
+    
     // Move card into hand
     auto Cont = Card->GetContainer();
     if( Cont )
@@ -224,12 +228,9 @@ void Player::Action_DrawCard( Action* In, std::function< void() > Callback )
         Hand->AddToTop( Card, true, Callback );
     else
         Hand->AddToBottom( Card, true, Callback );
-    
-    InvalidatePossibleActions();
 }
 
 static uint32_t callbackNum = 0;
-
 void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
 {
     auto damage = dynamic_cast< DamageAction* >( In );
@@ -240,7 +241,7 @@ void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
         return;
     }
     
-    if( damage->Amount <= 0 )
+    if( damage->Damage <= 0 )
     {
         cocos2d::log( "[Player] Received king damage action with invalid damage amount" );
         Callback();
@@ -248,8 +249,8 @@ void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
     }
     
     // Perform Damage
-    Health = damage->TargetPower;
-    cocos2d::log( "[Player] %d damage dealt to king", damage->Amount );
+    Health -= damage->Damage;
+    cocos2d::log( "[Player] %d damage dealt to king", damage->Damage );
     
     auto king = GetKing();
     if( king )
@@ -264,16 +265,4 @@ void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
             Callback();
         
     }, this, 0.5f, 0, 0.f, false, "KingDamageCallback" + std::to_string( callbackNum++ ) );
-}
-
-void Player::InvalidatePossibleActions()
-{
-    if( !IsOpponent() )
-    {
-        auto world = Game::World::GetWorld();
-        auto GM = world ? world->GetGameMode() : nullptr;
-        
-        if( GM )
-            GM->InvalidatePossibleActions();
-    }
 }
