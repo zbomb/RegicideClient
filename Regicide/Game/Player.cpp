@@ -193,6 +193,11 @@ void Player::Action_UpdateMana( Action* In, std::function<void ()> Callback )
     }
     
     Mana = updateMana->UpdatedMana;
+    
+    auto King = GetKing();
+    if( King )
+        King->UpdateMana( Mana );
+    
     Callback();
     
 }
@@ -265,4 +270,20 @@ void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
             Callback();
         
     }, this, 0.5f, 0, 0.f, false, "KingDamageCallback" + std::to_string( callbackNum++ ) );
+}
+
+void Player::SetMana( int In )
+{
+    Mana = In;
+    
+    if( King )
+        King->UpdateMana( In );
+}
+
+void Player::SetHealth( int In )
+{
+    Health = In;
+    
+    if( King )
+        King->UpdateHealth( In );
 }

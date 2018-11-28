@@ -724,7 +724,12 @@ void SingleplayerAuthority::Damage()
         
         SetLuaActionRoot( &Queue, lastAction );
         CallHook( "DamageFinish" );
+        auto finalAction = Lua_LastSerial ? Lua_LastSerial : lastAction;
         ClearLuaActionRoot();
+        
+        // Add cleanup board event
+        auto Cleanup = finalAction->CreateAction< EventAction >( GM );
+        Cleanup->ActionName = "CleanupBoard";
         
         Queue.Callback = std::bind( &SingleplayerAuthority::PostTurn, this );
         GM->RunActionQueue( std::move( Queue ) );

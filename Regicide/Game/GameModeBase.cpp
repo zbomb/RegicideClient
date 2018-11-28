@@ -39,6 +39,7 @@ GameModeBase::GameModeBase()
     SetActionCallback( "CardDamage",    std::bind( &GameModeBase::Action_CardDamage,    this, _1, _2 ) );
     SetActionCallback( "DamageStart",   std::bind( &GameModeBase::Action_DamageStart,   this, _1, _2 ) );
     SetActionCallback( "StaminaDrain",  std::bind( &GameModeBase::Action_StaminaDrain,  this, _1, _2 ) );
+    SetActionCallback( "CleanupBoard",  std::bind( &GameModeBase::Action_CleanupBoard,  this, _1, _2 ) );
     
     // Default State
     mState  = MatchState::PreMatch;
@@ -152,7 +153,14 @@ void GameModeBase::TouchEnd( cocos2d::Touch *inTouch, CardEntity *inCard, cocos2
         // Check if were setting blockers
         if( _bBlockerDrag )
         {
-            OnBlockerSelect( _touchedCard, inCard );
+            if( !OnBlockerSelect( _touchedCard, inCard ) )
+            {
+                if( BlockMatrix.count( _touchedCard ) > 0 )
+                {
+                    BlockMatrix.erase( _touchedCard );
+                    RedrawBlockers();
+                }
+            }
             
             if( inDraw )
                 inDraw->clear();
@@ -238,9 +246,9 @@ void GameModeBase::TouchMoved( cocos2d::Touch *inTouch, cocos2d::DrawNode* inDra
     else if( _bBlockerDrag && _touchedCard && inTouch && inDraw )
     {
         inDraw->clear();
-        inDraw->drawSolidCircle( inTouch->getLocation(), 64.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
-        inDraw->drawSolidCircle( _touchedCard->GetAbsolutePosition(), 64.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
-        inDraw->drawSegment( _touchedCard->GetAbsolutePosition(), inTouch->getLocation(), 16.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        inDraw->drawSolidCircle( inTouch->getLocation(), 32.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        inDraw->drawSolidCircle( _touchedCard->GetAbsolutePosition(), 32.f, 360.f, 32, 1.f, 1.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+        inDraw->drawSegment( _touchedCard->GetAbsolutePosition(), inTouch->getLocation(), 10.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
         
     }
 }
@@ -408,6 +416,15 @@ void GameModeBase::OnCardClicked( CardEntity* inCard )
                     inCard->bAttacking = true;
                     inCard->SetOverlay( "icon_attack.png", 180 );
                 }
+            }
+        }
+        else if( tState == TurnState::Block && pState == PlayerTurn::Opponent )
+        {
+            // If we click on a card thats blocking then we will stop blocking
+            if( BlockMatrix.count( inCard ) > 0 )
+            {
+                BlockMatrix.erase( inCard );
+                RedrawBlockers();
             }
         }
         else
@@ -645,6 +662,8 @@ void GameModeBase::UpdateTurnState( TurnState In )
             Scene->UpdateTurnState( tName );
         }
     }
+    
+    _bFinishCalled = false;
 }
 
 void GameModeBase::UpdatePlayerTurn( PlayerTurn In )
@@ -1001,6 +1020,8 @@ void GameModeBase::FinishTurn()
     auto Scene = dynamic_cast< GameScene* >( GetScene() );
     CC_ASSERT( Auth && Scene );
     
+    cocos2d::log( "[GM] Finishing Turn" );
+    
     // If were in the attack or block phase, we need to send card list
     if( mState == MatchState::Main )
     {
@@ -1227,7 +1248,6 @@ void GameModeBase::Action_MarshalStart( Action* In, std::function< void() > Call
     
     // TODO: Update UI
     cocos2d::log( "[GM] Marshal Started..." );
-    _bCheckPossibleActions = true;
     
     EnableSelection();
     
@@ -1255,7 +1275,6 @@ void GameModeBase::Action_AttackStart( Action* In, std::function< void() > Callb
     
     // TODO: Update UI
     cocos2d::log( "[GM] Attack Started..." );
-    _bCheckPossibleActions = true;
     
     EnableSelection();
     
@@ -1296,7 +1315,6 @@ void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callba
     }
     
     cocos2d::log( "[GM] Block Started..." );
-    _bCheckPossibleActions = true;
     
     cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.26f, 0, 0.f, false, "FinishBlockStart" );
 }
@@ -1311,7 +1329,6 @@ void GameModeBase::Action_PostTurnStart( Action *In, std::function<void ()> Call
         scene->HideFinishButton();
     
     cocos2d::log( "[GM] Post Turn Started..." );
-    _bCheckPossibleActions = true;
     
     cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.25f, 0, 0.f, false, "FinishPostTurnStart" );
 }
@@ -1326,6 +1343,19 @@ void GameModeBase::Action_DamageStart( Action* In, std::function< void() > Callb
         scene->HideFinishButton();
     
     cocos2d::log( "[GM] Damage Phase Started" );
+    
+    // Pause Field Invalidation
+    auto Player = GetPlayer();
+    auto Opponent = GetOpponent();
+    auto Field = Player ? Player->GetField() : nullptr;
+    auto OpField = Opponent ? Opponent->GetField() : nullptr;
+    
+    if( Field )
+        Field->PauseInvalidate();
+    
+    if( OpField )
+        OpField->PauseInvalidate();
+    
     Callback();
 }
 
@@ -1457,6 +1487,24 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
 }
 
 
+void GameModeBase::Action_CleanupBoard( Action *In, std::function<void ()> Callback )
+{
+    // Resume field invalidation
+    auto Player = GetPlayer();
+    auto Opponent = GetOpponent();
+    auto PlField = Player ? Player->GetField() : nullptr;
+    auto OpField = Opponent ? Opponent->GetField() : nullptr;
+    
+    if( PlField )
+        PlField->ResumeInvalidate();
+    
+    if( OpField )
+        OpField->ResumeInvalidate();
+    
+    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.75f, 0, 0.f, false, "CleanupCallback" );
+}
+
+
 void GameModeBase::Tick( float Delta )
 {
     if( _bCheckPossibleActions )
@@ -1578,10 +1626,11 @@ void GameModeBase::Tick( float Delta )
         
         // If the game is waiting on the player, check if they have any possible
         // moves they can make, highlight them, or if not, advance round state
-        if( bPlayersMove )
+        if( bPlayersMove && !_bFinishCalled )
         {
             if( ActionableCards.empty() && AbilityCards.empty() )
             {
+                _bFinishCalled = true;
                 FinishTurn();
             }
         }

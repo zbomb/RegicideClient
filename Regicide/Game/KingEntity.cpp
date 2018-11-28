@@ -14,7 +14,7 @@ using namespace Game;
 
 
 KingEntity::KingEntity()
-: EntityBase( "king" ), Sprite( nullptr ), HealthLabel( nullptr )
+: EntityBase( "king" ), Sprite( nullptr ), HealthLabel( nullptr ), ManaLabel( nullptr )
 {
     bAddedToScene = false;
     bIsOpponent = false;
@@ -30,6 +30,7 @@ KingEntity::~KingEntity()
     
     Sprite = nullptr;
     HealthLabel = nullptr;
+    ManaLabel = nullptr;
 }
 
 void KingEntity::Cleanup()
@@ -51,19 +52,26 @@ void KingEntity::AddToScene( cocos2d::Node *inNode )
     
     HealthLabel = cocos2d::Label::createWithTTF( "30", "fonts/arial.ttf", 45 );
     HealthLabel->setAnchorPoint( bIsOpponent ? cocos2d::Vec2( 1.f, 1.f ) : cocos2d::Vec2( 0.f, 0.f ) );
-    HealthLabel->setTextColor( cocos2d::Color4B( 0, 0, 0, 255 ) );
+    HealthLabel->setTextColor( cocos2d::Color4B( 250, 30, 30, 255 ) );
+    
+    ManaLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 45 );
+    ManaLabel->setAnchorPoint( bIsOpponent ? cocos2d::Vec2( 1.f, 1.f ) : cocos2d::Vec2( 0.f, 0.f ) );
+    ManaLabel->setTextColor( cocos2d::Color4B( 40, 50, 250, 255 ) );
     
     inNode->addChild( Sprite );
     Sprite->addChild( HealthLabel );
+    Sprite->addChild( ManaLabel );
     
     if( bIsOpponent )
     {
         auto Size = Sprite->getContentSize() * Sprite->getScale();
         HealthLabel->setPosition( cocos2d::Vec2( Size.width - 10.f, Size.height - 10.f ) );
+        ManaLabel->setPosition( cocos2d::Vec2( Size.width - 10.f - HealthLabel->getContentSize().width * 2.f - 10.f, Size.height - 10.f ) );
     }
     else
     {
         HealthLabel->setPosition( cocos2d::Vec2( 10.f, 10.f ) );
+        ManaLabel->setPosition( cocos2d::Vec2( 10.f + HealthLabel->getContentSize().width * 2.f + 10.f, 10.f ) );
     }
 }
 
@@ -166,4 +174,12 @@ bool KingEntity::GetHook( const std::string &Name, luabridge::LuaRef &Out )
     }
     
     return false;
+}
+
+void KingEntity::UpdateMana( int InMana )
+{
+    if( ManaLabel )
+    {
+        ManaLabel->setString( std::to_string( InMana ) );
+    }
 }

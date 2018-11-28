@@ -20,14 +20,15 @@ class AbilityText : public cocos2d::ui::Widget
 public:
     
     AbilityText();
+    ~AbilityText();
     
-    static AbilityText* Create( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth );
-    virtual bool init( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth );
+    static AbilityText* Create( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep );
+    virtual bool init( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep );
     virtual void onSizeChanged() override;
     
     float GetDesiredHeight();
     
-    void OnTouch( cocos2d::Ref* Caller, cocos2d::ui::Widget::TouchEventType Type );
+    inline bool CanTrigger() const { return bCanTrigger; }
     
 protected:
     
@@ -39,6 +40,15 @@ protected:
     Game::Ability Ability;
     Game::CardEntity* Card;
     
+    cocos2d::Vec2 _touchStart;
+    
+    cocos2d::EventListenerTouchOneByOne* Listener;
+    
     bool bCanTrigger;
+    bool bDrawSeperator;
+    bool bDescription;
+    
+    bool onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
+    void onTouchEnd( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );
 
 };

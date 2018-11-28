@@ -119,6 +119,7 @@ namespace Game
         
         void Tick( float Delta );
         bool _bCheckPossibleActions = false;
+        bool _bFinishCalled = false;
         uint32_t lastDamageId;
         uint32_t lastDrainId;
         
@@ -144,6 +145,7 @@ namespace Game
         virtual void Action_CardDamage( Action* In, std::function< void() > Callback );
         virtual void Action_DamageStart( Action* In, std::function< void() > Callback );
         virtual void Action_StaminaDrain( Action* In, std::function< void() > Callback );
+        virtual void Action_CleanupBoard( Action* In, std::function< void() > Callback );
         
         virtual void OnActionQueue();
         

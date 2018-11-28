@@ -107,19 +107,20 @@ namespace Game
         void CreateOverlays();
         void DestroyOverlays();
         
-        void UpdatePower( uint16 inPower );
-        void UpdateStamina( uint16 inStamina );
+        void UpdatePower( int inPower );
+        void UpdateStamina( int inStamina );
         
         void ShowPowerStamina();
         void HidePowerStamina();
         
         // Public Members
         std::string DisplayName;
+        std::string Description;
         uint16 CardId;
         
-        uint16 Power;
-        uint16 Stamina;
-        uint16 ManaCost;
+        int Power;
+        int Stamina;
+        int ManaCost;
         
         // Getters for Lua
         int _lua_GetCardId() const { return CardId; }

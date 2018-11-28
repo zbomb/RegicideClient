@@ -54,6 +54,8 @@ namespace Game
         virtual void InvalidateCards( CardEntity* Ignore = nullptr, bool bParam = false ) override;
         
         int AttemptDrop( CardEntity* inCard, const cocos2d::Vec2& inPos );
+        void PauseInvalidate();
+        void ResumeInvalidate();
         
     protected:
         
@@ -61,6 +63,8 @@ namespace Game
         
         void MoveCard( CardEntity* inCard, const cocos2d::Vec2& AbsPos, std::function< void() > Callback );
         cocos2d::Vec2 CalcPos( int Index, int CardDelta = 0 );
+        
+        bool _bInvalidatePaused = false;
         
         friend class SingleplayerLauncher;
     };

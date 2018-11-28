@@ -4,26 +4,27 @@
 ===========================================================================*/
 
 CARD.Name = "Test Card 1";
-CARD.Power = 5;
+CARD.Description = "This is a test description. Hopefully it works well and doesnt look terrible!";
+CARD.Power = 3;
 CARD.Stamina = 3;
 CARD.Mana = 2;
 
 CARD.Texture        = "CardFront.png";
 CARD.LargeTexture   = "LargeCard.png";
 
-CARD.EnableDeckHooks = true;
+CARD.EnableDeckHooks = false;
 CARD.EnableHandHooks = false;
-CARD.EnablePlayHooks = true;
+CARD.EnablePlayHooks = false;
 CARD.EnableDeadHooks = false;
 
 CARD.Abilities = {};
 
 -- Test Ability
 CARD.Abilities[ 1 ] = {};
-CARD.Abilities[ 1 ].Name            = "Test Ability";
-CARD.Abilities[ 1 ].Description     = "This is a test description for ability 1";
+CARD.Abilities[ 1 ].Name            = "Draw Card";
+CARD.Abilities[ 1 ].Description     = "Draw a card";
 CARD.Abilities[ 1 ].ManaCost        = 2;
-CARD.Abilities[ 1 ].StaminaCost     = 2;
+CARD.Abilities[ 1 ].StaminaCost     = 1;
 CARD.Abilities[ 1 ].PreCheck = function( thisCard )
 
     return Game.IsCardTurn( thisCard ) and thisCard:OnField();
@@ -32,16 +33,15 @@ end
 
 CARD.Abilities[ 1 ].OnTrigger = function( thisCard )
 
-    print( "=======> ABILITY TRIGGERED" );
     Action.DrawCard( thisCard:GetOwner(), ACTION_SERIAL )
 
 end
 
 CARD.Abilities[ 2 ] = {};
-CARD.Abilities[ 2 ].Name        = "Test Ability 2";
-CARD.Abilities[ 2 ].Description = "This is another test description for ability 2";
-CARD.Abilities[ 2 ].ManaCost    = 1;
-CARD.Abilities[ 2 ].StaminaCost = 1;
+CARD.Abilities[ 2 ].Name        = "Blind Smite";
+CARD.Abilities[ 2 ].Description = "Deal damage equal to this cards power to a random enemy";
+CARD.Abilities[ 2 ].ManaCost    = 0;
+CARD.Abilities[ 2 ].StaminaCost = 3;
 CARD.Abilities[ 2 ].PreCheck = function( thisCard )
 
     -- Must be player's turn, and this card must be on the field
@@ -74,7 +74,7 @@ CARD.Abilities[ 2 ].OnTrigger = function( thisCard )
     end
 
     local TargetCard = Field:GetIndex( RandIndex );
-    Action.DamageCard( TargetCard, thisCard, 5, ACTION_SERIAL );
+    Action.DamageCard( TargetCard, thisCard, thisCard:GetPower(), ACTION_SERIAL );
 
 end
 

@@ -263,6 +263,9 @@ bool FieldEntity::RemoveRandom( bool bDestroy /* = false */ )
 
 void FieldEntity::InvalidateCards( CardEntity* Ignore /* = nullptr */, bool bParam /* = false */ )
 {
+    if( _bInvalidatePaused )
+        return;
+    
     int Index = 0;
     
     // If were ignoring a card and dont want to fill the place, we need to subtract one
@@ -276,6 +279,17 @@ void FieldEntity::InvalidateCards( CardEntity* Ignore /* = nullptr */, bool bPar
         
         Index++;
     }
+}
+
+void FieldEntity::PauseInvalidate()
+{
+    _bInvalidatePaused = true;
+}
+
+void FieldEntity::ResumeInvalidate()
+{
+    _bInvalidatePaused = false;
+    InvalidateCards();
 }
 
 void FieldEntity::Invalidate()

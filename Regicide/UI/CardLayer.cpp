@@ -148,7 +148,7 @@ void CardLayer::RedrawBlockers()
         {
             if( It->first && It->second )
             {
-                BlockDraw->drawSegment( It->first->GetAbsolutePosition(), It->second->GetAbsolutePosition(), 16.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
+                BlockDraw->drawSegment( It->first->GetAbsolutePosition(), It->second->GetAbsolutePosition(), 10.f, cocos2d::Color4F( 0.2f, 0.2f, 0.95f, 0.6f ) );
             }
         }
     }

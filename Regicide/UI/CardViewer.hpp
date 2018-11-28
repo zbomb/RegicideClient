@@ -36,6 +36,7 @@ protected:
     Game::CardEntity* TargetCard;
     cocos2d::Sprite* CardImage;
     cocos2d::DrawNode* Background;
+    cocos2d::ui::ScrollView* ScrollPanel;
     std::map< int, AbilityText* > Abilities;
     
     bool onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent );

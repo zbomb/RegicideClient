@@ -321,6 +321,7 @@ Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName
     NewPlayer->King = newKing;
     
     newKing->UpdateHealth( NewPlayer->Health );
+    newKing->UpdateMana( NewPlayer->Mana );
     newKing->OwningPlayer = NewPlayer;
     
     // Create Deck

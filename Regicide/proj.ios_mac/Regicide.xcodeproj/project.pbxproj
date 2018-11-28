@@ -111,6 +111,7 @@
 		D0B272502192BF3900073264 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */; };
 		D0B2725C2192C2E300073264 /* LuaScripts in Resources */ = {isa = PBXBuildFile; fileRef = D0B2725B2192C2E300073264 /* LuaScripts */; };
 		D0B2725E2192C38A00073264 /* Resource in Resources */ = {isa = PBXBuildFile; fileRef = D0B2725D2192C38A00073264 /* Resource */; };
+		D0B2A8C821AE3657005F7AC1 /* DescriptionText.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B2A8C621AE3657005F7AC1 /* DescriptionText.cpp */; };
 		D0B75D262198E66300EC80F5 /* AuthorityBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B75D242198E66300EC80F5 /* AuthorityBase.cpp */; };
 		D0B75D2A2198E6CD00EC80F5 /* SingleplayerAuthority.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B75D282198E6CD00EC80F5 /* SingleplayerAuthority.cpp */; };
 		D0B9FD69217128ED0097E97B /* ConnectingPopup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D0B9FD57217128EC0097E97B /* ConnectingPopup.cpp */; };
@@ -373,6 +374,8 @@
 		D0B2724E2192BF3900073264 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D0B2725B2192C2E300073264 /* LuaScripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = LuaScripts; path = ../LuaScripts; sourceTree = "<group>"; };
 		D0B2725D2192C38A00073264 /* Resource */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Resource; path = ../Resource; sourceTree = "<group>"; };
+		D0B2A8C621AE3657005F7AC1 /* DescriptionText.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DescriptionText.cpp; sourceTree = "<group>"; };
+		D0B2A8C721AE3657005F7AC1 /* DescriptionText.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DescriptionText.hpp; sourceTree = "<group>"; };
 		D0B4C6552191DBEF00DC4155 /* libluajit.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libluajit.a; path = "../../../cocos2d-x-3.17/external/lua/luajit/prebuilt/ios/libluajit.a"; sourceTree = "<group>"; };
 		D0B4C6572191DC4000DC4155 /* liblua.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblua.a; path = "../../../cocos2d-x-3.17/external/lua/lua/prebuilt/ios/liblua.a"; sourceTree = "<group>"; };
 		D0B75D242198E66300EC80F5 /* AuthorityBase.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AuthorityBase.cpp; sourceTree = "<group>"; };
@@ -712,8 +715,8 @@
 				D0B12CFC2196A45100B7C674 /* EntityBase.hpp */,
 				D0B12CFE2196B05F00B7C674 /* CardEntity.cpp */,
 				D0B12CFF2196B05F00B7C674 /* CardEntity.hpp */,
-				D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */,
 				D02F8DC421974CFD00B5C65A /* GameModeBase.cpp */,
+				D02F8DC521974CFD00B5C65A /* GameModeBase.hpp */,
 				D02F8DC821974DE300B5C65A /* Player.cpp */,
 				D02F8DC921974DE300B5C65A /* Player.hpp */,
 				D02F8DCB21974E9600B5C65A /* SingleplayerGameMode.cpp */,
@@ -808,6 +811,8 @@
 				D0A29FC421AB7BD700E3C674 /* AbilityText.hpp */,
 				D0893B8F21ACB19E0062F632 /* IconCount.cpp */,
 				D0893B9021ACB19E0062F632 /* IconCount.hpp */,
+				D0B2A8C621AE3657005F7AC1 /* DescriptionText.cpp */,
+				D0B2A8C721AE3657005F7AC1 /* DescriptionText.hpp */,
 			);
 			name = UI;
 			path = ../UI;
@@ -1084,6 +1089,7 @@
 				D0189BDA2192877A007A8BD6 /* lcode.cpp in Sources */,
 				D0189BF52192877A007A8BD6 /* lundump.cpp in Sources */,
 				D0CC20642190B76500B01994 /* UpdateScene.cpp in Sources */,
+				D0B2A8C821AE3657005F7AC1 /* DescriptionText.cpp in Sources */,
 				D0189BDC2192877A007A8BD6 /* lctype.cpp in Sources */,
 				D02F8DCA21974DE300B5C65A /* Player.cpp in Sources */,
 				D024C5B6219AAB640024968E /* CardLayer.cpp in Sources */,

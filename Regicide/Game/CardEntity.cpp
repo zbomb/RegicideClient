@@ -111,6 +111,15 @@ bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner )
     LargeTextureName = inLua[ "LargeTexture" ].tostring();
     BackTextureName = inOwner->GetBackTexture();
     
+    if( inLua[ "Description" ].isString() )
+    {
+        Description = inLua[ "Description" ].tostring();
+    }
+    else
+    {
+        Description = "";
+    }
+    
     RequireTexture( FrontTextureName, [ = ]( cocos2d::Texture2D* InTex )
     {
         if( !InTex )
@@ -521,7 +530,7 @@ void CardEntity::SetZ( int In )
     }
 }
 
-void CardEntity::UpdatePower( uint16 inPower )
+void CardEntity::UpdatePower( int inPower )
 {
     if( PowerLabel )
         PowerLabel->setString( std::to_string( inPower ) );
@@ -529,7 +538,7 @@ void CardEntity::UpdatePower( uint16 inPower )
     Power = inPower;
 }
 
-void CardEntity::UpdateStamina( uint16 inStamina )
+void CardEntity::UpdateStamina( int inStamina )
 {
     if( StaminaLabel )
         StaminaLabel->setString( std::to_string( inStamina ) );

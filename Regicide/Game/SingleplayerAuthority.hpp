@@ -318,7 +318,7 @@ namespace Game
         }
         
         // If we created our own queue, then run it
-        if( bUseLocal )
+        if( bUseLocal && Queue.ActionTree.size() > 0 )
         {
             auto GM = Game::World::GetWorld()->GetGameMode< GameModeBase >();
             CC_ASSERT( GM );

@@ -13,10 +13,10 @@
 #include "Game/Player.hpp"
 #include "Game/AuthorityBase.hpp"
 
-AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth )
+AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep )
 {
     auto* Output = new (std::nothrow) AbilityText();
-    if( Output && Output->init( InCard, inAbility, inWidth ) )
+    if( Output && Output->init( InCard, inAbility, inWidth, bDrawSep ) )
     {
         Output->autorelease();
     }
@@ -30,12 +30,21 @@ AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbi
 }
 
 AbilityText::AbilityText()
-: Widget(), Text( nullptr )
+: Widget(), Text( nullptr ), ManaCost( nullptr ), StaminaCost( nullptr )
 {
     bCanTrigger = false;
+    bDrawSeperator = false;
 }
 
-bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth )
+AbilityText::~AbilityText()
+{
+    if( Listener )
+        _eventDispatcher->removeEventListener( Listener );
+    
+    Listener = nullptr;
+}
+
+bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth, bool bDrawSep )
 {
     if( !Widget::init() )
         return false;
@@ -43,43 +52,61 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     Ability = In;
     Card = InCard;
     
+    bDrawSeperator = bDrawSep;
+    
     // Create Draw Node
     Draw = cocos2d::DrawNode::create();
     Draw->setGlobalZOrder( 405 );
     
     addChild( Draw );
     
-    // Create Label
-    Text = cocos2d::Label::createWithTTF( Ability.Description, "fonts/arial.ttf", 28, cocos2d::Size( inWidth - 15.f, 0.f ) );
-    Text->enableWrap( true );
-    Text->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
-    Text->setAnchorPoint( cocos2d::Vec2( 0.5f, 1.f ) );
-    Text->setGlobalZOrder( 410 );
-    
-    addChild( Text );
-    
     // Create Mana Cost
+    float TextSpacing = 0.f;
     if( Ability.ManaCost > 0 )
     {
         ManaCost = IconCount::Create( "ManaIcon.png", Ability.ManaCost );
-        ManaCost->setAnchorPoint( cocos2d::Vec2( 1.f, 1.f ) );
-        ManaCost->setPosition( cocos2d::Vec2( inWidth / 2.f, 0.f ) );
-        ManaCost->setGlobalZOrder( 414 );
-        ManaCost->SetZ( 415 );
+        
+        if( Ability.StaminaCost > 0 )
+            ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.f ) );
+        else
+            ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
+        
+        ManaCost->setGlobalZOrder( 405 );
+        ManaCost->SetZ( 405 );
         
         addChild( ManaCost );
+        
+        TextSpacing = ManaCost->getContentSize().width;
     }
     
     if( Ability.StaminaCost > 0 )
     {
         StaminaCost = IconCount::Create( "StaminaIcon.png", Ability.StaminaCost );
-        StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
-        StaminaCost->setPosition( cocos2d::Vec2( inWidth / 2.f, 0.f ) );
-        StaminaCost->setGlobalZOrder( 414 );
-        StaminaCost->SetZ( 415 );
+        
+        if( Ability.ManaCost > 0 )
+            StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
+        else
+            StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
+
+        StaminaCost->setGlobalZOrder( 405 );
+        StaminaCost->SetZ( 405 );
         
         addChild( StaminaCost );
+        
+        float thisSpacing = StaminaCost->getContentSize().width;
+        TextSpacing = TextSpacing < thisSpacing ? thisSpacing : TextSpacing;
     }
+    
+    // Create Label
+    Text = cocos2d::Label::createWithTTF( Ability.Description, "fonts/arial.ttf", 28 );
+    Text->enableWrap( true );
+    Text->setDimensions( inWidth - 15.f - TextSpacing - 4.f, 0.f );
+    Text->setAlignment( cocos2d::TextHAlignment::LEFT, cocos2d::TextVAlignment::TOP );
+    Text->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
+    Text->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
+    Text->setGlobalZOrder( 405 );
+    
+    addChild( Text );
     
     // Check if player is able to activate this ability
     auto World = Game::World::GetWorld();
@@ -119,6 +146,15 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
         }
     }
     
+    Listener = cocos2d::EventListenerTouchOneByOne::create();
+    CC_ASSERT( Listener );
+    
+    Listener->onTouchBegan = CC_CALLBACK_2( AbilityText::onTouch, this );
+    Listener->onTouchEnded = CC_CALLBACK_2( AbilityText::onTouchEnd, this );
+    Listener->setSwallowTouches( false );
+    
+    _eventDispatcher->addEventListenerWithFixedPriority( Listener, -90 );
+    
     return true;
 }
 
@@ -126,57 +162,111 @@ void AbilityText::onSizeChanged()
 {
     Widget::onSizeChanged();
     
-    // Reposition Text
+    // Reposition Elements
     auto Size = getContentSize();
-    if( Text )
+    float TextSpacing = 0.f;
+    
+    if( ManaCost && StaminaCost )
     {
-        float Height = 0.f;
+        ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.f ) );
+        StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
+        
+        ManaCost->setPosition( cocos2d::Vec2( 4.f, Size.height / 2.f + 2.f ) );
+        StaminaCost->setPosition( cocos2d::Vec2( 4.f, Size.height / 2.f - 2.f ) );
+        
+        float ManaWide = ManaCost->getContentSize().width;
+        float StaminaWide = StaminaCost->getContentSize().width;
+        
+        TextSpacing = ManaWide > StaminaWide ? ManaWide : StaminaWide;
+    }
+    else
+    {
         if( ManaCost )
         {
-            Height = ManaCost->getContentSize().height;
+            ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
+            ManaCost->setPosition( cocos2d::Vec2( 4.f, Size.height / 2.f ) );
             
-            ManaCost->setPosition( cocos2d::Vec2( Size.width / 2.f, Size.height ) );
+            TextSpacing = ManaCost->getContentSize().width;
         }
-        
         if( StaminaCost )
         {
-            StaminaCost->setPosition( cocos2d::Vec2( Size.width / 2.f, Size.height ) );
+            StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
+            StaminaCost->setPosition( cocos2d::Vec2( 4.f, Size.height / 2.f ) );
+            
+            TextSpacing = StaminaCost->getContentSize().width;
         }
-        
-        Text->setPosition( cocos2d::Vec2( Size.width / 2.f, Size.height - Height ) );
-        
     }
     
-    if( Draw && bCanTrigger )
+    if( Text )
+    {
+        auto TextSize = Text->getContentSize();
+        Text->setContentSize( cocos2d::Size( Size.width - TextSpacing - 15.f, TextSize.height ) );
+        Text->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
+        Text->setPosition( cocos2d::Vec2( TextSpacing + 15.f, Size.height / 2.f + TextSize.height / 2.f ) );
+    }
+    
+    if( Draw )
     {
         Draw->clear();
-        Draw->drawRect( cocos2d::Vec2( 0.f, 0.f ), getContentSize(), cocos2d::Color4F( 0.95f, 0.1f, 0.1f, 0.8f ) );
+        
+        if( !bCanTrigger && bDrawSeperator )
+        {
+            Draw->drawSegment( cocos2d::Vec2( 6.f, Size.height ), cocos2d::Vec2( Size.width - 6.f, Size.height ), 1.f, cocos2d::Color4F( 0.95f, 0.95f, 0.95f, 1.f ) );
+        }
+        
+        if( bCanTrigger )
+        {
+            Draw->drawRect( cocos2d::Vec2( 0.f, 0.f ), getContentSize(), cocos2d::Color4F( 0.95f, 0.1f, 0.1f, 0.8f ) );
+        }
+        
     }
 }
 
 float AbilityText::GetDesiredHeight()
 {
-    float Output = 15.f;
+    float IconHeight = 4.f;
+    
     if( ManaCost )
     {
-        Output += ManaCost->getContentSize().height + 8.f;
+        IconHeight += ManaCost->getContentSize().height + 4.f;
+    }
+    if( StaminaCost )
+    {
+        IconHeight += StaminaCost->getContentSize().height + 4.f;
     }
     
+    float TextHeight = 4.f;
     if( Text )
     {
-        Output += Text->getContentSize().height;
+        TextHeight += Text->getContentSize().height + 4.f;
     }
     
-    return Output;
+    return IconHeight > TextHeight ? IconHeight : TextHeight;
 }
 
-void AbilityText::OnTouch( cocos2d::Ref *Caller, cocos2d::ui::Widget::TouchEventType Type )
+bool AbilityText::onTouch( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 {
-    cocos2d::log( "[CardViewer] Ability Touched" );
+    _touchStart = inTouch->getLocation();
     
-    if( Type == cocos2d::ui::Widget::TouchEventType::ENDED )
+    auto Anchor = getAnchorPoint();
+    auto Size = getContentSize();
+    auto Rect = cocos2d::Rect( getWorldPosition() - cocos2d::Vec2( Size.width * Anchor.x, Size.height * Anchor.y ), Size );
+    if( Rect.containsPoint( inTouch->getLocation() ) )
     {
-        if( bCanTrigger && Card && Ability.MainFunc && Ability.MainFunc->isFunction() )
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void AbilityText::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
+{
+    // Check if the user was just scrolling and this ability can be triggered
+    if( bCanTrigger && inTouch->getLocation().distance( _touchStart ) < 9.f )
+    {
+        if(  Card && Ability.MainFunc && Ability.MainFunc->isFunction() )
         {
             // Perform Check Again
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
@@ -184,7 +274,7 @@ void AbilityText::OnTouch( cocos2d::Ref *Caller, cocos2d::ui::Widget::TouchEvent
                 if( !( *Ability.CheckFunc )( Card ) )
                 {
                     cocos2d::log( "[CardViewer] Ability Check Failed!" );
-
+                    
                     bCanTrigger = false;
                     if( Draw )
                         Draw->clear();

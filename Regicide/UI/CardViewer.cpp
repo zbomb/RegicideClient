@@ -10,6 +10,7 @@
 
 #include "CardViewer.hpp"
 #include "ui/CocosGUI.h"
+#include "DescriptionText.hpp"
 
 
 CardViewer* CardViewer::create( Game::CardEntity* inCard, bool bAllowPlay )
@@ -55,50 +56,39 @@ bool CardViewer::init()
 
 bool CardViewer::onTouch( cocos2d::Touch* inTouch, cocos2d::Event* inEvent )
 {
-    // Check if abilities were touched
-    for( auto It = Abilities.begin(); It != Abilities.end(); It++ )
-    {
-        if( It->second )
-        {
-            if( It->second->getBoundingBox().containsPoint( inTouch->getLocation() ) )
-            {
-                It->second->OnTouch( this, cocos2d::ui::Widget::TouchEventType::BEGAN );
-                return false;
-            }
-        }
-    }
+    if( !inTouch )
+        return false;
     
     if( CardImage )
     {
-        if( CardImage->getBoundingBox().containsPoint( inTouch->getLocation() ) )
+        auto CardBounds = CardImage->getBoundingBox();
+        if( CardBounds.containsPoint( inTouch->getLocation() ) )
         {
-            return true;
+            if( ScrollPanel )
+            {
+                auto ScrollBounds = ScrollPanel->getBoundingBox();
+                ScrollBounds.origin = ScrollBounds.origin + CardBounds.origin;
+                
+                if( ScrollBounds.containsPoint( inTouch->getLocation() ) )
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
         }
         
     }
+    
     
     return false;
 }
 
 void CardViewer::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 {
-    if( CardImage )
-    {
-        for( auto It = Abilities.begin(); It != Abilities.end(); It++ )
-        {
-            if( It->second )
-            {
-                auto Box = It->second->getBoundingBox();
-                Box.origin = Box.origin + CardImage->getBoundingBox().origin;
-                
-                if( Box.containsPoint( inTouch->getLocation() ) )
-                {
-                    It->second->OnTouch( this, cocos2d::ui::Widget::TouchEventType::ENDED );
-                    return;
-                }
-            }
-        }
-    }
+
 }
 
 CardViewer::CardViewer()
@@ -214,19 +204,61 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     CardImage->setGlobalZOrder( 400 );
     addChild( CardImage, 220 );
     
-    float AbilityPosition = 10.f;
+    // Create Scroll Panel
+    ScrollPanel = cocos2d::ui::ScrollView::create();
+    ScrollPanel->setBackGroundColorType( cocos2d::ui::Layout::BackGroundColorType::SOLID );
+    ScrollPanel->setBackGroundColor( cocos2d::Color3B( 20, 20, 20 ) );
+    ScrollPanel->setBackGroundColorOpacity( 255 );
+    ScrollPanel->setAnchorPoint( cocos2d::Vec2( 0.f, 0.f ) );
+    ScrollPanel->setPosition( cocos2d::Vec2( 0.f, 32.f ) );
+    ScrollPanel->setContentSize( cocos2d::Size( CardSize.width, CardSize.height * 0.4f - 32.f ) );
+    ScrollPanel->setDirection( cocos2d::ui::ScrollView::Direction::VERTICAL );
+    ScrollPanel->setLayoutType( cocos2d::ui::Layout::Type::VERTICAL );
+    ScrollPanel->setGlobalZOrder( 405 );
+    CardImage->addChild( ScrollPanel, 5 );
+    
+    bool bFirst = true;
+    bool bActuallyFirst = true;
+    float TotalHeight = 0.f;
+    
     for( auto It = inCard->Abilities.begin(); It != inCard->Abilities.end(); It++ )
     {
-        auto Text = AbilityText::Create( inCard, It->second, CardSize.width * 0.8f );
-        Text->setContentSize( cocos2d::Size( CardSize.width * 0.8f, Text->GetDesiredHeight() ) );
-        Text->setAnchorPoint( cocos2d::Vec2( 0.5f, 1.f ) );
-        Text->setPosition( cocos2d::Vec2( CardSize.width * 0.5f, CardSize.height * 0.42f - AbilityPosition ) );
-        Text->setGlobalZOrder( 410 );
-        CardImage->addChild( Text, 250 );
+        auto Text = AbilityText::Create( inCard, It->second, CardSize.width * 0.9f, !bFirst );
+        Text->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Text->GetDesiredHeight() ) );
+        Text->setGlobalZOrder( 405 );
+        
+        // If this ability is triggerable, we dont want the next text to display a seperator
+        bFirst = Text->CanTrigger();
+        
+        auto Layout = cocos2d::ui::LinearLayoutParameter::create();
+        Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
+        Layout->setMargin( cocos2d::ui::Margin( 4.f,  bActuallyFirst ? 10.f : 4.f, 4.f, 4.f ) );
+        
+        Text->setLayoutParameter( Layout );
+        ScrollPanel->addChild( Text );
+        
+        TotalHeight += ( Text->getContentSize().height + ( bActuallyFirst ? 14.f : 8.f ) );
         
         Abilities[ It->first ] = Text;
-        AbilityPosition += Text->getContentSize().height + 10.f;
-        
+        bActuallyFirst = false;
     }
+    
+    if( inCard->Description.size() > 0 )
+    {
+        auto Description = DescriptionText::Create( inCard->Description, CardSize.width * 0.9f, !bFirst );
+        Description->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Description->GetDesiredHeight() ) );
+        Description->setGlobalZOrder( 405 );
+        
+        auto Layout = cocos2d::ui::LinearLayoutParameter::create();
+        Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
+        Layout->setMargin( cocos2d::ui::Margin( 4.f, 4.f, 4.f, 4.f ) );
+        
+        Description->setLayoutParameter( Layout );
+        ScrollPanel->addChild( Description, 5 );
+        
+        TotalHeight += Description->getContentSize().height + 8.f;
+    }
+    
+    ScrollPanel->setInnerContainerSize( cocos2d::Size( CardSize.width, TotalHeight + 10.f ) );
 
 }

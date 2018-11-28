@@ -28,6 +28,7 @@ namespace Game
         
         virtual void AddToScene( cocos2d::Node* inNode ) override;
         void UpdateHealth( int inHealth );
+        void UpdateMana( int inMana );
         
         virtual void Cleanup() override;
         
@@ -48,6 +49,7 @@ namespace Game
         cocos2d::Texture2D* Texture;
         
         cocos2d::Label* HealthLabel;
+        cocos2d::Label* ManaLabel;
         Player* OwningPlayer;
         
         std::shared_ptr< luabridge::LuaRef > Hooks;

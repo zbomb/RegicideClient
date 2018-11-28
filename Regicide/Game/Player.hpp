@@ -42,10 +42,10 @@ namespace Game
         CardEntity* PerformTouchTrace( const cocos2d::Vec2& inPos );
         
         inline int GetMana() const { return Mana; }
-        void SetMana( int In ) { Mana = In; }
+        void SetMana( int In );
         
         inline int GetHealth() const { return Health; }
-        void SetHealth( int In ) { Health = In; }
+        void SetHealth( int In );
         
         inline bool IsOpponent() const { return bOpponent; }
         
