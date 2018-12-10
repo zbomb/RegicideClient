@@ -22,8 +22,8 @@ HandEntity::HandEntity()
 {
     SetTag( TAG_HAND );
     
-    bExpanded       = false;
     bVisibleLocally = false;
+    bExpanded       = false;
     bBlitzMode      = false;
 }
 
@@ -70,7 +70,7 @@ void HandEntity::AddToTop( CardEntity *Input, bool bMoveSprite, std::function< v
             MoveCard( Input, CalcPos( 0 ), Callback );
         }
         else if( Callback )
-            Callback();
+            FinishAction( Callback, 0.25f );
     }
 }
 
@@ -90,7 +90,7 @@ void HandEntity::AddToBottom( CardEntity* Input, bool bMoveSprite, std::function
             MoveCard( Input, CalcPos( Index ), Callback );
         }
         else if( Callback )
-            Callback();
+            FinishAction( Callback, 0.25f );
     }
 }
 
@@ -114,7 +114,7 @@ void HandEntity::AddAtRandom( CardEntity* Input, bool bMoveSprite, std::function
             MoveCard( Input, CalcPos( Index ), Callback );
         }
         else if( Callback )
-            Callback();
+            FinishAction( Callback, 0.25f );
     }
 }
 
@@ -138,7 +138,7 @@ void HandEntity::AddAtIndex( CardEntity* Input, uint32 Index, bool bMoveSprite, 
             MoveCard( Input, CalcPos( Index ), Callback );
         }
         else if( Callback )
-            Callback();
+            FinishAction( Callback, 0.25f );
     }
 }
 
@@ -264,7 +264,7 @@ bool HandEntity::RemoveRandom( bool bDestroy /* = false */ )
     return true;
 }
 
-void HandEntity::InvalidateCards( CardEntity* Ignore, bool bExpanding )
+void HandEntity::InvalidateCards( CardEntity* Ignore )
 {
     int Index = 0;
     
@@ -274,8 +274,7 @@ void HandEntity::InvalidateCards( CardEntity* Ignore, bool bExpanding )
     {
         if( (*It) && *It != Ignore && !(*It)->GetIsDragging() )
         {
-            // If were expanding, then were going to increate the animation speed
-            (*It)->MoveAnimation( CalcPos( Index, 0 ), 0.5f, nullptr );
+            (*It)->MoveAnimation( CalcPos( Index, 0 ), CARD_DEFAULT_MOVE_TIME );
         }
         
         Index++;
@@ -311,11 +310,11 @@ void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std::
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( inPos, 0.5f, Callback );
+        inCard->MoveAnimation( inPos, CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( bVisibleLocally && !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.5f );
+        if( bVisibleLocally && !inCard->GetState().FaceUp )
+            inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // If were flipped upside down, then ensure the card is also upside down
         auto rot = GetAbsoluteRotation();
@@ -324,23 +323,29 @@ void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std::
             float cardRot = inCard->GetAbsoluteRotation();
             if( cardRot < 1.f || cardRot > -1.f )
             {
-                inCard->RotateAnimation( GetAbsoluteRotation(), 0.5f );
+                inCard->RotateAnimation( GetAbsoluteRotation(), CARD_DEFAULT_MOVE_TIME );
             }
         }
+        
+        FinishAction( Callback, CARD_DEFAULT_MOVE_TIME + 0.1f );
+    }
+    else
+    {
+        FinishAction( Callback );
     }
 }
 
 void HandEntity::InvalidateZOrder()
 {
-    // Top of deck gets a higher Z Order
-    // So, we need to order the cards
-    // Default card Z order is 10
-    
-    int Top = ( (int)Cards.size() * 2 ) + 300;
+    // We need Z order between 51 and 100
+    int Top = 51 + (int)Cards.size();
+    Top = Top > 100 ? 100 : Top;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
-        int Order = Top - ( i * 2 );
+        int Order = Top - i;
+        Order = Order < 51 ? 51 : Order;
+        
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );
@@ -354,7 +359,7 @@ void HandEntity::SetExpanded( bool bExpand )
         return;
     
     bExpanded = bExpand;
-    InvalidateCards( nullptr, true );
+    InvalidateCards( nullptr );
 }
 
 void HandEntity::OpenBlitzMode()
@@ -367,6 +372,13 @@ void HandEntity::OpenBlitzMode()
     // Reset State
     SelectedCards.clear();
     SelectedMana = 0;
+    
+    auto Scene = GetScene();
+    if( !Scene )
+    {
+        cocos2d::log( "[Blitz] Failed to open blitz menu.. parent scene invalid" );
+        return;
+    }
 
     // Create Blitz UI
     Selector = CardSelector::Create( Begin(), End() );
@@ -380,7 +392,7 @@ void HandEntity::OpenBlitzMode()
         {
             if( *It )
             {
-                SelectedMana += (*It)->ManaCost;
+                SelectedMana += (*It)->GetState().ManaCost;
             }
         }
         
@@ -400,7 +412,7 @@ void HandEntity::OpenBlitzMode()
             return false;
         }
 
-        if( SelectedMana + In->ManaCost > Pl->GetMana() )
+        if( SelectedMana + In->GetState().ManaCost > Pl->GetMana() )
         {
             return false;
         }
@@ -411,7 +423,7 @@ void HandEntity::OpenBlitzMode()
     Selector->SetConfirm( std::bind( &HandEntity::ConfirmBlitz, this ) );
     Selector->setOpacity( 0 );
     
-    GetScene()->addChild( Selector );
+    Scene->addChild( Selector, 160 );
     
     // Fade out cards
     for( auto It = Begin(); It != End(); It++ )
@@ -559,4 +571,16 @@ bool HandEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
     
     AddAtIndex( inCard, BestIndex );
     return true;
+}
+
+void HandEntity::Clear()
+{
+    auto& Ent = IEntityManager::GetInstance();
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It )
+            Ent.DestroyEntity( *It );
+    }
+    
+    Cards.clear();
 }

@@ -57,7 +57,7 @@ namespace Game
         inline bool IsExpanded() const { return bExpanded; }
         
         void SetExpanded( bool bExpand );
-        virtual void InvalidateCards( CardEntity* Ignore = nullptr, bool bExpanding = false ) override;
+        virtual void InvalidateCards( CardEntity* Ignore = nullptr ) override;
         
         bool AttemptDrop( CardEntity* inCard, const cocos2d::Vec2& inPos );
         
@@ -65,6 +65,8 @@ namespace Game
         void CloseBlitzMode();
         void EnabledBlitzMenu();
         void DeselectBlitz( Game::CardEntity* In );
+        
+        void Clear();
         
     protected:
         
@@ -83,5 +85,6 @@ namespace Game
         void ConfirmBlitz();
         
         friend class SingleplayerLauncher;
+        friend class ClientState;
     };
 }

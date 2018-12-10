@@ -59,8 +59,12 @@ public:
     
     static CardButton* Create( Game::CardEntity* In )
     {
+        auto Info = In->GetInfo();
+        if( !Info )
+            return nullptr;
+        
         auto ret = new (std::nothrow) CardButton( In );
-        if( ret && ret->init( In->GetFullSizedTextureName(), "", "", cocos2d::ui::Button::TextureResType::LOCAL ) )
+        if( ret && ret->init( Info->FrontTexture, "", "", cocos2d::ui::Button::TextureResType::LOCAL ) )
         {
             ret->autorelease();
             return ret;

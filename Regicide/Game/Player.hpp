@@ -21,6 +21,7 @@ namespace Game
     class GraveyardEntity;
     class ICardContainer;
     class KingEntity;
+
     
     class Player : public EntityBase
     {
@@ -36,15 +37,15 @@ namespace Game
         inline FieldEntity* GetField() { return Field; }
         inline GraveyardEntity* GetGraveyard() { return Graveyard; }
         inline KingEntity* GetKing() { return King; }
-        inline std::string GetName() { return DisplayName; }
+        inline std::string GetName() { return State.DisplayName; }
         
         std::vector< CardEntity* > GetAllCards();
         CardEntity* PerformTouchTrace( const cocos2d::Vec2& inPos );
         
-        inline int GetMana() const { return Mana; }
+        inline int GetMana() const { return State.Mana; }
         void SetMana( int In );
         
-        inline int GetHealth() const { return Health; }
+        inline int GetHealth() const { return State.Health; }
         void SetHealth( int In );
         
         inline bool IsOpponent() const { return bOpponent; }
@@ -54,12 +55,12 @@ namespace Game
         
         // Custom Card Back Textures
         inline std::string GetBackTexture() { return CardBackTexture; }
+        inline PlayerState GetState() const { return State; }
         
-    private:
-        
-        CardEntity* _Impl_TraceTouch( std::deque< CardEntity* >::iterator Begin, std::deque< CardEntity* >::iterator End, const cocos2d::Vec2& inPos );
-        
-        bool _bIsTurn = false;
+        // State
+        std::string DisplayName;
+        int Mana;
+        int Health;
         
     protected:
         
@@ -71,13 +72,6 @@ namespace Game
         KingEntity* King;
         
         std::string CardBackTexture;
-        
-        // Traits
-        std::string DisplayName;
-        
-        int Mana;
-        int Health;
-        
         bool bOpponent;
         
         // Actions
@@ -88,9 +82,16 @@ namespace Game
 
         uint32_t lastDrawId = 0;
         
-        // Friend the launcher
-        friend class SingleplayerLauncher;
+        PlayerState State;
         
+    private:
+        
+        CardEntity* _Impl_TraceTouch( std::deque< CardEntity* >::iterator Begin, std::deque< CardEntity* >::iterator End, const cocos2d::Vec2& inPos );
+        
+        bool _bIsTurn = false;
+        
+        // Friend the State
+        friend class ClientState;
         
     };
     

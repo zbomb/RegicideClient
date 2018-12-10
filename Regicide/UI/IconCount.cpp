@@ -11,10 +11,10 @@
 #include "IconCount.hpp"
 
 
-IconCount* IconCount::Create( const std::string& inTexture, int inCount )
+IconCount* IconCount::Create( const std::string& inTexture, int inCount, int inFont )
 {
     auto Output = new (std::nothrow) IconCount();
-    if( Output && Output->init( inTexture, inCount ) )
+    if( Output && Output->init( inTexture, inCount, inFont ) )
     {
         Output->autorelease();
     }
@@ -40,19 +40,19 @@ IconCount::~IconCount()
     Count = nullptr;
 }
 
-bool IconCount::init( const std::string& inTexture, int inCount )
+bool IconCount::init( const std::string& inTexture, int inCount, int inFont )
 {
     if( !Node::init() )
         return false;
     
     Icon = cocos2d::Sprite::create( inTexture );
     Icon->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
-    addChild( Icon );
+    addChild( Icon, 1 );
     
-    Count = cocos2d::Label::createWithTTF( std::to_string( inCount ), "fonts/arial.ttf", 30 );
+    Count = cocos2d::Label::createWithTTF( std::to_string( inCount ), "fonts/arial.ttf", inFont );
     Count->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
     Count->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
-    addChild( Count );
+    addChild( Count, 2 );
     
     auto IconSize = Icon->getContentSize();
     auto CountSize = Count->getContentSize();
@@ -82,11 +82,3 @@ void IconCount::SetTextColor( const cocos2d::Color4B& inColor )
     }
 }
 
-void IconCount::SetZ( int In )
-{
-    if( Icon )
-        Icon->setGlobalZOrder( In );
-    
-    if( Count )
-        Count->setGlobalZOrder( In );
-}

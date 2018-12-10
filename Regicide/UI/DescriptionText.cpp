@@ -39,12 +39,10 @@ bool DescriptionText::init( const std::string &InDesc, float inWide, bool bDrawS
     Text->setAlignment( cocos2d::TextHAlignment::LEFT, cocos2d::TextVAlignment::TOP );
     Text->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
     Text->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
-    Text->setGlobalZOrder( 405 );
-    addChild( Text );
+    addChild( Text, 2 );
     
     Draw = cocos2d::DrawNode::create();
-    Draw->setGlobalZOrder( 405 );
-    addChild( Draw );
+    addChild( Draw, 1 );
     
     bDrawSeperator = bDrawSep;
     

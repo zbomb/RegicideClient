@@ -16,7 +16,8 @@
 #include "AuthorityBase.hpp"
 #include "Actions.hpp"
 #include "UI/CardViewer.hpp"
-
+#include "UI/CardSelector.hpp"
+#include "ClientState.hpp"
 
 namespace Game
 {
@@ -78,6 +79,8 @@ namespace Game
         
         bool _bSelectionEnabled;
         
+        CardSelector* _graveViewer;
+        
         /*====================================================
             End of Input Logic
          ====================================================*/
@@ -104,11 +107,15 @@ namespace Game
 
         inline void InvalidatePossibleActions() { _bCheckPossibleActions = true; }
         
+        inline ClientState* GetState() { return GetWorld()->GetState(); }
+        
     protected:
         
-        MatchState mState;
-        TurnState tState;
-        PlayerTurn pState;
+        void RunAction( Action& Target, std::function< void() > Callback );
+        void PopQueue( ActionQueue& Target );
+        void AddAction( const std::string& Name, std::function< Action*, std::function< void() > > Handler );
+        
+        std::map< std::string, std::function< Action*, std::function< void() > > ActionHandlers;
         
         void UpdateMatchState( MatchState In );
         void UpdateTurnState( TurnState In );

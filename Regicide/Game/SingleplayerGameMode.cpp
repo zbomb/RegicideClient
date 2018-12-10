@@ -46,7 +46,8 @@ void SingleplayerGameMode::Action_GameWon( Action* In, std::function< void() > C
     if( !Win )
     {
         cocos2d::log( "[GM] Win event occured, but unable to cast to WinAction!" );
-        Callback();
+        
+        FinishAction( Callback );
         return;
     }
     
@@ -104,4 +105,6 @@ void SingleplayerGameMode::Action_GameWon( Action* In, std::function< void() > C
             Scene->HideFinishButton();
         }
     }
+    
+    FinishAction( Callback );
 }

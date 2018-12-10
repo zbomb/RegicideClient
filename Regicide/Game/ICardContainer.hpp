@@ -45,13 +45,22 @@ namespace Game
         
         inline int GetTag() const { return i_Tag; }
         
-        virtual void InvalidateCards( CardEntity* IgnoredCard = nullptr, bool bParam = false ) = 0;
+        virtual void InvalidateCards( CardEntity* IgnoredCard = nullptr ) = 0;
         
     protected:
         
         void SetCardContainer( CardEntity* inCard )
         {
             inCard->Container = this;
+            
+            if( i_Tag == TAG_DECK )
+                inCard->State.Position = CardPos::DECK;
+            else if( i_Tag == TAG_FIELD )
+                inCard->State.Position = CardPos::FIELD;
+            else if( i_Tag == TAG_HAND )
+                inCard->State.Position = CardPos::HAND;
+            else if( i_Tag == TAG_GRAVE )
+                inCard->State.Position = CardPos::GRAVEYARD;
         }
         
         void ClearCardContainer( CardEntity* inCard )

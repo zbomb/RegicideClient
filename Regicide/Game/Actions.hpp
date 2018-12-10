@@ -43,59 +43,37 @@ namespace Game
         None
     };
     
-    // Action Base Class
     class Action
     {
     public:
-        // The target to call ExecuteAction on
-        uint32_t Target;
         
-        // The name of the action to run
-        std::string ActionName;
+        std::string Name;
         
-        // Boolean to track if the action has started
-        bool bHasStarted;
+        Action( const std::string& In )
+        : Name( In )
+        {}
         
-        Action* Owner;
+    };
+    
+    class ParallelAction : public Action
+    {
+    public:
         
-        std::vector< std::unique_ptr< Game::Action > > Children;
+        std::vector< std::unique_ptr< Game::Action > > Actions;
+        int Counter;
         
-        Action( const std::string& In, EntityBase* InTarget = nullptr )
-        : ActionName( In ), bHasStarted( false ), Owner( nullptr )
-        {
-            if( InTarget )
-                Target = InTarget->GetEntityId();
-            else
-                Target = 0;
-        }
-        
-        std::unique_ptr< Game::Action >& AddAction( Game::Action* newAction )
-        {
-            // Using Copy Ellison to move unique_ptr into children
-            Children.push_back( std::unique_ptr< Game::Action >( newAction )  );
-            auto& ret = Children.back();
-            ret->Owner = this;
-            return ret;
-        }
+        ParallelAction()
+        : Action( "Parallel" ), Counter( 0 )
+        {}
         
         template< typename T >
-        T* CreateAction( Game::EntityBase* InTarget = nullptr )
+        T* CreateAction()
         {
-            // Check type, create new action, move into vector, return reference
-            static_assert( std::is_base_of< Game::Action, T >::value, "Template argument must be derived from Action" );
+            static_assert( std::is_base_of< Game::Action, T >::value, "Template argument must be derived from Action!" );
             
-            Children.push_back( std::move( std::unique_ptr< T >( new (std::nothrow) T( InTarget ) ) ) );
-            
-            auto& newEntry = Children.back();
-            newEntry->Owner = this;
-            return dynamic_cast< T* >( newEntry.get() );
+            Actions.push_back( std::move( std::unique_ptr< T >( new (std::nothrow) T() ) ) );
+            return dynamic_cast< T* >( Actions.back().get() );
         }
-        
-        virtual ~Action()
-        {
-            Children.clear();
-        }
-        
     };
     
     static uint32_t _nextQueueId = 0;
@@ -105,75 +83,27 @@ namespace Game
         
         uint32_t Identifier;
         std::function< void() > Callback;
-        std::vector< std::unique_ptr< Game::Action > > ActionTree;
-        uint32_t Counter;
-        bool Executing;
+        std::queue< std::unique_ptr< Game::Action > > Actions;
         
         ActionQueue()
-        : Callback( nullptr ), Identifier( ++_nextQueueId ), Counter( 0 ), Executing( false )
+        : Callback( nullptr ), Identifier( ++_nextQueueId )
         {}
         
         ActionQueue( std::function< void() > InCallback )
-        : Callback( InCallback ), Identifier( ++_nextQueueId ), Counter( 0 ), Executing( false )
+        : Callback( InCallback ), Identifier( ++_nextQueueId )
         {}
         
-        std::unique_ptr< Game::Action >& AddAction( Game::Action* newAction )
-        {
-            // Using Copy Ellison to move unique_ptr into ActionTree
-            ActionTree.push_back( std::unique_ptr< Game::Action >( newAction )  );
-            return ActionTree.back();
-        }
-        
         template< typename T >
-        T* CreateAction( Game::EntityBase* InTarget = nullptr )
+        T* CreateAction()
         {
             // Check type, create new action, move into vector, return reference
             static_assert( std::is_base_of< Game::Action, T >::value, "Template argument must be derived from Action" );
             
-            ActionTree.push_back( std::move( std::unique_ptr< T >( new (std::nothrow) T( InTarget ) ) ) );
+            Actions.push( std::move( std::unique_ptr< T >( new (std::nothrow) T() ) ) );
             
             // We need to get the new unique_ptr we added, get the raw pointer and cast back to desired type
-            auto& newEntry = ActionTree.back();
+            auto& newEntry = Actions.back();
             return dynamic_cast< T* >( newEntry.get() );
-        }
-        
-        void AddActionLua( Game::Action* newAction )
-        {
-            AddAction( newAction );
-        }
-        
-    private:
-        
-        uint32_t _CountActionBranch( std::vector< std::unique_ptr< Game::Action > >::iterator It )
-        {
-            // Were going to count any null pointers, because when we go to execute, we will
-            // decrement the action counter when we come across a null action. We dont have a way
-            // to check if the action became null AFTER the count, so we will just count everything
-            uint32_t Output = 1;
-            
-            if( *It )
-            {
-                for( auto ChIt = (*It)->Children.begin(); ChIt != (*It)->Children.end(); ChIt++ )
-                {
-                    Output += _CountActionBranch( ChIt );
-                }
-            }
-            
-            return Output;
-        }
-        
-    public:
-        
-        // Counts up the number of total actions contained in the action tree
-        // 'Counter' gets set to this value
-        void CountActions()
-        {
-            Counter = 0;
-            
-            for( auto It = ActionTree.begin(); It != ActionTree.end(); It++ )
-            {
-                Counter += _CountActionBranch( It );
-            }
         }
     
     };
@@ -183,17 +113,18 @@ namespace Game
     {
     public:
         
-        PlayCardAction( EntityBase* In = nullptr )
-        : Action( "PlayCard", In ), bNeedsMove( true ), bWasSuccessful( true ),
-        TargetCard( 0 ), TargetIndex( -1 )
+        PlayCardAction()
+        : Action( "PlayCard" ), bNeedsMove( true ), bWasSuccessful( true ),
+        TargetCard( 0 ), TargetIndex( -1 ), TargetPlayer( 0 )
         {}
         
+        // Todo: Simplify to only TargetPlayer, TargetCard and TargetIndex (index is basically a passthrough)
         
         bool bNeedsMove;
         bool bWasSuccessful;
         uint32_t TargetCard;
         int32_t TargetIndex;
-        
+        uint32_t TargetPlayer;
     };
     
     // Targets players
@@ -201,11 +132,12 @@ namespace Game
     {
     public:
         
-        UpdateManaAction( EntityBase* In = nullptr )
-        : Action( "UpdateMana", In )
+        UpdateManaAction()
+        : Action( "UpdateMana" )
         {}
         
-        uint32_t UpdatedMana;
+        uint32_t TargetPlayer;
+        int Amount;
     };
     
     // Targets players
@@ -213,10 +145,11 @@ namespace Game
     {
     public:
         
-        DrawCardAction( EntityBase* In = nullptr )
-        : Action( "DrawCard", In )
+        DrawCardAction()
+        : Action( "DrawCard" )
         {}
         
+        uint32_t TargetPlayer;
         uint32_t TargetCard;
     };
     
@@ -225,8 +158,8 @@ namespace Game
     {
     public:
         
-        LoadCardAction( EntityBase* In = nullptr )
-        : Action( "LoadCard", In )
+        LoadCardAction()
+        : Action( "LoadCard" )
         {}
         
         // TODO: Decide if we should send json or a c-struct
@@ -242,10 +175,11 @@ namespace Game
     {
     public:
         
-        CoinFlipAction( EntityBase* In = nullptr )
-        : Action( "CoinFlip", In )
+        CoinFlipAction()
+        : Action( "CoinFlip" )
         {}
         
+        uint32_t PlayerId; // TODO: Switch over to Id system
         PlayerTurn StartingPlayer;
     };
     
@@ -254,8 +188,8 @@ namespace Game
     {
     public:
         
-        TimedQueryAction( EntityBase* In = nullptr )
-        : Action( "TimedQuery", In )
+        TimedQueryAction()
+        : Action( "TimedQuery" )
         {}
         
         std::chrono::steady_clock::time_point Deadline;
@@ -266,8 +200,8 @@ namespace Game
     {
     public:
         
-        EventAction( EntityBase* In = nullptr )
-        : Action( "Event", In )
+        EventAction()
+        : Action( "Event" )
         {}
     };
     
@@ -275,8 +209,8 @@ namespace Game
     {
     public:
         
-        CardErrorAction( EntityBase* In = nullptr )
-        : Action( "BlitzError", In )
+        CardErrorAction()
+        : Action( "BlitzError" )
         {}
         
         std::map< uint32_t, uint8_t > Errors;
@@ -286,11 +220,11 @@ namespace Game
     {
     public:
         
-        TurnStartAction( EntityBase* In = nullptr )
-        : Action( "TurnStart", In )
+        TurnStartAction()
+        : Action( "TurnStart" )
         {}
         
-        PlayerTurn pState;
+        uint32_t Player; // TODO: Move to Player Id system
     };
     
     // Damage
@@ -298,14 +232,13 @@ namespace Game
     {
     public:
         
-        DamageAction( EntityBase* In )
-        : Action( "Damage", In ), StaminaDrain( 0 )
+        DamageAction()
+        : Action( "Damage" ), StaminaDrain( 0 )
         {}
         
-        CardEntity* Target;
-        CardEntity* Inflictor;
+        uint32_t Target;
+        uint32_t Inflictor;
         uint16_t Damage;
-        
         uint16_t StaminaDrain;
     };
     
@@ -314,12 +247,25 @@ namespace Game
     {
     public:
         
-        StaminaDrainAction( EntityBase* In )
-        : Action( "StaminaDrain", In )
+        StaminaDrainAction()
+        : Action( "StaminaDrain" )
         {}
         
-        CardEntity* Target;
-        CardEntity* Inflictor;
+        uint32_t Target;
+        uint32_t Inflictor;
+        uint16_t Amount;
+    };
+    
+    class UpdateStaminaAction : public Action
+    {
+    public:
+        
+        UpdateStaminaAction()
+        : Action( "UpdateStamina" )
+        {}
+        
+        uint32_t Target;
+        uint32_t Inflictor;
         uint16_t Amount;
     };
     
@@ -327,11 +273,28 @@ namespace Game
     {
     public:
         
-        WinAction( EntityBase* In )
-        : Action( "Win", In )
+        WinAction()
+        : Action( "Win" )
         {}
         
-        bool bDidWin;
+        uint32_t Player; // TODO: Move to player id system
+    };
+    
+    class CombatAction : public Action
+    {
+    public:
+        
+        CombatAction()
+        : Action( "Combat" )
+        {}
+        
+        uint32_t Attacker;
+        uint32_t Blocker;
+        uint16_t FinalAttackerPower;
+        uint16_t FinalBlockerPower;
+        uint16_t FinalAttackerStamina;
+        uint16_t FinalBlockerStamina;
+        
     };
     
     

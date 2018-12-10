@@ -18,6 +18,7 @@ namespace Game
 {
     class GameModeBase;
     class AuthorityBase;
+    class ClientState;
     
     class World : public EntityBase
     {
@@ -32,6 +33,7 @@ namespace Game
         
         inline GameModeBase* GetGameMode() { return GM; }
         inline AuthorityBase* GetAuthority() { return Auth; }
+        inline ClientState* GetGameState() { return State; }
         
         template< typename T >
         T* GetGameMode();
@@ -41,15 +43,14 @@ namespace Game
         
         inline cocos2d::Scene* GetScene() { return LinkedScene; }
         
-        inline Player* GetLocalPlayer() { return LocalPlayer; }
-        inline Player* GetOpponent() { return Opponent; }
+        Player* GetLocalPlayer();
+        Player* GetOpponent();
         
     protected:
         
         GameModeBase* GM;
         AuthorityBase* Auth;
-        Player* LocalPlayer;
-        Player* Opponent;
+        ClientState* State;
 
         static World* CurrentInstance;
     

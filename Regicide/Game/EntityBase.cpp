@@ -182,6 +182,13 @@ std::vector< CardEntity* > IEntityManager::GetAllCards()
     return Output;
 }
 
+uint32_t IEntityManager::AllocateIdentifier()
+{
+    // Increments and returns the next entity Id
+    NextEntityId++;
+    return NextEntityId;
+}
+
 
 /*=====================================================================================================
  ======================================================================================================
@@ -209,6 +216,7 @@ EntityBase::EntityBase( const std::string& Name )
 {
     EName = Name;
     
+    LastActionCallback = 0;
     Position = cocos2d::Vec2::ZERO;
     Rotation = 0.f;
     LinkedScene = nullptr;
@@ -507,6 +515,23 @@ void EntityBase::PerformAction( Game::Action* In, std::function< void() > OnComp
 void EntityBase::SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback )
 {
     ActionCallbacks[ ActionId ] = Callback;
+}
+
+/*======================================================================================================
+    EntityBase::FinishAction( function() ActionCallback, float Delay )
+    -> Calls an action callback to signal the completion of an action after a specified delay
+    -> Generates unique id's so there is no issue with overlapping timer id's
+ ======================================================================================================*/
+void EntityBase::FinishAction( std::function<void ()> InCallback, float InDelay /* = 0.f */ )
+{
+    if( InDelay <= 0.f )
+    {
+        InCallback();
+    }
+    else
+    {
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( InCallback ) InCallback(); }, this, InDelay, 0, 0.f, false, "ActionFinish_" + std::to_string( LastActionCallback++ ) );
+    }
 }
 
 /*=================================================================================================

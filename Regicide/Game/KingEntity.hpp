@@ -12,6 +12,7 @@
 
 #include "EntityBase.hpp"
 #include "LuaEngine.hpp"
+#include "CardEntity.hpp"
 
 namespace Game
 {
@@ -36,6 +37,10 @@ namespace Game
         inline Player* GetOwningPlayer() { return OwningPlayer; }
         
         bool GetHook( const std::string& Name, luabridge::LuaRef& Out );
+        std::shared_ptr< luabridge::LuaRef > Hooks;
+        
+        void MarkAsState();
+        inline CardState GetState() const { return State; }
         
     protected:
         
@@ -52,11 +57,12 @@ namespace Game
         cocos2d::Label* ManaLabel;
         Player* OwningPlayer;
         
-        std::shared_ptr< luabridge::LuaRef > Hooks;
-        
         bool bAddedToScene;
         bool bIsOpponent;
+        bool bIsState;
         
+        CardState State;
         friend class SingleplayerLauncher;
+        friend class ClientState;
     };
 }

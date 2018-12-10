@@ -17,6 +17,7 @@
 #include "GraveyardEntity.hpp"
 #include "KingEntity.hpp"
 #include "Scenes/GameScene.hpp"
+#include "SingleplayerAuthority.hpp"
 
 using namespace Game;
 
@@ -41,17 +42,13 @@ GameModeBase::GameModeBase()
     SetActionCallback( "StaminaDrain",  std::bind( &GameModeBase::Action_StaminaDrain,  this, _1, _2 ) );
     SetActionCallback( "CleanupBoard",  std::bind( &GameModeBase::Action_CleanupBoard,  this, _1, _2 ) );
     
-    // Default State
-    mState  = MatchState::PreMatch;
-    tState  = TurnState::PreTurn;
-    pState  = PlayerTurn::LocalPlayer;
-    
     lastDamageId    = 0;
     lastDrainId     = 0;
     
     _Viewer         = nullptr;
     _touchedCard    = nullptr;
     _viewCard       = nullptr;
+    _graveViewer    = nullptr;
     
     _bSelectionEnabled  = true;
     
@@ -61,7 +58,10 @@ GameModeBase::GameModeBase()
 
 GameModeBase::~GameModeBase()
 {
-
+    _Viewer         = nullptr;
+    _touchedCard    = nullptr;
+    _viewCard       = nullptr;
+    _graveViewer    = nullptr;
 }
 
 void GameModeBase::Initialize()
@@ -84,6 +84,7 @@ void GameModeBase::Cleanup()
     ActiveQueues.clear();
     
     _DoCloseViewer();
+    CloseGraveyardViewer();
 }
 
 
@@ -308,7 +309,7 @@ bool GameModeBase::OnBlockerSelect( CardEntity *inBlocker, CardEntity *inAttacke
         return false;
 
     // Check Stamina
-    if( inBlocker->Stamina <= 0 )
+    if( inBlocker->GetState().Stamina <= 0 )
         return false;
 
     // Ensure Attacker
@@ -317,25 +318,6 @@ bool GameModeBase::OnBlockerSelect( CardEntity *inBlocker, CardEntity *inAttacke
 
     // Call 'CanBeBlock' and 'CanBlock' hooks
     // TODO: Should move to Authority? Or different system for checking this?
-    auto Engine = Regicide::LuaEngine::GetInstance();
-    luabridge::LuaRef BlockHook( Engine->State() );
-    luabridge::LuaRef CanBlockHook( Engine->State() );
-    
-    if( inAttacker->GetHook( "CanBeBlocked", BlockHook ) && BlockHook.isFunction() )
-    {
-        if( !BlockHook( inAttacker, inBlocker ) )
-        {
-            return false;
-        }
-    }
-    
-    if( inBlocker->GetHook( "CanBlock", CanBlockHook ) && CanBlockHook.isFunction() )
-    {
-        if( !CanBlockHook( inBlocker, inAttacker ) )
-        {
-            return false;
-        }
-    }
     
     // Looks good, store this choice
     BlockMatrix[ inBlocker ] = inAttacker;
@@ -462,7 +444,11 @@ void GameModeBase::CloseCardViewer()
 
 void GameModeBase::CloseGraveyardViewer()
 {
-    
+    if( _graveViewer )
+    {
+        _graveViewer->removeFromParent();
+        _graveViewer = nullptr;
+    }
 }
 
 
@@ -482,10 +468,10 @@ void GameModeBase::OpenCardViewer( CardEntity *inCard )
         return;
     
     _viewCard = inCard;
+    auto scene = GetScene();
     
-    auto dir = cocos2d::Director::getInstance();
-    auto origin = dir->getVisibleOrigin();
-    auto scene = dir->getRunningScene();
+    if( !scene )
+        return;
     
     // For now, were just going to create a new UI menu, that fades in containing
     // the full sized card image, instead of trying to perform a sprite animation
@@ -500,7 +486,6 @@ void GameModeBase::OpenCardViewer( CardEntity *inCard )
     if( bCanPlay )
         _Viewer->SetPlayCallback( std::bind( &GameModeBase::PlayCard, this, inCard, -1 ) );
     
-    _Viewer->setGlobalZOrder( 300 );
     scene->addChild( _Viewer, 200 );
 }
 
@@ -538,7 +523,26 @@ void GameModeBase::OpenHandViewer( CardEntity *inCard )
 
 void GameModeBase::OpenGraveyardViewer( GraveyardEntity *Grave )
 {
-    cocos2d::log( "[DEBUG] OPENING GRAVEYARD VIEWER" );
+    if( _graveViewer )
+    {
+        _graveViewer->removeFromParent();
+        _graveViewer = nullptr;
+    }
+    
+    auto Scene = GetScene();
+    
+    if( !Scene )
+        return;
+    
+    _graveViewer = CardSelector::Create( Grave->Begin(), Grave->End() );
+    _graveViewer->Lock();
+    _graveViewer->SetConfirmLabel( "Close" );
+    _graveViewer->SetConfirm( [ = ]()
+    {
+        CloseGraveyardViewer();
+    } );
+    
+    Scene->addChild( _graveViewer, 199 );
 }
 
 
@@ -598,7 +602,10 @@ void GameModeBase::DisableSelection()
 
 void GameModeBase::UpdateMatchState( MatchState In )
 {
-    mState = In;
+    auto State = GetState();
+    CC_ASSERT( State );
+    
+    State->mState = In;
     
     // Update Label
     auto ParentScene = GetScene();
@@ -632,7 +639,10 @@ void GameModeBase::UpdateMatchState( MatchState In )
 
 void GameModeBase::UpdateTurnState( TurnState In )
 {
-    tState = In;
+    auto State = GetState();
+    CC_ASSERT( State );
+    
+    State->tState = In;
     
     // Update Label
     if( mState == MatchState::Main )
@@ -668,7 +678,10 @@ void GameModeBase::UpdateTurnState( TurnState In )
 
 void GameModeBase::UpdatePlayerTurn( PlayerTurn In )
 {
-    pState = In;
+    auto State = GetState();
+    CC_ASSERT( State );
+    
+    State->pState = In;
     
     // Update Label
     if( mState == MatchState::Main )
@@ -770,11 +783,88 @@ void GameModeBase::PostInit()
     cocos2d::Director::getInstance()->getScheduler()->schedule( std::bind( &GameModeBase::Tick, this, std::placeholders::_1 ), this, 0.f, CC_REPEAT_FOREVER, 0.f, false, "GMTick" );
 }
 
+void GameModeBase::AddAction( const std::string& In, std::function< Action*, std::function< void() > > Handler )
+{
+    ActionHandlers[ In ] = Handler;
+}
+
+void GameModeBase::RunAction( Action& Target, std::function< void() > Callback )
+{
+    // Check if a callback exists for this action name
+    if( ActionHandlers.count( Target.Name ) <= 0 )
+    {
+        cocos2d::log( "[GM] No action handler bound to '%s'", Target.Name.c_str() );
+        Callback();
+        return;
+    }
+    
+    auto& Func = ActionHandlers[ Target.Name ];
+    if( Func )
+    {
+        Func( &Target, Callback );
+    }
+}
+
+void GameModeBase::PopAction( ActionQueue& Target )
+{
+    if( Target.Actions.empty() )
+    {
+        // Run queue callback
+        if( Target.Callback )
+            Target.Callback();
+        
+        return;
+    }
+    
+    auto& NextNode = Target.Actions.front();
+    if( NextNode->Name == "Parallel" )
+    {
+        // Parallel Actions!
+        ParallelAction* Parallel = dynamic_cast< ParallelAction* >( &NextNode );
+        if( !Parallel )
+        {
+            cocos2d::log( "[GM] Invalid parallel action in queue!" );
+            Target.Actions.pop();
+            PopAction( Target );
+            return;
+        }
+        
+        for( auto It = Parallel->Actions.begin(); It != Parallel->Actions.end(); It++ )
+        {
+            if( *It )
+            {
+                RunAction( *It, [ = ]()
+                {
+                    Parallel->Counter++;
+                    
+                    if( Parallel->Counter >= Parallel->Actions.size() )
+                    {
+                        // Parallel action complete!
+                        // Pop and continue to next action
+                        Target.Actions.pop();
+                        this->PopAction( Target );
+                    }
+                } );
+            }
+        }
+    }
+    else
+    {
+        RunAction( *NextNode, [ = ]()
+        {
+            // Pop and continue to next action
+            Target.Actions.pop();
+            this->PopAction( Target );
+        } );
+    }
+}
 
 void GameModeBase::RunActionQueue( ActionQueue&& In )
 {
-    // If were in post match, stop all actions
-    if( mState == MatchState::PostMatch )
+    auto State = GetState();
+    
+    // If the match is over, stop running actions
+    if( !State || State->mState == MatchState::PostMatch )
         return;
     
     // Validate
@@ -785,6 +875,9 @@ void GameModeBase::RunActionQueue( ActionQueue&& In )
             In.Callback();
         return;
     }
+    
+    // Pop actions off, one by one and execute
+    
     
     // Check if identifier is in use
     auto Identifier = In.Identifier;
@@ -934,24 +1027,30 @@ bool GameModeBase::CanPlayCard( CardEntity* In )
 // We needed a seperate function, that doesnt check if action queues are in progress
 bool GameModeBase::CouldPlayCard( CardEntity* In )
 {
+    auto State = GetState();
+    if( !State )
+        return false;
+    
     if( !In || !In->InHand() )
         return false;
     
     Player* LocalPlayer = GetPlayer();
     
-    if( mState != MatchState::Main || tState != TurnState::Marshal || pState != PlayerTurn::LocalPlayer )
+    if( State->mState != MatchState::Main || State->tState != TurnState::Marshal || State->pState != PlayerTurn::LocalPlayer )
         return false;
     
-    return In->GetOwningPlayer() == LocalPlayer && In->ManaCost <= LocalPlayer->GetMana();
+    return In->GetOwningPlayer() == LocalPlayer && In->GetState().ManaCost <= LocalPlayer->GetMana();
 }
 
 bool GameModeBase::CanCardAttack( CardEntity *In )
 {
-    if( !In || !In->OnField() )
+    auto State = GetState();
+    
+    if( !State || !In || !In->OnField() )
         return false;
     
     Player* LocalPlayer = GetPlayer();
-    if( mState != MatchState::Main || tState != TurnState::Attack || pState != PlayerTurn::LocalPlayer )
+    if( State->mState != MatchState::Main || State->tState != TurnState::Attack || State->pState != PlayerTurn::LocalPlayer )
         return false;
     
     if( In->Stamina <= 0 )
@@ -962,11 +1061,13 @@ bool GameModeBase::CanCardAttack( CardEntity *In )
 
 bool GameModeBase::CanCardBlock( CardEntity *In, CardEntity *Target )
 {
-    if( !In || !In->OnField() )
+    auto State = GetState();
+    
+    if( !State || !In || !In->OnField() )
         return false;
     
     Player* LocalPlayer = GetPlayer();
-    if( mState != MatchState::Main || tState != TurnState::Block || pState != PlayerTurn::Opponent )
+    if( State->mState != MatchState::Main || State->tState != TurnState::Block || State->pState != PlayerTurn::Opponent )
         return false;
     
     if( In->Stamina <= 0 )
@@ -978,7 +1079,6 @@ bool GameModeBase::CanCardBlock( CardEntity *In, CardEntity *Target )
 bool GameModeBase::CanTriggerAbility( CardEntity* In )
 {
     // Check if any abilities can be activated
-    
     if( !In )
         return false;
     
@@ -986,15 +1086,27 @@ bool GameModeBase::CanTriggerAbility( CardEntity* In )
     if( !Player )
         return false;
     
-    for( auto It = In->Abilities.begin(); It != In->Abilities.end(); It++ )
+    auto Info = In->GetInfo();
+    if( Info )
     {
-        auto& Ability = It->second;
-        
-        if( Ability.ManaCost > Player->GetMana() || Ability.StaminaCost > In->Stamina )
-            continue;
-        
-        if( ( *Ability.CheckFunc )( In ) )
+        for( auto It = Info->Abilities.begin(); It != Info->Abilities.end(); It++ )
+        {
+            auto& Ability = It->second;
+            if( Ability.ManaCost > Player->GetMana() || Ability.StaminaCost > In->Stamina )
+                continue;
+            
+            if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
+            {
+                // TODO: Update to new system!
+                auto Context = GameContext();
+                Context.SetState( In->GetState() );
+                
+                if( !( *Ability.CheckFunc )( Context ) )
+                    continue;
+            }
+            
             return true;
+        }
     }
     
     return false;
@@ -1016,18 +1128,19 @@ bool GameModeBase::PlayCard( CardEntity* In, int Index )
 
 void GameModeBase::FinishTurn()
 {
+    auto State = GetState();
     auto Auth = GetAuthority< AuthorityBase >();
     auto Scene = dynamic_cast< GameScene* >( GetScene() );
-    CC_ASSERT( Auth && Scene );
+    CC_ASSERT( Auth && Scene && State );
     
     cocos2d::log( "[GM] Finishing Turn" );
     
     // If were in the attack or block phase, we need to send card list
-    if( mState == MatchState::Main )
+    if( State->mState == MatchState::Main )
     {
-        if( pState == PlayerTurn::LocalPlayer )
+        if( State->pState == PlayerTurn::LocalPlayer )
         {
-            if( tState == TurnState::Attack )
+            if( State->tState == TurnState::Attack )
             {
                 std::vector< CardEntity* > AttackCards;
                 auto pl = GetPlayer();
@@ -1053,14 +1166,14 @@ void GameModeBase::FinishTurn()
                     Auth->SetAttackers( AttackCards );
                 }
             }
-            else if( tState == TurnState::Marshal )
+            else if( State->tState == TurnState::Marshal )
             {
                 Auth->FinishTurn();
             }
         }
-        else if( pState == PlayerTurn::Opponent )
+        else if( State->pState == PlayerTurn::Opponent )
         {
-            if( tState == TurnState::Block )
+            if( State->tState == TurnState::Block )
             {
                 if( BlockMatrix.size() <= 0 )
                 {
@@ -1085,14 +1198,15 @@ void GameModeBase::Action_CoinFlip( Action* In, std::function< void() > Callback
     if( !coinFlip )
     {
         cocos2d::log( "[GM] Failed to run coin flip.. invalid action!" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
     UpdatePlayerTurn( coinFlip->StartingPlayer );
     
     // TODO: Run animation
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 1.f, 0, 0.f, false, "CoinFlipCallback" );
+    FinishAction( Callback, 1.f );
 }
 
 void GameModeBase::Action_BlitzStart( Action *In, std::function<void ()> Callback )
@@ -1102,7 +1216,7 @@ void GameModeBase::Action_BlitzStart( Action *In, std::function<void ()> Callbac
     UpdateMatchState( MatchState::Blitz );
     
     // TODO: UI Updates?
-    Callback();
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_BlitzQuery( Action *In, std::function<void ()> Callback )
@@ -1112,7 +1226,8 @@ void GameModeBase::Action_BlitzQuery( Action *In, std::function<void ()> Callbac
     if( !blitzStart )
     {
         cocos2d::log( "[GM] Failed to start blitz query! Invalid action cast" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
@@ -1128,7 +1243,7 @@ void GameModeBase::Action_BlitzQuery( Action *In, std::function<void ()> Callbac
         Hand->OpenBlitzMode();
     }
     
-    Callback();
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_BlitzError( Action *In, std::function<void ()> Callback )
@@ -1145,7 +1260,8 @@ void GameModeBase::Action_BlitzError( Action *In, std::function<void ()> Callbac
     if( !Error )
     {
         cocos2d::log( "[GM] Invalid Blitz cards selected, but couldnt read error message!" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
@@ -1155,7 +1271,7 @@ void GameModeBase::Action_BlitzError( Action *In, std::function<void ()> Callbac
         auto Card = EntManager.GetEntity< CardEntity >( It->first );
         if( Card )
         {
-            cocos2d::log( "[GM] Blitz Error: Card (%s) couldnt be selected.. error message #%d", Card->DisplayName.c_str(), It->second );
+            cocos2d::log( "[GM] Blitz Error: Card (%s) couldnt be selected.. error message #%d", Card->GetInfo()->DisplayName.c_str(), It->second );
             
             // Deselect the card
             if( Hand )
@@ -1166,6 +1282,8 @@ void GameModeBase::Action_BlitzError( Action *In, std::function<void ()> Callbac
             cocos2d::log( "[GM] Blitz Error: Card (%d) cant be selected.. error message #%d", It->first, It->second );
         }
     }
+    
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_AttackError( Action *In, std::function<void ()> Callback )
@@ -1176,7 +1294,7 @@ void GameModeBase::Action_AttackError( Action *In, std::function<void ()> Callba
     if( !Error )
     {
         cocos2d::log( "[GM] Invalid attack cards selected, but couldnt read error message!" );
-        Callback();
+        FinishAction( Callback, 0.25f );
         return;
     }
     
@@ -1188,7 +1306,7 @@ void GameModeBase::Action_AttackError( Action *In, std::function<void ()> Callba
         auto Card = EntManager.GetEntity< CardEntity >( It->first );
         if( Card )
         {
-            cocos2d::log( "[GM] Attack Error: Card (%s) couldnt attack.. error message #%d", Card->DisplayName.c_str(), It->second );
+            cocos2d::log( "[GM] Attack Error: Card (%s) couldnt attack.. error message #%d", Card->GetInfo()->DisplayName.c_str(), It->second );
             
             // Deselect the card
             Card->bAttacking = false;
@@ -1200,6 +1318,8 @@ void GameModeBase::Action_AttackError( Action *In, std::function<void ()> Callba
             cocos2d::log( "[GM] Blitz Error: Card (%d) cant be selected.. error message #%d", It->first, It->second );
         }
     }
+    
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_MainStart( Action *In, std::function<void ()> Callback )
@@ -1217,8 +1337,7 @@ void GameModeBase::Action_MainStart( Action *In, std::function<void ()> Callback
         Hand->CloseBlitzMode();
     }
     
-    // Allow 0.25s of grace time for blitz-selector animation
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=] ( float f ) { if( Callback ) Callback(); }, this, 0.3f, 0, 0.f, false, "FinishSelector" );
+    FinishAction( Callback, 0.3f );
 }
 
 void GameModeBase::Action_TurnStart( Action* In, std::function< void() > Callback )
@@ -1238,11 +1357,14 @@ void GameModeBase::Action_TurnStart( Action* In, std::function< void() > Callbac
     
     // TODO: Update UI
     
-    Callback();
+    FinishAction( Callback );
 }
 
 void GameModeBase::Action_MarshalStart( Action* In, std::function< void() > Callback )
 {
+    auto State = GetState();
+    CC_ASSERT( State );
+    
     UpdateMatchState( MatchState::Main );
     UpdateTurnState( TurnState::Marshal );
     
@@ -1254,7 +1376,7 @@ void GameModeBase::Action_MarshalStart( Action* In, std::function< void() > Call
     // Enable Finish Button
     auto scene = dynamic_cast< GameScene* >( GetScene() );
     
-    if( pState == PlayerTurn::LocalPlayer )
+    if( State->pState == PlayerTurn::LocalPlayer )
     {
         if( scene )
             scene->ShowFinishButton();
@@ -1265,11 +1387,14 @@ void GameModeBase::Action_MarshalStart( Action* In, std::function< void() > Call
             scene->HideFinishButton();
     }
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.25f, 0, 0.f, false, "FinishMarshalStart" );
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_AttackStart( Action* In, std::function< void() > Callback )
 {
+    auto State = GetState();
+    CC_ASSERT( State );
+    
     UpdateMatchState( MatchState::Main );
     UpdateTurnState( TurnState::Attack );
     
@@ -1280,7 +1405,7 @@ void GameModeBase::Action_AttackStart( Action* In, std::function< void() > Callb
     
     auto scene = dynamic_cast< GameScene* >( GetScene() );
     
-    if( pState == PlayerTurn::LocalPlayer )
+    if( State->pState == PlayerTurn::LocalPlayer )
     {
         if( scene )
             scene->ShowFinishButton();
@@ -1291,11 +1416,14 @@ void GameModeBase::Action_AttackStart( Action* In, std::function< void() > Callb
             scene->HideFinishButton();
     }
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.25f, 0, 0.f, false, "FinishAttackStart" );
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callback )
 {
+    auto State = GetState();
+    CC_ASSERT( State );
+    
     UpdateMatchState( MatchState::Main );
     UpdateTurnState( TurnState::Block );
     
@@ -1303,7 +1431,7 @@ void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callba
     
     auto scene = dynamic_cast< GameScene* >( GetScene() );
     
-    if( pState == PlayerTurn::Opponent )
+    if( State->pState == PlayerTurn::Opponent )
     {
         if( scene )
             scene->ShowFinishButton();
@@ -1316,7 +1444,7 @@ void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callba
     
     cocos2d::log( "[GM] Block Started..." );
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.26f, 0, 0.f, false, "FinishBlockStart" );
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_PostTurnStart( Action *In, std::function<void ()> Callback )
@@ -1330,7 +1458,7 @@ void GameModeBase::Action_PostTurnStart( Action *In, std::function<void ()> Call
     
     cocos2d::log( "[GM] Post Turn Started..." );
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d ) { if( Callback ) Callback(); }, this, 0.25f, 0, 0.f, false, "FinishPostTurnStart" );
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_DamageStart( Action* In, std::function< void() > Callback )
@@ -1356,7 +1484,7 @@ void GameModeBase::Action_DamageStart( Action* In, std::function< void() > Callb
     if( OpField )
         OpField->PauseInvalidate();
     
-    Callback();
+    FinishAction( Callback, 0.25f );
 }
 
 void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callback )
@@ -1365,7 +1493,8 @@ void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callb
     if( !Drain )
     {
         cocos2d::log( "[GM] Recieved stamina drain, but the event was invalid" );
-        Callback();
+        
+        FinishAction( Callback );
         return;
     }
     
@@ -1373,10 +1502,10 @@ void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callb
     {
         // TODO: Hooks
         
-        Drain->Target->UpdateStamina( Drain->Target->Stamina - Drain->Amount );
+        Drain->Target->UpdateStamina( Drain->Target->GetState().Stamina - Drain->Amount );
         
         // Check for death
-        if( Drain->Target->Power <= 0 || Drain->Target->Stamina <= 0 )
+        if( Drain->Target->GetState().Power <= 0 || Drain->Target->GetState().Stamina <= 0 )
         {
             cocos2d::log( "[GM] Card Died!" );
             auto cont = Drain->Target->GetContainer();
@@ -1398,7 +1527,7 @@ void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callb
         }
     }
     
-        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.5f, 0, 0.f, false, "StaminaCallback" + std::to_string( lastDrainId++ ) );
+    FinishAction( Callback, 0.5f );
 }
 
 void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callback )
@@ -1407,7 +1536,8 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
     if( !Damage )
     {
         cocos2d::log( "[GM] Received card damage, but the event was invalid!" );
-        Callback();
+        
+        FinishAction( Callback );
         return;
     }
     
@@ -1415,10 +1545,10 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
     {
         // TODO: Hooks
         
-        Damage->Target->UpdatePower( Damage->Target->Power - Damage->Damage );
+        Damage->Target->UpdatePower( Damage->Target->GetState().Power - Damage->Damage );
         
         // Check for death
-        if( Damage->Target->Power <= 0 || Damage->Target->Stamina <= 0 )
+        if( Damage->Target->GetState().Power <= 0 || Damage->Target->GetState().Stamina <= 0 )
         {
             cocos2d::log( "[GM] Card Died!" );
             auto cont = Damage->Target->GetContainer();
@@ -1442,10 +1572,10 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
     
     if( Damage->Inflictor && Damage->StaminaDrain > 0 )
     {
-        Damage->Inflictor->UpdateStamina( Damage->Inflictor->Stamina - Damage->StaminaDrain );
+        Damage->Inflictor->UpdateStamina( Damage->Inflictor->GetState().Stamina - Damage->StaminaDrain );
         
         // Check for death
-        if( Damage->Inflictor->Power <= 0 || Damage->Inflictor->Stamina <= 0 )
+        if( Damage->Inflictor->GetState().Power <= 0 || Damage->Inflictor->GetState().Stamina <= 0 )
         {
             cocos2d::log( "[GM] Card Died!" );
             auto cont = Damage->Inflictor->GetContainer();
@@ -1483,7 +1613,7 @@ void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callbac
     if( bDirty )
         RedrawBlockers();
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.5f, 0, 0.f, false, "DamageCallback" + std::to_string( lastDamageId++ ) );
+    FinishAction( Callback, 0.5f );
 }
 
 
@@ -1501,7 +1631,7 @@ void GameModeBase::Action_CleanupBoard( Action *In, std::function<void ()> Callb
     if( OpField )
         OpField->ResumeInvalidate();
     
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, 0.75f, 0, 0.f, false, "CleanupCallback" );
+    FinishAction( Callback, 0.75f );
 }
 
 

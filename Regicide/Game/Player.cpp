@@ -24,13 +24,22 @@ using namespace Game;
 Player::Player()
 : EntityBase( "Player" )
 {
-    Mana                = 10;
+    State.Mana          = 10;
     CardBackTexture     = "CardBack.png";
     
-    Deck                = nullptr;
-    Field               = nullptr;
-    Hand                = nullptr;
-    Graveyard           = nullptr;
+    auto& Ent = IEntityManager::GetInstance();
+    
+    Deck                = Ent.CreateEntity< DeckEntity >();
+    Field               = Ent.CreateEntity< FieldEntity >();
+    Hand                = Ent.CreateEntity< HandEntity >();
+    Graveyard           = Ent.CreateEntity< GraveyardEntity >();
+    King                = Ent.CreateEntity< KingEntity >();
+    
+    AddChild( Deck );
+    AddChild( Field );
+    AddChild( Hand );
+    AddChild( Graveyard );
+    AddChild( King );
     
     using namespace std::placeholders;
     
@@ -40,15 +49,13 @@ Player::Player()
     SetActionCallback( "KingDamage", std::bind( &Player::Action_KingDamage, this, _1, _2 ) );
 }
 
+
 Player::~Player()
 {
     Deck                = nullptr;
     Field               = nullptr;
     Hand                = nullptr;
     Graveyard           = nullptr;
-    
-    CardBackTexture.clear();
-    DisplayName.clear();
 }
 
 void Player::Cleanup()
@@ -192,11 +199,11 @@ void Player::Action_UpdateMana( Action* In, std::function<void ()> Callback )
         return;
     }
     
-    Mana = updateMana->UpdatedMana;
+    State.Mana += updateMana->Amount;
     
     auto King = GetKing();
     if( King )
-        King->UpdateMana( Mana );
+        King->UpdateMana( State.Mana );
     
     Callback();
     
@@ -218,7 +225,8 @@ void Player::Action_DrawCard( Action* In, std::function< void() > Callback )
     if( !Card )
     {
         cocos2d::log( "[Player] Failed to run DrawCardAction because the target card was not found!" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
@@ -235,46 +243,43 @@ void Player::Action_DrawCard( Action* In, std::function< void() > Callback )
         Hand->AddToBottom( Card, true, Callback );
 }
 
-static uint32_t callbackNum = 0;
 void Player::Action_KingDamage( Action* In, std::function< void() > Callback )
 {
     auto damage = dynamic_cast< DamageAction* >( In );
     if( !damage )
     {
         cocos2d::log( "[Player] Received king damage action that was invalid!" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
     if( damage->Damage <= 0 )
     {
         cocos2d::log( "[Player] Received king damage action with invalid damage amount" );
-        Callback();
+        
+        FinishAction( Callback, 0.25f );
         return;
     }
     
     // Perform Damage
-    Health -= damage->Damage;
+    State.Health -= damage->Damage;
     cocos2d::log( "[Player] %d damage dealt to king", damage->Damage );
     
     auto king = GetKing();
     if( king )
-        king->UpdateHealth( Health );
+        king->UpdateHealth( State.Health );
     
     // TODO: Animation!
     
     // If we died, the Authority will detect it and send the needed actions
-    cocos2d::Director::getInstance()->getScheduler()->schedule( [=] ( float f )
-    {
-        if( Callback )
-            Callback();
-        
-    }, this, 0.5f, 0, 0.f, false, "KingDamageCallback" + std::to_string( callbackNum++ ) );
+    FinishAction( Callback, 0.5f );
 }
+
 
 void Player::SetMana( int In )
 {
-    Mana = In;
+    State.Mana = In;
     
     if( King )
         King->UpdateMana( In );
@@ -282,8 +287,10 @@ void Player::SetMana( int In )
 
 void Player::SetHealth( int In )
 {
-    Health = In;
+    State.Health = In;
     
     if( King )
         King->UpdateHealth( In );
 }
+
+

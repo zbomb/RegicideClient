@@ -13,6 +13,7 @@
 #include "EntityBase.hpp"
 #include "CardEntity.hpp"
 #include "ICardContainer.hpp"
+#include "LuaEngine.hpp"
 
 namespace Game
 {
@@ -51,11 +52,14 @@ namespace Game
         virtual void Invalidate() override;
         
         void InvalidateZOrder();
-        virtual void InvalidateCards( CardEntity* Ignore = nullptr, bool bParam = false ) override;
+        virtual void InvalidateCards( CardEntity* Ignore = nullptr ) override;
         
         int AttemptDrop( CardEntity* inCard, const cocos2d::Vec2& inPos );
         void PauseInvalidate();
         void ResumeInvalidate();
+        
+        luabridge::LuaRef _lua_GetCards();
+        void Clear();
         
     protected:
         

@@ -20,6 +20,8 @@
 #include "GraveyardEntity.hpp"
 #include "SingleplayerAuthority.hpp"
 #include "KingEntity.hpp"
+#include "AIController.hpp"
+#include "ClientState.hpp"
 
 
 using namespace Game;
@@ -195,7 +197,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     
     if( !Authority )
     {
-        EntityManager.DestroyEntity( Authority );
+        EntityManager.DestroyEntity( NewWorld );
         Error( "Failed to create authority!" );
         return;
     }
@@ -216,238 +218,53 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     NewWorld->AddChild( GM ); 
     NewWorld->GM = GM;
     
-    auto dir = cocos2d::Director::getInstance();
-    auto Origin = dir->getVisibleOrigin();
-    
-    // Create players
-    auto NewLocalPlayer = CreatePlayer( PlayerName, PlayerDeck, false );
-    
-    if( !NewLocalPlayer )
+    // Create GameState
+    auto* State = EntityManager.CreateEntity< Game::ClientState >();
+    if( !State )
     {
-        // Rollback
         EntityManager.DestroyEntity( NewWorld );
-        Error( "Failed to create Local Player!" );
+        Error( "Failed to create game state" );
         return;
     }
     
-    // Ensure local player hand flips cards face up
-    NewLocalPlayer->Hand->bVisibleLocally = true;
+    NewWorld->AddChild( State );
+    NewWorld->State = State;
     
-    NewWorld->AddChild( NewLocalPlayer );
-    NewWorld->LocalPlayer = NewLocalPlayer;
-    
-    auto NewOpponent = CreatePlayer( OpponentName, OpponentDeck, true );
-    
-    if( !NewOpponent )
+    // Begin Loading Authority
+    if( !Authority->LoadPlayers( PlayerName, 20, 8, PlayerDeck, OpponentName, 20, 8, OpponentDeck ) )
     {
         EntityManager.DestroyEntity( NewWorld );
-        Error( "Failed to create opponent" );
+        Error( "Failed to load authority" );
         return;
     }
     
-    NewWorld->AddChild( NewOpponent );
-    NewWorld->Opponent = NewOpponent;
+    // Now we need to stream AuthState into the client-side of the game
+    // During this process, all the entities will be created
+    if( !State->StreamFrom( & Authority->GetState() ) )
+    {
+        EntityManager.DestroyEntity( NewWorld );
+        Error( "Failed to stream state into client" );
+        return;
+    }
+    
+    // Create AI
+    auto NewAI = EntityManager.CreateEntity< Game::AIController >();
+    if( !NewAI )
+    {
+        EntityManager.DestroyEntity( NewWorld );
+        Error( "Failed to create AI" );
+        return;
+    }
+    
+    // Setup AI
+    NewAI->Difficulty   = Difficulty;
+     
+    Authority->AddChild( NewAI );
+    Authority->AI = NewAI;
     
     Success();
 }
 
-
-Game::Player* SingleplayerLauncher::CreatePlayer( const std::string &DisplayName, const Regicide::Deck &inDeck, bool bOpponent /* = false */ )
-{
-    // Create new player entity
-    auto& EntityManager = Game::IEntityManager::GetInstance();
-    
-    // Attempt to setup what we need in lua now, so if it fails, we dont have to perform rollback
-    auto Lua = Regicide::LuaEngine::GetInstance();
-    auto* L = Lua->State();
-    CC_ASSERT( Lua );
-    
-    // Get reference to deep-copy function in Lua
-    auto DeepCopy = luabridge::getGlobal( L, "DeepCopy" );
-    if( !DeepCopy.isFunction() )
-    {
-        cocos2d::log( "[Launcher] Fatal Error! Failed to find deep-copy function in Lua!" );
-        return nullptr;
-    }
-    
-    auto* NewPlayer = EntityManager.CreateEntity< Game::Player >();
-    if( !NewPlayer )
-        return nullptr;
-    
-    // Set Player Traits
-    NewPlayer->DisplayName = DisplayName;
-    NewPlayer->bOpponent = bOpponent;
-    NewPlayer->Health   = 30;
-    
-    // TODO: Player Back Card Texture?
-    NewPlayer->CardBackTexture = "CardBack.png"; // inDeck.BackTexture;
-    
-    // Load King
-    auto KingTable = luabridge::newTable( L );
-    luabridge::setGlobal( L, KingTable, "KING" );
-    
-    if( !Lua->RunScript( "kings/" + std::to_string( inDeck.KingId ) + ".lua" ) )
-    {
-        cocos2d::log( "[Launcher] Failed to load king with id: %d", inDeck.KingId );
-        
-        // Reset KING to nil
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-        
-        // Rollback Function
-        EntityManager.DestroyEntity( NewPlayer );
-        return nullptr;
-    }
-    
-    auto* newKing = EntityManager.CreateEntity< Game::KingEntity >();
-    if( !newKing )
-    {
-        // Rollback Function
-        EntityManager.DestroyEntity( NewPlayer );
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-        return nullptr;
-    }
-    
-    if( !newKing->Load( KingTable, NewPlayer, bOpponent ) )
-    {
-        EntityManager.DestroyEntity( NewPlayer );
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-        return nullptr;
-    }
-    
-    // Reset KING global in Lua
-    luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-    
-    NewPlayer->AddChild( newKing );
-    NewPlayer->King = newKing;
-    
-    newKing->UpdateHealth( NewPlayer->Health );
-    newKing->UpdateMana( NewPlayer->Mana );
-    newKing->OwningPlayer = NewPlayer;
-    
-    // Create Deck
-    auto* NewDeck = EntityManager.CreateEntity< Game::DeckEntity >();
-    if( !NewDeck )
-    {
-        // Cleanup player
-        EntityManager.DestroyEntity( NewPlayer );
-        return nullptr;
-    }
-    
-    auto dir = cocos2d::Director::getInstance();
-    auto Origin = dir->getVisibleOrigin();
-    
-    // Set Deck Traits
-    NewDeck->DisplayName    = inDeck.Name;
-    NewDeck->DeckId         = inDeck.Id;
-    
-    NewPlayer->AddChild( NewDeck );
-    NewPlayer->Deck = NewDeck;
-    
-    // Begin Creating Cards
-    for( auto& C : inDeck.Cards )
-    {
-        if( C.Ct <= 0 )
-            continue;
-        
-        // We need to load the lua table for this card, and then we will just perform a copy for each
-        // instance of this card, instead of reloading the table multiple times
-        // First, we need to create the global 'CARD' table
-        auto CardTable = luabridge::newTable( L );
-        luabridge::setGlobal( L, CardTable, "CARD" );
-        
-        // Now we need to load the file
-        if( !Lua->RunScript( "cards/" + std::to_string( C.Id ) + ".lua" ) )
-        {
-            cocos2d::log( "[Launcher] Failed to load card with id '%d'", C.Id );
-            
-            // Set CARD to nil
-            luabridge::setGlobal( L, luabridge::LuaRef( L ), "CARD" );
-            continue;
-        }
-        
-        for( int i = 0; i < C.Ct; i++ )
-        {
-            // Copy table
-            luabridge::LuaRef newTable( L );
-            
-            try
-            {
-                newTable = DeepCopy( CardTable );
-            }
-            catch( std::exception& ex )
-            {
-                cocos2d::log( "[Launcher] Failed to create card, couldnt call DeepCopy!" );
-                continue;
-            }
-            
-            // Create new card entity and load from Lua
-            auto* NewCard = EntityManager.CreateEntity< CardEntity >();
-            if( !NewCard )
-            {
-                cocos2d::log( "[Launcher] Failed to create card entity!" );
-                continue;
-            }
-            
-            if( !NewCard->Load( newTable, NewPlayer ) )
-            {
-                cocos2d::log( "[Launcher] Failed to load a card '%d' for player!", C.Id );
-                EntityManager.DestroyEntity( NewCard );
-                continue;
-            }
-            
-            // Add to deck
-            // Were going to set ownership to Player instead of Deck, since the cards will be moving between
-            // containers, exchanging ownership on every move wouldnt be as elegant
-            NewPlayer->AddChild( NewCard );
-            NewDeck->AddAtRandom( NewCard, false );
-        }
-        
-        // Reset CARD global to nil
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "CARD" );
-    }
-    
-    // Create Hand
-    auto* NewHand = EntityManager.CreateEntity< HandEntity >();
-    
-    if( !NewHand )
-    {
-        EntityManager.DestroyEntity( NewPlayer );
-        return nullptr;
-    }
-    
-    NewPlayer->AddChild( NewHand );
-    NewPlayer->Hand = NewHand;
-
-    // Create playing field
-    auto* NewField = EntityManager.CreateEntity< FieldEntity >();
-    
-    if( !NewField )
-    {
-        EntityManager.DestroyEntity( NewPlayer );
-        return nullptr;
-    }
-    
-    NewPlayer->AddChild( NewField );
-    NewPlayer->Field = NewField;
-    
-    // Create Graveyard
-    auto* NewGraveyard = EntityManager.CreateEntity< GraveyardEntity >();
-    
-    if( !NewGraveyard )
-    {
-        EntityManager.DestroyEntity( NewPlayer );
-        return nullptr;
-    }
-    
-    NewPlayer->AddChild( NewGraveyard );
-    NewPlayer->Graveyard = NewGraveyard;
-    
-    // TODO: Graveyard setup?
-    
-    
-    return NewPlayer;
-    
-}
 
 Game::World* SingleplayerLauncher::CreateWorld()
 {

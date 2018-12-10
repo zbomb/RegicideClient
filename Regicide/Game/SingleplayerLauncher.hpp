@@ -20,6 +20,7 @@ namespace Game
     // Forward Declaration
     class World;
     class Player;
+    class SingleplayerAuthority;
 
     
     class SingleplayerLauncher
@@ -57,8 +58,6 @@ namespace Game
         void Success();
         
         World* CreateWorld();
-        Player* CreatePlayer( const std::string& DisplayName, const Regicide::Deck& inDeck, bool bOpponent = false );
-        
         void BeginLoadingTextures();
         int TextureCount = 0;
         int LoadedTextures = 0;

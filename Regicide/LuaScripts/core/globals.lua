@@ -12,6 +12,29 @@ ACTION_SERIAL           = 1;
 ACTION_PARALLEL         = 2;
 ACTION_SERIAL_PARALLEL  = 3;
 
+POSITION_DECK = 0;
+POSITION_HAND = 1;
+POSITION_FIELD = 2;
+POSITION_KING = 3;
+POSITION_GRAVEYARD = 4;
+POSITION_NONE = 5;
+
+PLAYER_OWNER = true;
+PLAYER_OPPONENT = false;
+
+// Deprecated
+ACTION_TYPE_POWER   = 0;
+ACTION_TYPE_DRAW    = 1;
+ACTION_TYPE_STAMINA = 2;
+ACTION_TYPE_KILL    = 3;
+
+ACTION_TARGET_SELF      = 0;
+ACTION_TARGET_ANY       = 1;
+ACTION_TARGET_LIST      = 2;
+ACTION_TARGET_SINGLE    = 3;
+ACTION_TARGET_RANDOM    = 4;
+
+
 
 /////////////////////////////////////////////////////////////////////////
 /////// Print Override

@@ -39,8 +39,8 @@ bool CardViewer::init()
     auto origin = dir->getVisibleOrigin();
     
     Background = cocos2d::DrawNode::create();
-    Background->setGlobalZOrder( 399 );
-    addChild( Background, 100 );
+    //Background->setGlobalZOrder( 399 );
+    addChild( Background, 1 );
     
     Listener = cocos2d::EventListenerTouchOneByOne::create();
     CC_ASSERT( Listener );
@@ -174,8 +174,8 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
                                              }
                                          }
                                      });
-    CloseIcon->setGlobalZOrder( 500 );
-    addChild( CloseIcon, 230 );
+    //CloseIcon->setGlobalZOrder( 500 );
+    addChild( CloseIcon, 10 );
     
     if( bAllowPlay )
     {
@@ -195,14 +195,14 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
                     this->removeFromParent();
             }
         } );
-        PlayIcon->setGlobalZOrder( 500 );
-        addChild( PlayIcon, 230 );
+        //PlayIcon->setGlobalZOrder( 500 );
+        addChild( PlayIcon, 10 );
     }
     
     CardImage->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     CardImage->setPosition( cocos2d::Vec2( origin.x + size.width * 0.5f, origin.y + size.height * 0.5f ) );
-    CardImage->setGlobalZOrder( 400 );
-    addChild( CardImage, 220 );
+    //CardImage->setGlobalZOrder( 400 );
+    addChild( CardImage, 2 );
     
     // Create Scroll Panel
     ScrollPanel = cocos2d::ui::ScrollView::create();
@@ -214,49 +214,53 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     ScrollPanel->setContentSize( cocos2d::Size( CardSize.width, CardSize.height * 0.4f - 32.f ) );
     ScrollPanel->setDirection( cocos2d::ui::ScrollView::Direction::VERTICAL );
     ScrollPanel->setLayoutType( cocos2d::ui::Layout::Type::VERTICAL );
-    ScrollPanel->setGlobalZOrder( 405 );
-    CardImage->addChild( ScrollPanel, 5 );
+    //ScrollPanel->setGlobalZOrder( 405 );
+    CardImage->addChild( ScrollPanel, 1 );
     
     bool bFirst = true;
     bool bActuallyFirst = true;
     float TotalHeight = 0.f;
     
-    for( auto It = inCard->Abilities.begin(); It != inCard->Abilities.end(); It++ )
+    auto Info = inCard->GetInfo();
+    if( Info )
     {
-        auto Text = AbilityText::Create( inCard, It->second, CardSize.width * 0.9f, !bFirst );
-        Text->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Text->GetDesiredHeight() ) );
-        Text->setGlobalZOrder( 405 );
+        for( auto It = Info->Abilities.begin(); It != Info->Abilities.end(); It++ )
+        {
+            auto Text = AbilityText::Create( inCard, It->second, CardSize.width * 0.9f, !bFirst );
+            Text->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Text->GetDesiredHeight() ) );
+            //Text->setGlobalZOrder( 405 );
+            
+            // If this ability is triggerable, we dont want the next text to display a seperator
+            bFirst = Text->CanTrigger();
+            
+            auto Layout = cocos2d::ui::LinearLayoutParameter::create();
+            Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
+            Layout->setMargin( cocos2d::ui::Margin( 4.f,  bActuallyFirst ? 10.f : 4.f, 4.f, 4.f ) );
+            
+            Text->setLayoutParameter( Layout );
+            ScrollPanel->addChild( Text );
+            
+            TotalHeight += ( Text->getContentSize().height + ( bActuallyFirst ? 14.f : 8.f ) );
+            
+            Abilities[ It->first ] = Text;
+            bActuallyFirst = false;
+        }
         
-        // If this ability is triggerable, we dont want the next text to display a seperator
-        bFirst = Text->CanTrigger();
-        
-        auto Layout = cocos2d::ui::LinearLayoutParameter::create();
-        Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
-        Layout->setMargin( cocos2d::ui::Margin( 4.f,  bActuallyFirst ? 10.f : 4.f, 4.f, 4.f ) );
-        
-        Text->setLayoutParameter( Layout );
-        ScrollPanel->addChild( Text );
-        
-        TotalHeight += ( Text->getContentSize().height + ( bActuallyFirst ? 14.f : 8.f ) );
-        
-        Abilities[ It->first ] = Text;
-        bActuallyFirst = false;
-    }
-    
-    if( inCard->Description.size() > 0 )
-    {
-        auto Description = DescriptionText::Create( inCard->Description, CardSize.width * 0.9f, !bFirst );
-        Description->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Description->GetDesiredHeight() ) );
-        Description->setGlobalZOrder( 405 );
-        
-        auto Layout = cocos2d::ui::LinearLayoutParameter::create();
-        Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
-        Layout->setMargin( cocos2d::ui::Margin( 4.f, 4.f, 4.f, 4.f ) );
-        
-        Description->setLayoutParameter( Layout );
-        ScrollPanel->addChild( Description, 5 );
-        
-        TotalHeight += Description->getContentSize().height + 8.f;
+        if( Info->Description.size() > 0 )
+        {
+            auto Description = DescriptionText::Create( Info->Description, CardSize.width * 0.9f, !bFirst );
+            Description->setContentSize( cocos2d::Size( CardSize.width * 0.9f, Description->GetDesiredHeight() ) );
+            //Description->setGlobalZOrder( 405 );
+            
+            auto Layout = cocos2d::ui::LinearLayoutParameter::create();
+            Layout->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_HORIZONTAL );
+            Layout->setMargin( cocos2d::ui::Margin( 4.f, 4.f, 4.f, 4.f ) );
+            
+            Description->setLayoutParameter( Layout );
+            ScrollPanel->addChild( Description );
+            
+            TotalHeight += Description->getContentSize().height + 8.f;
+        }
     }
     
     ScrollPanel->setInnerContainerSize( cocos2d::Size( CardSize.width, TotalHeight + 10.f ) );

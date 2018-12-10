@@ -9,6 +9,7 @@
 //
 
 #include "KingEntity.hpp"
+#include "Player.hpp"
 
 using namespace Game;
 
@@ -18,6 +19,9 @@ KingEntity::KingEntity()
 {
     bAddedToScene = false;
     bIsOpponent = false;
+    bIsState = false;
+    
+    cocos2d::log( "[DEBUG] CREATING KING ENTITY" );
 }
 
 KingEntity::~KingEntity()
@@ -40,7 +44,7 @@ void KingEntity::Cleanup()
 
 void KingEntity::AddToScene( cocos2d::Node *inNode )
 {
-    if( bAddedToScene )
+    if( bAddedToScene || bIsState )
         return;
     
     CC_ASSERT( inNode );
@@ -118,7 +122,7 @@ bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, bool bOpponent
     bIsOpponent = bOpponent;
     
     // Validate Lua
-    if( !inLua.isTable() )
+    if( !inLua.isTable() || !inOwner )
     {
         cocos2d::log( "[King] ERROR: Failed to load.. invalid lua table!" );
         return false;
@@ -131,6 +135,14 @@ bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, bool bOpponent
         cocos2d::log( "[King] ERROR: Failed to load.. invalid lua table!" );
         return false;
     }
+    
+    State.Owner     = inOwner->GetEntityId();
+    State.FaceUp    = true;
+    State.Position  = CardPos::KING;
+    State.Power     = 0;
+    State.Stamina   = 0;
+    State.ManaCost  = 0;
+    State.EntId     = GetEntityId();
     
     // Set Data Members
     DisplayName = inLua[ "Name" ].tostring();
@@ -145,6 +157,7 @@ bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, bool bOpponent
         }
         else
         {
+            cocos2d::log( "[DEBUG] LOADED KING TEXTURE" );
             Texture = InTex;
         }
     } );
@@ -182,4 +195,9 @@ void KingEntity::UpdateMana( int InMana )
     {
         ManaLabel->setString( std::to_string( InMana ) );
     }
+}
+
+void KingEntity::MarkAsState()
+{
+    bIsState = true;
 }

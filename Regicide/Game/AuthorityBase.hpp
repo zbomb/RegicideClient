@@ -15,6 +15,7 @@
 #include <chrono>
 #include "Actions.hpp"
 #include "World.hpp"
+#include "AuthState.hpp"
 
 
 namespace Game
@@ -41,18 +42,18 @@ namespace Game
     public:
         
         virtual void SetReady() = 0;
-        virtual void SetBlitzCards( const std::vector< CardEntity* >& Cards ) = 0;
-        virtual void PlayCard( CardEntity* In, int Index ) = 0;
+        virtual void SetBlitzCards( const std::vector< uint32_t >& Cards ) = 0;
+        virtual void PlayCard( uint32_t In, int Index ) = 0;
         virtual void FinishTurn() = 0;
-        virtual void SetAttackers( const std::vector< CardEntity* >& Cards ) = 0;
-        virtual void SetBlockers( const std::map< CardEntity*, CardEntity* >& Cards ) = 0;
-        virtual void TriggerAbility( CardEntity* Card, uint8_t AbilityId ) = 0;
+        virtual void SetAttackers( const std::vector< uint32_t >& Cards ) = 0;
+        virtual void SetBlockers( const std::map< uint32_t, uint32_t >& Cards ) = 0;
+        virtual void TriggerAbility( uint32_t Card, uint8_t AbilityId ) = 0;
+        
+        inline AuthState& GetState() { return State; }
         
     protected:
         
-        MatchState mState;
-        TurnState tState;
-        PlayerTurn pState;
+        AuthState State;
         
         template< typename T >
         T* GetGameMode();

@@ -58,12 +58,13 @@ namespace Game
         inline uint32 GetDeckId() const { return DeckId; }
         
         virtual void Invalidate() override;
-        virtual void InvalidateCards( CardEntity* Ignore = nullptr, bool bParam = false ) override;
+        virtual void InvalidateCards( CardEntity* Ignore = nullptr ) override;
         void InvalidateZOrder();
         
         virtual void AddToScene( cocos2d::Node* In ) override;
         
         inline std::string GetName() const { return DisplayName; }
+        void Clear();
         
     protected:
         

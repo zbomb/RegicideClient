@@ -15,16 +15,14 @@ class IconCount : public cocos2d::Node
 {
 public:
     
-    static IconCount* Create( const std::string& inTexture, int inCount );
+    static IconCount* Create( const std::string& inTexture, int inCount, int inFont = 28 );
     
     IconCount();
     ~IconCount();
     
-    virtual bool init( const std::string& inTexture, int inCount );
+    virtual bool init( const std::string& inTexture, int inCount, int inFont );
     void UpdateCount( int inCount );
     void SetTextColor( const cocos2d::Color4B& inColor );
-    
-    void SetZ( int In );
     
 protected:
     

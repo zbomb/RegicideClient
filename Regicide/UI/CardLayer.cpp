@@ -38,11 +38,11 @@ bool CardLayer::init()
     _eventDispatcher->addEventListenerWithSceneGraphPriority( Listener, this );
     
     FXNode = cocos2d::DrawNode::create();
-    FXNode->setGlobalZOrder( 10000 );
+    FXNode->setGlobalZOrder( 110 );
     addChild( FXNode );
     
     BlockDraw = cocos2d::DrawNode::create();
-    BlockDraw->setGlobalZOrder( 10000 );
+    BlockDraw->setGlobalZOrder( 110 );
     addChild( BlockDraw );
     
     return true;

@@ -23,7 +23,9 @@
 #include "GameModeBase.hpp"
 #include "SingleplayerAuthority.hpp"
 #include "Utils.hpp"
+#include "GameContext.hpp"
 #include "GraveyardEntity.hpp"
+#include "SimulatedState.hpp"
 
 #define LUA_POS_HAND 1
 #define LUA_POS_FIELD 2
@@ -33,164 +35,6 @@
 
 namespace Regicide
 {
-    
-    class LuaGame
-    {
-    public:
-        
-        static bool IsTurn( Game::CardEntity* In )
-        {
-            if( !In )
-                return false;
-            
-            auto Pl = In->GetOwningPlayer();
-            return Pl ? Pl->IsTurn() : false;
-        }
-        
-        static bool IsTurnKing( Game::KingEntity* In )
-        {
-            if( !In )
-                return false;
-            
-            auto Pl = In->GetOwningPlayer();
-            return Pl ? Pl->IsTurn() : false;
-        }
-        
-        static Game::Player* GetOpponent( Game::CardEntity* In )
-        {
-            if( !In )
-                return nullptr;
-            
-            auto world = Game::World::GetWorld();
-            if( !world )
-                return nullptr;
-            
-            auto Owner = In->GetOwningPlayer();
-            if( !Owner )
-                return nullptr;
-            
-            return world->GetLocalPlayer() == Owner ? world->GetOpponent() : world->GetLocalPlayer();
-        }
-    };
-    
-    class LuaActions
-    {
-    public:
-        
-        template< typename T >
-        static T* CreateLuaAction( Game::EntityBase* inTarget, int ActionType )
-        {
-            // Build Action
-            return Game::SingleplayerAuthority::CreateLuaAction< T >( inTarget, ActionType );
-        }
-        
-        static bool AddCardDraw( Game::Player* Target, int ActionType )
-        {
-            if( !Target )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create draw card action.. invalid player specified" );
-                return false;
-            }
-            
-            // Get top card off deck
-            auto Deck = Target->GetDeck();
-            if( !Deck )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create draw card action.. invalid player specified" );
-                return false;
-            }
-            
-            auto Card = Deck->At( Game::SingleplayerAuthority::Lua_PopDeck( Target ) );
-            if( !Card )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create draw card action.. out of cards!" );
-                return false;
-            }
-            
-            Game::DrawCardAction* NewAction = CreateLuaAction< Game::DrawCardAction >( Target, ActionType );
-            if( !NewAction )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create draw card action" );
-                return false;
-            }
-            
-            NewAction->TargetCard = Card->GetEntityId();
-            
-            return true;
-        }
-        
-        static bool AddDamageCard( Game::CardEntity* Target, Game::CardEntity* Inflictor, int Amount, int ActionType )
-        {
-            if( !Target || !Inflictor )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create damage action.. invalid card specified" );
-                return false;
-            }
-            
-            if( Amount <= 0 )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create damage action.. damage must at least be 1" );
-                return false;
-            }
-            
-            // Target for damage action is GM
-            auto world = Game::World::GetWorld();
-            auto GM = world ? world->GetGameMode() : nullptr;
-            
-            if( !GM )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create damage action.. gamemode was null" );
-                return false;
-            }
-            
-            auto NewAction = CreateLuaAction< Game::DamageAction >( GM, ActionType );
-            if( !NewAction )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create damage action!" );
-                return false;
-            }
-            
-            // Setup Action
-            NewAction->ActionName = "CardDamage";
-            NewAction->Target = Target;
-            NewAction->Inflictor = Inflictor;
-            NewAction->Damage = Amount;
-            NewAction->StaminaDrain = 0;
-            return true;
-            
-        }
-        
-        static bool AddDamageKing( Game::Player* Target, Game::CardEntity* Inflictor,  int Amount, int ActionType )
-        {
-            if( Amount <= 0 )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create king damage action.. damage amount must at least be 1" );
-                return false;
-            }
-            
-            if( !Target || !Inflictor )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create king damage action.. invalid target/origin" );
-                return false;
-            }
-            
-            auto NewAction = CreateLuaAction< Game::DamageAction >( Target, ActionType );
-            if( !NewAction )
-            {
-                cocos2d::log( "[Lua] Warning: Failed to create king damage action!" );
-                return false;
-            }
-            
-            // Setup Action
-            NewAction->ActionName = "KingDamage";
-            NewAction->Inflictor = Inflictor;
-            NewAction->Damage = Amount;
-            NewAction->StaminaDrain = 0;
-            return true;
-            
-        }
-        
-    };
     
     static void LuaBind_Game( lua_State* L )
     {
@@ -205,7 +49,6 @@ namespace Regicide
             .addFunction( "InHand", &Game::CardEntity::InHand )
             .addFunction( "InGrave", &Game::CardEntity::InGrave )
             .addFunction( "OnField", &Game::CardEntity::OnField )
-            .addFunction( "IsFaceUp", &Game::CardEntity::IsFaceUp )
             .addFunction( "GetPower", &Game::CardEntity::_lua_GetPower )
             .addFunction( "GetStamina", &Game::CardEntity::_lua_GetStamina )
             .addFunction( "GetCardId", &Game::CardEntity::_lua_GetCardId )
@@ -229,6 +72,7 @@ namespace Regicide
             .addFunction( "GetCount", &Game::FieldEntity::Count )
             .addFunction( "IndexValid", &Game::FieldEntity::IndexValid )
             .addFunction( "GetIndex", &Game::FieldEntity::At )
+            .addFunction( "GetCards", &Game::FieldEntity::_lua_GetCards )
         .endClass()
         .deriveClass< Game::GraveyardEntity, Game::EntityBase >( "Graveyard" )
             .addFunction( "GetCount", &Game::GraveyardEntity::Count )
@@ -249,15 +93,27 @@ namespace Regicide
             .addFunction( "GetHealth", &Game::Player::GetHealth )
             .addFunction( "IsTurn", &Game::Player::IsTurn )
         .endClass()
-        .beginClass< Regicide::LuaActions >( "Action" )
-            .addStaticFunction( "DrawCard", &LuaActions::AddCardDraw )
-            .addStaticFunction( "DamageCard", &LuaActions::AddDamageCard )
-            .addStaticFunction( "DamageKing", &LuaActions::AddDamageKing )
+        .beginClass< Game::CardState >( "CardState" )
+            .addData( "Id", &Game::CardState::EntId )
+            .addData( "Power", &Game::CardState::Power )
+            .addData( "Stamina", &Game::CardState::Stamina )
+            .addData( "ManaCost", &Game::CardState::ManaCost )
+            .addData( "FaceUp", &Game::CardState::FaceUp )
+            .addProperty( "Position", &Game::CardState::_lua_GetPosition )
+            .addProperty( "Owner", &Game::CardState::_lua_GetOwner )
         .endClass()
-        .beginClass< Regicide::LuaGame >( "Game" )
-            .addStaticFunction( "IsCardTurn", &LuaGame::IsTurn )
-            .addStaticFunction( "IsKingTurn", &LuaGame::IsTurnKing )
-            .addStaticFunction( "GetOpponent", &LuaGame::GetOpponent )
+        .beginClass< Game::LuaContext >( "LuaContext" )
+            .addFunction( "DrawCard", &Game::LuaContext::DrawCard )
+            .addFunction( "DealDamage", &Game::LuaContext::DealDamage )
+            .addFunction( "GetState", &Game::LuaContext::GetState )
+            .addFunction( "IsTurn", &Game::LuaContext::IsTurn )
+            .addFunction( "GetField", &Game::LuaContext::GetField )
+            .addFunction( "GetOwner", &Game::LuaContext::GetOwner )
+            .addFunction( "GetOpponent", &Game::LuaContext::GetOpponent )
+        .endClass()
+        .deriveClass< Game::GameContext, Game::LuaContext >( "GameContext" )
+        .endClass()
+        .deriveClass< Game::SimulatorContext, Game::LuaContext >( "SimulatorContext" )
         .endClass();
 
     }

@@ -49,7 +49,6 @@ bool CardSelector::init()
     ScrollPanel->setContentSize( cocos2d::Size( Size.width, Size.height * 0.4f + 50.f ) );
     ScrollPanel->setDirection( cocos2d::ui::ScrollView::Direction::HORIZONTAL );
     ScrollPanel->setLayoutType( cocos2d::ui::Layout::Type::HORIZONTAL );
-    ScrollPanel->setGlobalZOrder( 999 );
     ScrollPanel->setCascadeOpacityEnabled( true );
     
     Confirm = cocos2d::ui::Button::create( "generic_button.png" );
@@ -61,22 +60,19 @@ bool CardSelector::init()
         if( Type == cocos2d::ui::Widget::TouchEventType::ENDED && !_bLocked && this->_fConfirm )
             this->_fConfirm();
     } );
-    Confirm->setGlobalZOrder( 999 );
     Confirm->setCascadeOpacityEnabled( true );
     
     ButtonLabel = cocos2d::Label::createWithTTF( "Confirm", "fonts/arial.ttf", 35 );
     ButtonLabel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     ButtonLabel->setPosition( Confirm->getContentSize() / 2.f );
-    ButtonLabel->setGlobalZOrder( 1000 );
     
-    Confirm->addChild( ButtonLabel );
+    Confirm->addChild( ButtonLabel, 1 );
     
     // Create Draw Node
     Draw = cocos2d::DrawNode::create();
-    Draw->setGlobalZOrder( 1000 );
     
-    addChild( Confirm );
-    addChild( ScrollPanel );
+    addChild( Confirm, 2 );
+    addChild( ScrollPanel, 1 );
     ScrollPanel->addChild( Draw );
     
     return true;
@@ -98,6 +94,7 @@ void CardSelector::Lock()
             if( Button )
                 Button->setEnabled( false );
         }
+
     }
 }
 
@@ -231,9 +228,8 @@ void CardSelector::LoadCards( Game::CardIter Begin, Game::CardIter End )
         auto defSize = Card->getContentSize();
         
         // We want to scale the card until the height is 0.25x the screen height
-        Card->setScale( ( Size.height * 0.4f ) / defSize.height );
-        Card->setGlobalZOrder( 1001 );
-        TotalWidth += ( Card->getContentSize().width * Card->getScale() + Size.width * 0.02f );
+        //Card->setScale( ( Size.height * 0.4f ) / defSize.height );
+        TotalWidth += ( Card->getContentSize().width + Size.width * 0.01f );
         
         auto layoutParam = cocos2d::ui::LinearLayoutParameter::create();
         layoutParam->setGravity( cocos2d::ui::LinearLayoutParameter::LinearGravity::CENTER_VERTICAL );
@@ -263,4 +259,8 @@ void CardSelector::LoadCards( Game::CardIter Begin, Game::CardIter End )
     }
     
     ScrollPanel->setInnerContainerSize( cocos2d::Size( TotalWidth, ScrollPanel->getContentSize().height ) );
+    
+    // Ensure were centered
+    auto ScrollSize = ScrollPanel->getContentSize();
+    ScrollPanel->setInnerContainerPosition( cocos2d::Vec2( ScrollSize.width / 2.f - TotalWidth / 2.f, 0.f ) );
 }

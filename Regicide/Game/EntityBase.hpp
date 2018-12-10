@@ -59,6 +59,8 @@ namespace Game
         
         inline bool IsCard() const { return _bIsCard; }
         
+        void RequireTexture( const std::string& InTex, std::function< void( cocos2d::Texture2D* ) > Callback );
+        
     protected:
         
         virtual void Cleanup();
@@ -83,11 +85,14 @@ namespace Game
         
         bool _bIsCard;
         
-        void RequireTexture( const std::string& InTex, std::function< void( cocos2d::Texture2D* ) > Callback );
         std::map< std::string, std::function< void( cocos2d::Texture2D* ) > > ResourceList;
+        
+        // Action Callbacks
+        void FinishAction( std::function< void() > InCallback, float InDelay = 0.f );
         
     private:
         
+        uint64 LastActionCallback;
         uint32 EID;
         std::string EName;
         std::vector< EntityBase* > Children;
@@ -115,6 +120,9 @@ namespace Game
         template< typename T >
         T* CreateEntity( cocos2d::Scene* inScene );
         
+        template< typename T >
+        T* CreateEntity( uint32_t AllocatedId );
+        
         bool EntityExists( uint32 EntityId );
         bool DestroyEntity( uint32 EntityId );
         bool DestroyEntity( EntityBase* EntityRef );
@@ -135,6 +143,8 @@ namespace Game
         
         ~IEntityManager();
         
+        uint32_t AllocateIdentifier();
+        
     private:
         
         std::map< uint32, std::shared_ptr< EntityBase > > EntityStore;
@@ -146,25 +156,36 @@ namespace Game
         
         void CallCleanup( EntityBase* In );
         void DoDestroy( std::map< uint32, std::shared_ptr< EntityBase > >::iterator Iter );
+        
+        uint32_t NextEntityId = 0;
     };
     
-    static uint32 NextEntityId = 1;
     template< typename T >
     T* IEntityManager::CreateEntity()
     {
         static_assert( std::is_base_of< EntityBase, T >::value, "Attempt to create Entity with non-entity type" );
         
-        // Find next available Id
-        while( EntityStore.count( NextEntityId ) > 0 )
-            NextEntityId++;
-        
         // Create the entity
-        uint32 EntId = NextEntityId;
+        uint32 EntId = AllocateIdentifier();
         EntityStore[ EntId ] = std::make_shared< T >();
         EntityStore[ EntId ]->EID = EntId;
         
         // Return pointer to the entity
         return static_cast<T*>( EntityStore[ EntId ].get() );
+    }
+    
+    template< typename T >
+    T* IEntityManager::CreateEntity( uint32_t AllocatedId )
+    {
+        static_assert( std::is_base_of< EntityBase, T >::value, "Attempt to create Entity with non-entity type" );
+        
+        // Check if this Id is already in use
+        CCASSERT( EntityStore.count( AllocatedId ) == 0, "Attempt to create entity with in-use Id!" );
+        
+        EntityStore[ AllocatedId ] = std::make_shared< T >();
+        EntityStore[ AllocatedId ]->EID = AllocatedId;
+        
+        return static_cast< T* >( EntityStore[ AllocatedId ].get() ); 
     }
     
     // Adds entity directly to scene, this should be used at game runtime
@@ -188,6 +209,10 @@ namespace Game
     T* IEntityManager::GetEntity( uint32 EntityId )
     {
         static_assert( std::is_base_of< EntityBase, T >::value, "Attempt to get entity casted to a non-entity type!" );
+        
+        // We can check if the Id is out of range without calling into the map
+        if( EntityId > NextEntityId || EntityId <= 0 )
+            return nullptr;
         
         auto Result = EntityStore.find( EntityId );
         if( Result == EntityStore.end() )

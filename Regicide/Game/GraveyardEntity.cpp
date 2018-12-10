@@ -275,7 +275,7 @@ void GraveyardEntity::Invalidate()
     InvalidateCards();
 }
 
-void GraveyardEntity::InvalidateCards( CardEntity* inCard, bool bParam )
+void GraveyardEntity::InvalidateCards( CardEntity* inCard )
 {
     int Index = 0;
     for( auto It = Begin(); It != End(); It++ )
@@ -296,32 +296,38 @@ void GraveyardEntity::MoveCard( CardEntity* inCard, std::function< void() > Call
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( GetPosition(), 0.3f, Callback );
+        inCard->MoveAnimation( GetPosition(), CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.3f );
+        if( !inCard->GetState().FaceUp )
+            inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // Card should always be face up
         float absRot = inCard->GetAbsoluteRotation();
         if( absRot > 1.f || absRot < -1.f )
         {
-            inCard->RotateAnimation( 0.f, 0.3f );
+            inCard->RotateAnimation( 0.f, CARD_DEFAULT_MOVE_TIME );
         }
+        
+        FinishAction( Callback, CARD_DEFAULT_MOVE_TIME + 0.1f );
+    }
+    else
+    {
+        FinishAction( Callback );
     }
 }
 
 void GraveyardEntity::InvalidateZOrder()
 {
-    // Top of deck gets a higher Z Order
-    // So, we need to order the cards
-    // Default card Z order is 10
-    
-    int Top = (int)Cards.size() + 11;
+    // Z Order between 1 and 100
+    int Top = (int)Cards.size() + 1;
+    Top = Top > 100 ? 100 : Top;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
         int Order = Top - i;
+        Order = Order < 1 ? 1 : Order;
+        
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );
@@ -329,3 +335,14 @@ void GraveyardEntity::InvalidateZOrder()
     }
 }
 
+void GraveyardEntity::Clear()
+{
+    auto& Ent = IEntityManager::GetInstance();
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It )
+            Ent.DestroyEntity( *It );
+    }
+    
+    Cards.clear();
+}

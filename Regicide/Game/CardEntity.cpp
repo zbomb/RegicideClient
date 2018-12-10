@@ -18,12 +18,304 @@
 using namespace Game;
 
 
+CardManager& CardManager::GetInstance()
+{
+    static CardManager Singleton;
+    return Singleton;
+}
+
+CardManager::~CardManager()
+{
+    CachedCards.clear();
+}
+
+CardInfo* CardManager::GetInfoAddress( uint16_t inId )
+{
+    CardInfo Temp;
+    if( !GetInfo( inId, Temp ) )
+        return nullptr;
+    
+    return std::addressof( CachedCards[ inId ] );
+}
+
+bool CardManager::GetInfo( uint16_t inId, CardInfo& Out )
+{
+    // Check if cached
+    if( CachedCards.count( inId ) > 0 )
+    {
+        Out = CachedCards[ inId ];
+        return true;
+    }
+    
+    // Attempt to load the lua file
+    cocos2d::log( "[CardManager] Loading card info for id '%d'!", inId );
+    
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    auto L = Engine ? Engine->State() : nullptr;
+    CC_ASSERT( L );
+    
+    auto CardTable = luabridge::newTable( L );
+    luabridge::setGlobal( L, CardTable, "CARD" );
+    
+    if( Engine->RunScript( "cards/" + std::to_string( inId ) + ".lua" ) )
+    {
+        // Check Lua Table
+        if( CardTable.isTable() && CardTable[ "Power" ].isNumber() && CardTable[ "Stamina" ].isNumber() && CardTable[ "Name" ].isString() && CardTable[ "Texture" ].isString() && CardTable[ "FullTexture" ].isString() && CardTable[ "Mana" ].isNumber() )
+        {
+            auto& newCard = CachedCards[ inId ] = CardInfo();
+            newCard.DisplayName = CardTable[ "Name" ].tostring();
+            newCard.Power = int( CardTable[ "Power" ] );
+            newCard.Stamina = int( CardTable[ "Stamina" ] );
+            newCard.ManaCost = int( CardTable[ "Mana" ] );
+            newCard.FrontTexture = CardTable[ "Texture" ].tostring();
+            newCard.FullTexture = CardTable[ "FullTexture" ].tostring();
+            
+            if( CardTable[ "Description" ].isString() )
+            {
+                newCard.Description = CardTable[ "Description" ].tostring();
+            }
+            else
+            {
+                newCard.Description = "";
+            }
+            
+            if( CardTable[ "Hooks" ].isTable() )
+            {
+                newCard.Hooks = std::make_shared< luabridge::LuaRef >( CardTable[ "Hooks" ] );
+            }
+            else
+            {
+                newCard.Hooks.reset();
+            }
+            
+            // Load Card Abilities
+            if( CardTable[ "Abilities" ].isTable() )
+            {
+                int Index = 1;
+                while( CardTable[ "Abilities" ][ Index ].isTable() )
+                {
+                    auto AbilTbl = CardTable[ "Abilities" ][ Index ];
+                    
+                    // Check ability validity
+                    if( !AbilTbl[ "Name" ].isString() || !AbilTbl[ "Description" ].isString() || !AbilTbl[ "OnTrigger" ].isFunction() )
+                    {
+                        cocos2d::log( "[CardManager] Failed to load ability (%d) for card '%s' (%d)", Index, newCard.DisplayName.c_str(), newCard.Id );
+                        Index++;
+                        continue;
+                    }
+                    
+                    auto& newAbility = newCard.Abilities[ (uint32_t) Index ] = Ability();
+                    newAbility.Name = AbilTbl[ "Name" ].tostring();
+                    newAbility.Description = AbilTbl[ "Description" ].tostring();
+                    newAbility.MainFunc = std::make_shared< luabridge::LuaRef >( AbilTbl[ "OnTrigger" ] );
+                    newAbility.Index = (uint8_t) Index;
+                    
+                    if( AbilTbl[ "ManaCost" ].isNumber() )
+                        newAbility.ManaCost = uint16_t( AbilTbl[ "ManaCost" ] );
+                    else
+                        newAbility.ManaCost = 0;
+                    
+                    if( AbilTbl[ "StaminaCost" ].isNumber() )
+                        newAbility.StaminaCost = uint16_t( AbilTbl[ "StaminaCost" ] );
+                    else
+                        newAbility.StaminaCost = 0;
+                    
+                    if( AbilTbl[ "PreCheck" ].isFunction() )
+                        newAbility.CheckFunc = std::make_shared< luabridge::LuaRef >( AbilTbl[ "PreCheck" ] );
+                    else
+                        newAbility.CheckFunc.reset();
+                    
+                    Index++;
+                }
+            }
+            
+            // Finished loading card
+            luabridge::setGlobal( L, luabridge::LuaRef( L ), "CARD" );
+            
+            Out = newCard;
+            return true;
+        }
+    }
+    
+    luabridge::setGlobal( L, luabridge::LuaRef( L ), "CARD" );
+    return false;
+}
+
+CardEntity* CardManager::CreateCard( CardState& State, Player* inOwner, bool bPreloadTextures ) 
+{
+    if( !inOwner )
+    {
+        cocos2d::log( "[CardManager] Failed to create new card.. specified player is invalid" );
+        return nullptr;
+    }
+    
+    auto Info = GetInfoAddress( State.Id );
+    if( !Info )
+    {
+        cocos2d::log( "[CardManager] Failed to create new card.. couldnt load info" );
+        return nullptr;
+    }
+    
+    auto Output = IEntityManager::GetInstance().CreateEntity< CardEntity >( State.EntId );
+    if( !Output )
+    {
+        cocos2d::log( "[CardManager] Failed to create new card.. entity couldnt be created" );
+        return nullptr;
+    }
+    
+    inOwner->AddChild( Output );
+    
+    Output->FaceUp          = false;
+    Output->Id              = State.Id;
+    Output->ManaCost        = State.ManaCost;
+    Output->Owner           = State.Owner;
+    Output->Position        = State.Position;
+    Output->Power           = State.Power;
+    Output->Stamina         = State.Stamina;
+    Output->Info            = Info;
+    Output->OwningPlayer    = inOwner;
+    
+    if( bPreloadTextures )
+    {
+        Output->RequireTexture( Info->FrontTexture, [ = ]( cocos2d::Texture2D* t )
+                               {
+                                   if( !t )
+                                   {
+                                       cocos2d::log( "[CardManager] Failed to load front texture for card '%s'", Info->DisplayName.c_str() );
+                                       Output->FrontTexture = nullptr;
+                                   }
+                                   else
+                                   {
+                                       Output->FrontTexture = t;
+                                   }
+                               } );
+        
+        Output->RequireTexture( Info->FullTexture, [ = ]( cocos2d::Texture2D* t )
+                               {
+                                   if( !t )
+                                   {
+                                       cocos2d::log( "[CardManager] Failed to load full texture for card '%s'", Info->DisplayName.c_str() );
+                                       Output->FullSizedTexture = nullptr;
+                                   }
+                                   else
+                                   {
+                                       Output->FullSizedTexture = t;
+                                   }
+                               } );
+        
+        Output->RequireTexture( inOwner->GetBackTexture(), [ = ]( cocos2d::Texture2D* t )
+                               {
+                                   if( !t )
+                                   {
+                                       cocos2d::log( "[CardManager] Failed to load back texture for card '%s'", Info->DisplayName.c_str() );
+                                       Output->BackTexture = nullptr;
+                                   }
+                                   else
+                                   {
+                                       Output->BackTexture = t;
+                                   }
+                               } );
+    }
+    
+    return Output;
+}
+
+CardEntity* CardManager::CreateCard( uint16_t inId, Player *inOwner, bool bPreloadTextures /* = false */ )
+{
+    if( !inOwner )
+    {
+        cocos2d::log( "[CardManager] Failed to create new card.. specified player in invalid" );
+        return nullptr;
+    }
+    
+    // Try to load info
+    CardInfo thisInfo;
+    if( GetInfo( inId, thisInfo ) )
+    {
+        
+        auto Output = IEntityManager::GetInstance().CreateEntity< CardEntity >();
+        if( !Output )
+        {
+            cocos2d::log( "[CardManager] Failed to create new card.. entity couldnt be allocated" );
+            return nullptr;
+        }
+        
+        inOwner->AddChild( Output );
+        
+        // Setup dynamic state
+        Output->State.FaceUp        = false;
+        Output->State.Id            = inId;
+        Output->State.ManaCost      = thisInfo.ManaCost;
+        Output->State.Owner         = inOwner->GetEntityId();
+        Output->State.Position      = CardPos::NONE;
+        Output->State.Power         = thisInfo.Power;
+        Output->State.Stamina       = thisInfo.Stamina;
+        Output->State.EntId         = Output->GetEntityId();
+        
+        // Store a reference to the 'CardInfo' so we can easily lookup static info
+        // without having to perform map lookups every time
+        Output->Info = std::addressof( CachedCards[ inId ] );
+        
+        Output->OwningPlayer = inOwner;
+        
+        // Setup preload textures
+        if( bPreloadTextures )
+        {
+            Output->RequireTexture( thisInfo.FrontTexture, [ = ]( cocos2d::Texture2D* t )
+                                   {
+                                       if( !t )
+                                       {
+                                           cocos2d::log( "[CardManager] Failed to load front texture for card '%s'", thisInfo.DisplayName.c_str() );
+                                           Output->FrontTexture = nullptr;
+                                       }
+                                       else
+                                       {
+                                           Output->FrontTexture = t;
+                                       }
+                                   } );
+            
+            Output->RequireTexture( thisInfo.FullTexture, [ = ]( cocos2d::Texture2D* t )
+                                   {
+                                       if( !t )
+                                       {
+                                           cocos2d::log( "[CardManager] Failed to load full texture for card '%s'", thisInfo.DisplayName.c_str() );
+                                           Output->FullSizedTexture = nullptr;
+                                       }
+                                       else
+                                       {
+                                           Output->FullSizedTexture = t;
+                                       }
+                                   } );
+            
+            Output->RequireTexture( inOwner->GetBackTexture(), [ = ]( cocos2d::Texture2D* t )
+                                   {
+                                       if( !t )
+                                       {
+                                           cocos2d::log( "[CardManager] Failed to load back texture for card '%s'", thisInfo.DisplayName.c_str() );
+                                           Output->BackTexture = nullptr;
+                                       }
+                                       else
+                                       {
+                                           Output->BackTexture = t;
+                                       }
+                                   } );
+        }
+        
+        return Output;
+    }
+    else
+    {
+        cocos2d::log( "[CardManager] Failed to create new card.. couldnt find script for card id '%d'", inId );
+        return nullptr;
+    }
+}
+
+
+
+
 CardEntity::CardEntity()
     : EntityBase( "card" )
 {
-    Power       = 0;
-    Stamina     = 0;
-    ManaCost    = 0;
     lastMoveId  = 0;
     
     _bDragging  = false;
@@ -86,178 +378,6 @@ bool CardEntity::OnField() const
     return Container && Container->GetTag() == TAG_FIELD;
 }
 
-bool CardEntity::Load( luabridge::LuaRef& inLua, Player* inOwner )
-{
-    if( !inLua.isTable() )
-    {
-        cocos2d::log( "[Card] ERROR: Failed to load, invalid card table passed into Load!" );
-        return false;
-    }
-
-    // Check validity of the hook table
-    if( !inLua[ "Power" ].isNumber() || !inLua[ "Stamina" ].isNumber() || !inLua[ "Name" ].isString() || !inLua[ "Texture" ].isString() || !inLua[ "LargeTexture" ].isString() || !inLua[ "Mana" ].isNumber() )
-    {
-        cocos2d::log( "[Card] ERROR: Failed to load, card table passed into load was missing values" );
-        return false;
-    }
-    
-    // Assign Members
-    DisplayName     = inLua[ "Name" ].tostring();
-    Power           = (uint16) int( inLua[ "Power" ] );
-    Stamina         = (uint16) int( inLua[ "Stamina" ] );
-    ManaCost        = (uint16) int( inLua[ "Mana" ] );
-
-    FrontTextureName = inLua[ "Texture" ].tostring();
-    LargeTextureName = inLua[ "LargeTexture" ].tostring();
-    BackTextureName = inOwner->GetBackTexture();
-    
-    if( inLua[ "Description" ].isString() )
-    {
-        Description = inLua[ "Description" ].tostring();
-    }
-    else
-    {
-        Description = "";
-    }
-    
-    RequireTexture( FrontTextureName, [ = ]( cocos2d::Texture2D* InTex )
-    {
-        if( !InTex )
-        {
-            cocos2d::log( "[Card] ERROR: Failed to load front texture (%s) for card '%s'", FrontTextureName.c_str(), DisplayName.c_str() );
-            FrontTexture = nullptr;
-        }
-        else
-        {
-            FrontTexture = InTex;
-        }
-    } );
-    
-    RequireTexture( LargeTextureName, [ = ]( cocos2d::Texture2D* InTex )
-    {
-        if( !InTex )
-        {
-            cocos2d::log( "[Card] ERROR! Failed to load large texture (%s) for card '%s'", LargeTextureName.c_str(), DisplayName.c_str() );
-            FullSizedTexture = nullptr;
-        }
-        else
-        {
-            FullSizedTexture = InTex;
-        }
-    } );
-    
-    RequireTexture( BackTextureName, [ = ]( cocos2d::Texture2D* InTex )
-    {
-        if( !InTex )
-        {
-            cocos2d::log( "[Card] ERROR! Failed to load back texture (%s) for card '%s'", BackTextureName.c_str(), DisplayName.c_str() );
-            BackTexture = nullptr;
-        }
-        else
-        {
-            BackTexture = InTex;
-        }
-    } );
-    
-    bAllowDeckHooks = inLua[ "EnableDeckHooks" ];
-    bAllowHandHooks = inLua[ "EnableHandHooks" ];
-    bAllowPlayHooks = inLua[ "EnablePlayHooks" ];
-    bAllowDeadHooks = inLua[ "EnableDeadHooks" ];
-    
-    OwningPlayer = inOwner;
-    
-    // Store Hooks
-    if( inLua[ "Hooks" ].isTable() )
-        Hooks = std::make_shared< luabridge::LuaRef >( inLua[ "Hooks" ] );
-    else
-        Hooks = std::make_shared< luabridge::LuaRef >( luabridge::newTable( inLua.state() ) );
-    
-    // Load Abilities
-    if( inLua[ "Abilities" ].isTable() )
-    {
-        auto AbilityTable = inLua[ "Abilities" ];
-        
-        int Index = 1;
-        while( AbilityTable[ Index ].isTable() )
-        {
-            // Check if this ability is valid
-            auto thisAbil = AbilityTable[ Index ];
-            if( !thisAbil[ "Name" ].isString() || !thisAbil[ "Description" ].isString() ||
-               !thisAbil[ "OnTrigger" ].isFunction() )
-            {
-                cocos2d::log( "[Card] Failed to load ability number %d for card %s", Index, DisplayName.c_str() );
-                Index++;
-                continue;
-            }
-            
-            Abilities[ Index ] = Ability();
-            Abilities[ Index ].Name = thisAbil[ "Name" ].tostring();
-            Abilities[ Index ].Description = thisAbil[ "Description" ].tostring();
-            Abilities[ Index ].MainFunc = std::make_shared< luabridge::LuaRef >( thisAbil[ "OnTrigger" ] );
-            
-            if( thisAbil[ "ManaCost" ].isNumber() )
-                Abilities[ Index ].ManaCost = thisAbil[ "ManaCost" ];
-            else
-                Abilities[ Index ].ManaCost = 0;
-            
-            if( thisAbil[ "StaminaCost" ].isNumber() )
-                Abilities[ Index ].StaminaCost = thisAbil[ "StaminaCost" ];
-            else
-                Abilities[ Index ].StaminaCost = 0;
-            
-            if( thisAbil[ "PreCheck" ].isFunction() )
-                Abilities[ Index ].CheckFunc = std::make_shared< luabridge::LuaRef >( thisAbil[ "PreCheck" ] );
-            
-            Abilities[ Index ].Index = (uint8_t) Index;
-            
-            Index++;
-        }
-    }
-
-    return true;
-    
-}
-
-bool CardEntity::ShouldCallHook() const
-{
-    if( InHand() && bAllowHandHooks )
-        return true;
-    
-    if( InDeck() && bAllowDeckHooks )
-        return true;
-    
-    if( OnField() && bAllowPlayHooks )
-        return true;
-    
-    if( InGrave() && bAllowDeadHooks )
-        return true;
-    
-    return false;
-}
-
-bool CardEntity::ShouldCallHook( const std::string& HookName )
-{
-    if( !ShouldCallHook() )
-        return false;
-    
-    // Check if this hook exists
-    return ( Hooks && (*Hooks)[ HookName ].isFunction() );
-}
-
-
-bool CardEntity::GetHook( const std::string &HookName, luabridge::LuaRef& outFunc )
-{
-    if( Hooks )
-    {
-        if( (*Hooks)[ HookName ].isFunction() )
-        {
-            outFunc = (*Hooks)[ HookName ];
-            return true;
-        }
-    }
-    
-    return false;
-}
 
 void CardEntity::AddToScene( cocos2d::Node* inNode )
 {
@@ -282,7 +402,7 @@ void CardEntity::AddToScene( cocos2d::Node* inNode )
     Sprite->setName( "Card" );
     Sprite->setCascadeOpacityEnabled( true );
     
-    bFaceUp = false;
+    State.FaceUp = false;
     
     inNode->addChild( Sprite );
 }
@@ -325,14 +445,12 @@ void CardEntity::CreateOverlays()
     Highlight->setPosition( Sprite->getContentSize() * 0.5f );
     Highlight->setOpacity( 0 );
     Highlight->setColor( cocos2d::Color3B( 245, 25, 25 ) );
-    Highlight->setGlobalZOrder( Sprite->getGlobalZOrder() + 1 );
     
     Overlay = cocos2d::Sprite::create();
     Overlay->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     Overlay->setName( "Overlay" );
     Overlay->setPosition( Sprite->getContentSize() * 0.5f );
     Overlay->setOpacity( 0 );
-    Overlay->setGlobalZOrder( Sprite->getGlobalZOrder() + 1 );
     
     auto Size = Sprite->getContentSize();
     
@@ -340,22 +458,21 @@ void CardEntity::CreateOverlays()
     PowerLabel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     PowerLabel->setTextColor( cocos2d::Color4B( 250, 250, 250, 255 ) );
     PowerLabel->setPosition( cocos2d::Vec2( Size.width - 30.f, 30.f ) );
-    PowerLabel->setGlobalZOrder( Sprite->getGlobalZOrder() + 2 );
     
     StaminaLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 65 );
     StaminaLabel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     StaminaLabel->setTextColor( cocos2d::Color4B( 250, 250, 250, 255 ) );
     StaminaLabel->setPosition( cocos2d::Vec2( 30.f, 30.f ) );
-    StaminaLabel->setGlobalZOrder( Sprite->getGlobalZOrder() + 2 );
     
-    Sprite->addChild( StaminaLabel );
-    Sprite->addChild( PowerLabel );
-    Sprite->addChild( Highlight );
-    Sprite->addChild( Overlay );
+    Sprite->addChild( StaminaLabel, 1 );
+    Sprite->addChild( PowerLabel, 1 );
+    Sprite->addChild( Highlight, 3 );
+    Sprite->addChild( Overlay, 2 );
 }
 
 void CardEntity::DestroyOverlays()
 {
+    
     if( Highlight )
     {
         Highlight->removeFromParent();
@@ -430,7 +547,7 @@ void CardEntity::ClearOverlay()
 }
 
 
-void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::function< void() > Callback )
+void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time )
 {
     if( Sprite )
     {
@@ -445,10 +562,7 @@ void CardEntity::MoveAnimation( const cocos2d::Vec2 &To, float Time, std::functi
         // instead, were going to call the callback after cancelling the sequence
         Sprite->stopActionByTag( ACTION_TAG_MOVE );
         Sprite->runAction( moveAction );
-        
-        // Schedule Callback
-        if( Callback )
-            cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float Delay ) { if( Callback ) Callback(); }, this, Time + 0.1f, 0, 0.f, false, "MoveCallback" + std::to_string( ++lastMoveId ) );
+
     }
     
     // Update entity position
@@ -475,13 +589,16 @@ void CardEntity::RotateAnimation( float GlobalRot, float Time )
 
 void CardEntity::Flip( bool bInFaceUp, float Time )
 {
-    if( bInFaceUp == bFaceUp )
+    if( bInFaceUp == State.FaceUp )
         return;
     
     // Load correct texture
-    auto desired = bInFaceUp ? FrontTexture : BackTexture;
+    auto desired = bInFaceUp ? FrontTexture : BackTexture ;
     if( !desired )
+    {
         cocos2d::log( "[Card] ERROR: Failed to flip card properly.. couldnt load texture" );
+        return;
+    }
     
     ClearHighlight();
     ClearOverlay();
@@ -498,7 +615,7 @@ void CardEntity::Flip( bool bInFaceUp, float Time )
         }
     }
     
-    bFaceUp = bInFaceUp;
+    State.FaceUp = bInFaceUp;
     
 }
 
@@ -506,27 +623,7 @@ void CardEntity::SetZ( int In )
 {
     if( Sprite )
     {
-        Sprite->setGlobalZOrder( In );
-    }
-    
-    if( Overlay )
-    {
-        Overlay->setGlobalZOrder( In + 1 );
-    }
-    
-    if( Highlight )
-    {
-        Highlight->setGlobalZOrder( In + 1 );
-    }
-    
-    if( PowerLabel )
-    {
-        PowerLabel->setGlobalZOrder( In + 2 );
-    }
-    
-    if( StaminaLabel )
-    {
-        StaminaLabel->setGlobalZOrder( In + 2 );
+        Sprite->setLocalZOrder( In );
     }
 }
 
@@ -535,7 +632,7 @@ void CardEntity::UpdatePower( int inPower )
     if( PowerLabel )
         PowerLabel->setString( std::to_string( inPower ) );
     
-    Power = inPower;
+    State.Power = inPower;
 }
 
 void CardEntity::UpdateStamina( int inStamina )
@@ -543,16 +640,16 @@ void CardEntity::UpdateStamina( int inStamina )
     if( StaminaLabel )
         StaminaLabel->setString( std::to_string( inStamina ) );
     
-    Stamina = inStamina;
+    State.Stamina = inStamina;
 }
 
 void CardEntity::ShowPowerStamina()
 {
     if( StaminaLabel )
-        StaminaLabel->setString( std::to_string( Stamina ) );
+        StaminaLabel->setString( std::to_string( State.Stamina ) );
     
     if( PowerLabel )
-        PowerLabel->setString( std::to_string( Power ) );
+        PowerLabel->setString( std::to_string( State.Power ) );
 }
 
 void CardEntity::HidePowerStamina()
@@ -562,28 +659,4 @@ void CardEntity::HidePowerStamina()
     
     if( PowerLabel )
         PowerLabel->setString( "" );
-}
-
-bool CardEntity::CanTriggerAbility( int Index )
-{
-    // Check Bounds
-    if( Index < 0 || Abilities.count( Index ) == 0 )
-        return false;
-    
-    // Get Ability
-    auto& Abil = Abilities.at( Index );
-    
-    // Check Mana & Stamina
-    auto Owner = GetOwningPlayer();
-    if( !Owner )
-        return false;
-    
-    if( Abil.ManaCost > Owner->GetMana() || Abil.StaminaCost > Stamina )
-        return false;
-    
-    // Run manual check if exists
-    if( Abil.CheckFunc && Abil.CheckFunc->isFunction() )
-        return ( *Abil.CheckFunc )( this );
-    
-    return true;
 }

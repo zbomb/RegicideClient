@@ -49,8 +49,10 @@ namespace Game
         inline size_t Count() const override { return Cards.size(); }
         
         virtual void Invalidate() override;
-        virtual void InvalidateCards( CardEntity* inCard = nullptr, bool bParam = false ) override;
+        virtual void InvalidateCards( CardEntity* inCard = nullptr ) override;
         void InvalidateZOrder();
+        
+        void Clear();
         
     protected:
         

@@ -9,12 +9,7 @@ CARD.Stamina = 2;
 CARD.Mana = 3;
 
 CARD.Texture        = "ButtPlunger.png";
-CARD.LargeTexture   = "ButtPlunger_Large.png";
-
-CARD.EnableDeckHooks = false;
-CARD.EnableHandHooks = false;
-CARD.EnablePlayHooks = true;
-CARD.EnableDeadHooks = false;
+CARD.FullTexture   = "ButtPlunger_Large.png";
 
 CARD.Abilities = {};
 
@@ -24,32 +19,53 @@ CARD.Abilities[ 1 ].Name            = "Smoke Ciggarette";
 CARD.Abilities[ 1 ].Description     = "Smoke a cigarette, get cancer and kill random opponent card with second hand smoke";
 CARD.Abilities[ 1 ].ManaCost        = 1;
 CARD.Abilities[ 1 ].StaminaCost     = 2;
-CARD.Abilities[ 1 ].PreCheck = function( thisCard )
+CARD.Abilities[ 1 ].PreCheck = function( Context )
 
-    return Game.IsCardTurn( thisCard ) and thisCard:OnField();
+    return Context:IsTurn() and Context:GetState().Position == POSITION_FIELD;
 
 end
 
-CARD.Abilities[ 1 ].OnTrigger = function( thisCard )
+CARD.Abilities[ 1 ].OnTrigger = function( Context )
 
     -- Kill Self
-    Action.DamageCard( thisCard, thisCard, thisCard:GetPower(), ACTION_SERIAL );
+    local State = Context:GetState();
+    Context:DealDamage( State.Id, State.Id, State.Power, ACTION_SERIAL );
 
     -- Kill Random Opponent
-    local Opponent = Game.GetOpponent( thisCard );
-    local Field = Opponent:GetField();
+    local Field = Context:GetField( Context:GetOpponent() );
 
-    if( Field:GetCount() <= 0 ) then return end
+    if( #Field <= 0 ) then return end
 
     math.randomseed( tonumber( tostring( os.time() ):reverse():sub( 1,6 ) ) );
 
-    local RandIndex = -1;
-    while( !Field:IndexValid( RandIndex ) ) do 
-        RandIndex = math.random( 0, Field:GetCount() - 1 );
-    end
+    local RandIndex = math.random( 1, #Field );
+    local Target = Field[ RandIndex ];
 
-    local TargetCard = Field:GetIndex( RandIndex );
-    Action.DamageCard( TargetCard, thisCard, 5, ACTION_SERIAL );
+    Context:DealDamage( Target.Id, State.Id, 5, ACTION_SERIAL );
+
+end
+
+-- Output the effects of triggering this ability so the AI can
+-- accuratley make decisions
+CARD.Abilities[ 1 ].Simulate = function( thisCard )
+
+    local Output    = {}
+    local Opponent  = Game.GetOpponent( thisCard );
+    local Field     = Opponent:GetField();
+
+    Output[ 1 ]             = {}
+    Output[ 1 ].Type        = ACTION_TYPE_KILL;
+    Output[ 1 ].TargetType  = ACTION_TARGET_SELF
+    Output[ 1 ].Targets     = nil;
+    Output[ 1 ].Param       = nil;
+
+    Output[ 2 ]             = {}
+    Output[ 2 ].Type        = ACTION_TYPE_KILL;
+    Output[ 2 ].TargetType  = ACTION_TARGET_RANDOM
+    Output[ 2 ].Targets     = Field:GetCards();
+    Output[ 2 ].Param       = nil;
+
+    return Output;
 
 end
 

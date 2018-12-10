@@ -41,8 +41,7 @@ void DeckEntity::AddToScene( cocos2d::Node* In )
         return;
     
     bAddedToScene = true;
-    cocos2d::log( "DECK ADDED TO SCENE" );
-    
+
     Counter = cocos2d::Label::createWithTTF( std::to_string( Count() ), "fonts/arial.ttf", 50.f );
     Counter->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     Counter->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
@@ -330,7 +329,7 @@ void DeckEntity::Invalidate()
     }
 }
 
-void DeckEntity::InvalidateCards( CardEntity* Ignore, bool bParam )
+void DeckEntity::InvalidateCards( CardEntity* Ignore )
 {
     int Index = 0;
     for( auto It = Begin(); It != End(); It++ )
@@ -351,35 +350,53 @@ void DeckEntity::MoveCard( CardEntity* inCard, std::function< void() > Callback 
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( GetPosition(), 0.3f, Callback );
+        inCard->MoveAnimation( GetPosition(), CARD_DEFAULT_MOVE_TIME );
         
         // Make sure its face down if in deck
-        if( inCard->IsFaceUp() )
-            inCard->Flip( false, 0.3f );
+        if( inCard->GetState().FaceUp )
+            inCard->Flip( false, CARD_DEFAULT_MOVE_TIME );
         
         // Card should always be rotated face up, irregardless of parent
         float absRot = inCard->GetAbsoluteRotation();
         if( absRot > 1.f || absRot < -1.f )
         {
-            inCard->RotateAnimation( 0.f, 0.3f );
+            inCard->RotateAnimation( 0.f, CARD_DEFAULT_MOVE_TIME );
         }
+        
+        FinishAction( Callback, CARD_DEFAULT_MOVE_TIME + 0.1f );
+    }
+    else
+    {
+        FinishAction( Callback );
     }
 }
 
 void DeckEntity::InvalidateZOrder()
 {
-    // Top of deck gets a higher Z Order
-    // So, we need to order the cards
-    // Default card Z order is 10
-    
-    int Top = ( (int)Cards.size() * 2 ) + 11;
+    // Z Order Between 1-100
+    int Top = (int)Cards.size() + 1;
+    Top = Top > 100 ? 100 : Top;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
-        int Order = Top - ( i * 2 );
+        int Order = Top - i;
+        Order = Order < 1 ? 1 : Order;
+        
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );
         }
     }
+}
+
+void DeckEntity::Clear()
+{
+    auto& Ent = IEntityManager::GetInstance();
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It )
+            Ent.DestroyEntity( *It );
+    }
+    
+    Cards.clear();
 }

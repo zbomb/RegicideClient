@@ -12,11 +12,12 @@
 #include "Game/World.hpp"
 #include "Game/Player.hpp"
 #include "Game/AuthorityBase.hpp"
+#include "Game/GameContext.hpp"
 
-AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep )
+AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep, int inFont )
 {
     auto* Output = new (std::nothrow) AbilityText();
-    if( Output && Output->init( InCard, inAbility, inWidth, bDrawSep ) )
+    if( Output && Output->init( InCard, inAbility, inWidth, bDrawSep, inFont ) )
     {
         Output->autorelease();
     }
@@ -44,7 +45,7 @@ AbilityText::~AbilityText()
     Listener = nullptr;
 }
 
-bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth, bool bDrawSep )
+bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth, bool bDrawSep, int inFont )
 {
     if( !Widget::init() )
         return false;
@@ -56,57 +57,49 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     
     // Create Draw Node
     Draw = cocos2d::DrawNode::create();
-    Draw->setGlobalZOrder( 405 );
     
-    addChild( Draw );
+    addChild( Draw, 1 );
     
     // Create Mana Cost
     float TextSpacing = 0.f;
     if( Ability.ManaCost > 0 )
     {
-        ManaCost = IconCount::Create( "ManaIcon.png", Ability.ManaCost );
+        ManaCost = IconCount::Create( "ManaIcon.png", Ability.ManaCost, inFont + 2 );
         
         if( Ability.StaminaCost > 0 )
             ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.f ) );
         else
             ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
         
-        ManaCost->setGlobalZOrder( 405 );
-        ManaCost->SetZ( 405 );
-        
-        addChild( ManaCost );
+        addChild( ManaCost, 3 );
         
         TextSpacing = ManaCost->getContentSize().width;
     }
     
     if( Ability.StaminaCost > 0 )
     {
-        StaminaCost = IconCount::Create( "StaminaIcon.png", Ability.StaminaCost );
+        StaminaCost = IconCount::Create( "StaminaIcon.png", Ability.StaminaCost, inFont + 2 );
         
         if( Ability.ManaCost > 0 )
             StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
         else
             StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
 
-        StaminaCost->setGlobalZOrder( 405 );
-        StaminaCost->SetZ( 405 );
-        
-        addChild( StaminaCost );
+        addChild( StaminaCost, 3 );
         
         float thisSpacing = StaminaCost->getContentSize().width;
         TextSpacing = TextSpacing < thisSpacing ? thisSpacing : TextSpacing;
     }
     
     // Create Label
-    Text = cocos2d::Label::createWithTTF( Ability.Description, "fonts/arial.ttf", 28 );
+    Text = cocos2d::Label::createWithTTF( Ability.Description, "fonts/arial.ttf", inFont );
     Text->enableWrap( true );
     Text->setDimensions( inWidth - 15.f - TextSpacing - 4.f, 0.f );
     Text->setAlignment( cocos2d::TextHAlignment::LEFT, cocos2d::TextVAlignment::TOP );
     Text->setTextColor( cocos2d::Color4B( 255, 255, 255, 255 ) );
     Text->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
-    Text->setGlobalZOrder( 405 );
-    
-    addChild( Text );
+
+    addChild( Text, 2 );
     
     // Check if player is able to activate this ability
     auto World = Game::World::GetWorld();
@@ -120,19 +113,23 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
                 ManaCost->SetTextColor( cocos2d::Color4B( 250, 40, 40, 255 ) );
         }
         
-        if( InCard->Stamina < Ability.StaminaCost )
+        if( InCard->GetState().Stamina < Ability.StaminaCost )
         {
             if( StaminaCost )
                 StaminaCost->SetTextColor( cocos2d::Color4B( 250, 40, 40, 255 ) );
         }
         
-        if( Player->GetMana() >= Ability.ManaCost && InCard->Stamina >= Ability.StaminaCost )
+        if( Player->GetMana() >= Ability.ManaCost && InCard->GetState().Stamina >= Ability.StaminaCost )
         {
             // Perform Check
             bool bCheck = true;
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                bCheck = ( *Ability.CheckFunc )( InCard );
+                // Create context for Lua call
+                auto Context = Game::GameContext();
+                Context.SetState( InCard->GetState() );
+                
+                bCheck = ( *Ability.CheckFunc )( Context );
             }
             
             if( bCheck )
@@ -271,7 +268,10 @@ void AbilityText::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
             // Perform Check Again
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                if( !( *Ability.CheckFunc )( Card ) )
+                auto Context = Game::GameContext();
+                Context.SetState( Card->GetState() );
+                
+                if( !( *Ability.CheckFunc )( Context ) )
                 {
                     cocos2d::log( "[CardViewer] Ability Check Failed!" );
                     

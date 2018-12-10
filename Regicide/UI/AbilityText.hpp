@@ -22,8 +22,8 @@ public:
     AbilityText();
     ~AbilityText();
     
-    static AbilityText* Create( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep );
-    virtual bool init( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep );
+    static AbilityText* Create( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep, int inFont = 28 );
+    virtual bool init( Game::CardEntity* InCard, Game::Ability& InAbility, float inWidth, bool bDrawSep, int inFont );
     virtual void onSizeChanged() override;
     
     float GetDesiredHeight();

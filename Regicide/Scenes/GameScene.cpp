@@ -42,10 +42,10 @@ bool GameScene::init()
     Test->setAlignment( TextHAlignment::CENTER, TextVAlignment::CENTER );
     Test->setAnchorPoint( Vec2( 0.5f, 0.5f ) );
     Test->setPosition( Vec2( Origin.x + Size.width / 2.f, Origin.y + Size.height / 2.f ) );
-    addChild( Test, 5 );
+    addChild( Test, -1 );
     
     cardLayer = CardLayer::create();
-    addChild( cardLayer, 7 );
+    addChild( cardLayer, 0 );
     
     ExitButton = ui::Button::create( "launch_button_normal.png" );
     ExitButton->setAnchorPoint( Vec2( 0.f, 1.f ) );
@@ -59,7 +59,7 @@ bool GameScene::init()
         }
         
     } );
-    addChild( ExitButton, 50 );
+    addChild( ExitButton, -1 );
     
     FinishButton = ui::Button::create( "generic_button.png" );
     FinishButton->setCascadeOpacityEnabled( true );
@@ -74,7 +74,7 @@ bool GameScene::init()
                                               GM->FinishTurn();
                                           }
                                       });
-    addChild( FinishButton, 50 );
+    addChild( FinishButton, -1 );
     
     FinishLabel = cocos2d::Label::createWithTTF( "Finish", "fonts/arial.ttf", 35 );
     FinishLabel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
@@ -87,12 +87,12 @@ bool GameScene::init()
     TurnLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 60 );
     TurnLabel->setAnchorPoint( cocos2d::Vec2( 0.f, 0.5f ) );
     TurnLabel->setPosition( cocos2d::Vec2( Origin.x + 20.f, Origin.y + Size.height * 0.5f ) );
-    addChild( TurnLabel, 50 );
+    addChild( TurnLabel, -1 );
     
     PlayerLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 60 );
     PlayerLabel->setAnchorPoint( cocos2d::Vec2( 1.f, 0.5f ) );
     PlayerLabel->setPosition( cocos2d::Vec2( Origin.x + Size.width - 20.f, Origin.y + Size.height * 0.5f ) );
-    addChild( PlayerLabel, 50 );
+    addChild( PlayerLabel, -1 );
     
     return true;
 }

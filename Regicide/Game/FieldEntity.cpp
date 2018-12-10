@@ -261,7 +261,7 @@ bool FieldEntity::RemoveRandom( bool bDestroy /* = false */ )
     return true;
 }
 
-void FieldEntity::InvalidateCards( CardEntity* Ignore /* = nullptr */, bool bParam /* = false */ )
+void FieldEntity::InvalidateCards( CardEntity* Ignore /* = nullptr */ )
 {
     if( _bInvalidatePaused )
         return;
@@ -336,32 +336,38 @@ void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std:
     if( inCard )
     {
         // Move card
-        inCard->MoveAnimation( inPos, 0.3f, Callback );
+        inCard->MoveAnimation( inPos, CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( !inCard->IsFaceUp() )
-            inCard->Flip( true, 0.3f );
+        if( !inCard->GetState().FaceUp )
+            inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // On field, card should always be upright
         float absRot = inCard->GetAbsoluteRotation();
         if( absRot > 1.f || absRot < -1.f )
         {
-            inCard->RotateAnimation( 0.f, 0.3f );
+            inCard->RotateAnimation( 0.f, CARD_DEFAULT_MOVE_TIME );
         }
+        
+        FinishAction( Callback, CARD_DEFAULT_MOVE_TIME + 0.1f );
+    }
+    else
+    {
+        FinishAction( Callback );
     }
 }
 
 void FieldEntity::InvalidateZOrder()
 {
-    // Top of deck gets a higher Z Order
-    // So, we need to order the cards
-    // Default card Z order is 10
-    
-    int Top = ( (int)Cards.size() * 2 ) + 11;
+    // Z Order between 1 and 50
+    int Top = (int)Cards.size() + 1;
+    Top = Top > 50 ? 50 : Top;
     
     for( int i = 0; i < Cards.size(); i++ )
     {
-        int Order = Top - ( i * 2 );
+        int Order = Top - i;
+        Order = Order < 1 ? 1 : Order;
+        
         if( Cards[ i ] )
         {
             Cards[ i ]->SetZ( Order );
@@ -414,4 +420,36 @@ int FieldEntity::AttemptDrop( CardEntity *inCard, const cocos2d::Vec2 &inPos )
     
     // Return the best index we found
     return BestIndex >= 0 ? BestIndex : -1;
+}
+
+
+luabridge::LuaRef FieldEntity::_lua_GetCards()
+{
+    auto Engine = Regicide::LuaEngine::GetInstance();
+    CC_ASSERT( Engine );
+    
+    luabridge::LuaRef Output = luabridge::newTable( Engine->State() );
+    
+    int Index = 1;
+    for( auto It = Begin(); It != End(); It++ )
+    {
+        if( *It )
+        {
+            Output[ Index++ ] = (*It);
+        }
+    }
+    
+    return Output;
+}
+
+void FieldEntity::Clear()
+{
+    auto& Ent = IEntityManager::GetInstance();
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        if( *It )
+            Ent.DestroyEntity( *It );
+    }
+    
+    Cards.clear();
 }
