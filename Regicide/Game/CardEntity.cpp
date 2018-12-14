@@ -63,6 +63,7 @@ bool CardManager::GetInfo( uint16_t inId, CardInfo& Out )
         if( CardTable.isTable() && CardTable[ "Power" ].isNumber() && CardTable[ "Stamina" ].isNumber() && CardTable[ "Name" ].isString() && CardTable[ "Texture" ].isString() && CardTable[ "FullTexture" ].isString() && CardTable[ "Mana" ].isNumber() )
         {
             auto& newCard = CachedCards[ inId ] = CardInfo();
+            newCard.Id = inId;
             newCard.DisplayName = CardTable[ "Name" ].tostring();
             newCard.Power = int( CardTable[ "Power" ] );
             newCard.Stamina = int( CardTable[ "Stamina" ] );
@@ -169,7 +170,7 @@ CardEntity* CardManager::CreateCard( CardState& State, Player* inOwner, bool bPr
     Output->Id              = State.Id;
     Output->ManaCost        = State.ManaCost;
     Output->Owner           = State.Owner;
-    Output->Position        = State.Position;
+    Output->Pos             = State.Position;
     Output->Power           = State.Power;
     Output->Stamina         = State.Stamina;
     Output->Info            = Info;
@@ -243,14 +244,14 @@ CardEntity* CardManager::CreateCard( uint16_t inId, Player *inOwner, bool bPrelo
         inOwner->AddChild( Output );
         
         // Setup dynamic state
-        Output->State.FaceUp        = false;
-        Output->State.Id            = inId;
-        Output->State.ManaCost      = thisInfo.ManaCost;
-        Output->State.Owner         = inOwner->GetEntityId();
-        Output->State.Position      = CardPos::NONE;
-        Output->State.Power         = thisInfo.Power;
-        Output->State.Stamina       = thisInfo.Stamina;
-        Output->State.EntId         = Output->GetEntityId();
+        Output->FaceUp        = false;
+        Output->Id            = inId;
+        Output->ManaCost      = thisInfo.ManaCost;
+        Output->Owner         = inOwner->GetEntityId();
+        Output->Pos             = CardPos::NONE;
+        Output->Power         = thisInfo.Power;
+        Output->Stamina       = thisInfo.Stamina;
+        Output->EntId         = Output->GetEntityId();
         
         // Store a reference to the 'CardInfo' so we can easily lookup static info
         // without having to perform map lookups every time
@@ -402,7 +403,7 @@ void CardEntity::AddToScene( cocos2d::Node* inNode )
     Sprite->setName( "Card" );
     Sprite->setCascadeOpacityEnabled( true );
     
-    State.FaceUp = false;
+    FaceUp = false;
     
     inNode->addChild( Sprite );
 }
@@ -589,7 +590,7 @@ void CardEntity::RotateAnimation( float GlobalRot, float Time )
 
 void CardEntity::Flip( bool bInFaceUp, float Time )
 {
-    if( bInFaceUp == State.FaceUp )
+    if( bInFaceUp == FaceUp )
         return;
     
     // Load correct texture
@@ -615,7 +616,7 @@ void CardEntity::Flip( bool bInFaceUp, float Time )
         }
     }
     
-    State.FaceUp = bInFaceUp;
+    FaceUp = bInFaceUp;
     
 }
 
@@ -632,7 +633,7 @@ void CardEntity::UpdatePower( int inPower )
     if( PowerLabel )
         PowerLabel->setString( std::to_string( inPower ) );
     
-    State.Power = inPower;
+    Power = inPower;
 }
 
 void CardEntity::UpdateStamina( int inStamina )
@@ -640,16 +641,16 @@ void CardEntity::UpdateStamina( int inStamina )
     if( StaminaLabel )
         StaminaLabel->setString( std::to_string( inStamina ) );
     
-    State.Stamina = inStamina;
+    Stamina = inStamina;
 }
 
 void CardEntity::ShowPowerStamina()
 {
     if( StaminaLabel )
-        StaminaLabel->setString( std::to_string( State.Stamina ) );
+        StaminaLabel->setString( std::to_string( Stamina ) );
     
     if( PowerLabel )
-        PowerLabel->setString( std::to_string( State.Power ) );
+        PowerLabel->setString( std::to_string( Power ) );
 }
 
 void CardEntity::HidePowerStamina()

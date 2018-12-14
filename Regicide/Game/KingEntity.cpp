@@ -19,7 +19,6 @@ KingEntity::KingEntity()
 {
     bAddedToScene = false;
     bIsOpponent = false;
-    bIsState = false;
     
     cocos2d::log( "[DEBUG] CREATING KING ENTITY" );
 }
@@ -44,7 +43,7 @@ void KingEntity::Cleanup()
 
 void KingEntity::AddToScene( cocos2d::Node *inNode )
 {
-    if( bAddedToScene || bIsState )
+    if( bAddedToScene )
         return;
     
     CC_ASSERT( inNode );
@@ -117,78 +116,6 @@ void KingEntity::Invalidate()
     }
 }
 
-bool KingEntity::Load( luabridge::LuaRef &inLua, Player *inOwner, bool bOpponent )
-{
-    bIsOpponent = bOpponent;
-    
-    // Validate Lua
-    if( !inLua.isTable() || !inOwner )
-    {
-        cocos2d::log( "[King] ERROR: Failed to load.. invalid lua table!" );
-        return false;
-    }
-    
-    if( !inLua[ "Name" ].isString() ||
-        ( bOpponent && !inLua[ "OpponentTexture" ].isString() ) ||
-        ( !bOpponent && !inLua[ "PlayerTexture" ].isString() ))
-    {
-        cocos2d::log( "[King] ERROR: Failed to load.. invalid lua table!" );
-        return false;
-    }
-    
-    State.Owner     = inOwner->GetEntityId();
-    State.FaceUp    = true;
-    State.Position  = CardPos::KING;
-    State.Power     = 0;
-    State.Stamina   = 0;
-    State.ManaCost  = 0;
-    State.EntId     = GetEntityId();
-    
-    // Set Data Members
-    DisplayName = inLua[ "Name" ].tostring();
-    TextureName = bOpponent ? inLua[ "OpponentTexture" ].tostring() : inLua[ "PlayerTexture" ].tostring();
-    
-    RequireTexture( TextureName, [ = ]( cocos2d::Texture2D* InTex )
-    {
-        if( !InTex )
-        {
-            cocos2d::log( "[King] ERROR! Failed to load king texture '%s'", TextureName.c_str() );
-            Texture = nullptr;
-        }
-        else
-        {
-            cocos2d::log( "[DEBUG] LOADED KING TEXTURE" );
-            Texture = InTex;
-        }
-    } );
-    
-    // Store Hook Table
-    if( inLua[ "Hooks" ].isTable() )
-    {
-        Hooks = std::make_shared< luabridge::LuaRef >( luabridge::newTable( inLua[ "Hooks" ] ) );
-    }
-    else
-    {
-        Hooks = std::make_shared< luabridge::LuaRef >( luabridge::newTable( inLua.state() ) );
-    }
-    
-    return true;
-}
-
-bool KingEntity::GetHook( const std::string &Name, luabridge::LuaRef &Out )
-{
-    if( !Hooks || !Hooks->isTable() )
-        return false;
-    
-    if( (*Hooks)[ Name ].isFunction() )
-    {
-        Out = (*Hooks)[ Name ];
-        return true;
-    }
-    
-    return false;
-}
-
 void KingEntity::UpdateMana( int InMana )
 {
     if( ManaLabel )
@@ -197,7 +124,22 @@ void KingEntity::UpdateMana( int InMana )
     }
 }
 
-void KingEntity::MarkAsState()
+void KingEntity::Load( KingState& Source, bool bOpponent )
 {
-    bIsState = true;
+    bIsOpponent = bOpponent;
+    
+    DisplayName = Source.DisplayName;
+    TextureName = bOpponent ? Source.OpponentTexture : Source.PlayerTexture;
+    
+    RequireTexture( TextureName, [ = ]( cocos2d::Texture2D* t )
+    {
+        if( t )
+        {
+            Texture = t;
+        }
+        else
+        {
+            cocos2d::log( "[King] Failed to load desired texture! '%s'", TextureName.c_str() );
+        }
+    } );
 }

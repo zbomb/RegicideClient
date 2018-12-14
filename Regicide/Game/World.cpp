@@ -30,7 +30,6 @@ World::~World()
     CurrentInstance     = nullptr;
     GM                  = nullptr;
     Auth                = nullptr;
-    State               = nullptr;
 }
 
 void World::Cleanup()
@@ -42,14 +41,4 @@ void World::Cleanup()
 World* World::GetWorld()
 {
     return CurrentInstance;
-}
-
-Player* World::GetLocalPlayer()
-{
-    return State ? State->GetPlayer() : nullptr;
-}
-
-Player* World::GetOpponent()
-{
-    return State ? State->GetOpponent() : nullptr;
 }

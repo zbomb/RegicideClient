@@ -12,7 +12,8 @@
 #include "Game/World.hpp"
 #include "Game/Player.hpp"
 #include "Game/AuthorityBase.hpp"
-#include "Game/GameContext.hpp"
+#include "Game/GameModeBase.hpp"
+
 
 AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep, int inFont )
 {
@@ -103,7 +104,8 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     
     // Check if player is able to activate this ability
     auto World = Game::World::GetWorld();
-    auto Player = World ? World->GetLocalPlayer() : nullptr;
+    auto GM = World ? World->GetGameMode() : nullptr;
+    auto Player = World ? GM->GetState().GetPlayer() : nullptr;
     
     if( Player && InCard )
     {
@@ -113,23 +115,19 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
                 ManaCost->SetTextColor( cocos2d::Color4B( 250, 40, 40, 255 ) );
         }
         
-        if( InCard->GetState().Stamina < Ability.StaminaCost )
+        if( InCard->Stamina < Ability.StaminaCost )
         {
             if( StaminaCost )
                 StaminaCost->SetTextColor( cocos2d::Color4B( 250, 40, 40, 255 ) );
         }
         
-        if( Player->GetMana() >= Ability.ManaCost && InCard->GetState().Stamina >= Ability.StaminaCost )
+        if( Player->GetMana() >= Ability.ManaCost && InCard->Stamina >= Ability.StaminaCost )
         {
             // Perform Check
             bool bCheck = true;
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                // Create context for Lua call
-                auto Context = Game::GameContext();
-                Context.SetState( InCard->GetState() );
-                
-                bCheck = ( *Ability.CheckFunc )( Context );
+                bCheck = ( *Ability.CheckFunc )( GM->GetState(), InCard );
             }
             
             if( bCheck )
@@ -260,18 +258,18 @@ bool AbilityText::onTouch( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 
 void AbilityText::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
 {
+    auto World = Game::World::GetWorld();
+    auto GM = World ? World->GetGameMode() : nullptr;
+    
     // Check if the user was just scrolling and this ability can be triggered
     if( bCanTrigger && inTouch->getLocation().distance( _touchStart ) < 9.f )
     {
-        if(  Card && Ability.MainFunc && Ability.MainFunc->isFunction() )
+        if( GM && Card && Ability.MainFunc && Ability.MainFunc->isFunction() )
         {
             // Perform Check Again
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                auto Context = Game::GameContext();
-                Context.SetState( Card->GetState() );
-                
-                if( !( *Ability.CheckFunc )( Context ) )
+                if( !( *Ability.CheckFunc )( GM->GetState(), Card ) )
                 {
                     cocos2d::log( "[CardViewer] Ability Check Failed!" );
                     
@@ -292,7 +290,7 @@ void AbilityText::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
             auto Auth = World->GetAuthority();
             CC_ASSERT( Auth );
             
-            Auth->TriggerAbility( Card, Ability.Index );
+            Auth->TriggerAbility( Card->GetEntityId(), Ability.Index );
         }
     }
 }

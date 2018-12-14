@@ -14,117 +14,95 @@
 #include "DeckEntity.hpp"
 #include "KingEntity.hpp"
 #include "HandEntity.hpp"
+#include "FieldEntity.hpp"
+#include "GraveyardEntity.hpp"
 
 using namespace Game;
 
 ClientState::ClientState()
-: EntityBase( "ClientState" ), LocalPlayer( nullptr ), Opponent( nullptr )
+: LocalPlayer( nullptr ), Opponent( nullptr )
 {
 }
 
-bool ClientState::StreamPlayer( Player*& Target, PlayerState& Source, bool bOpponent )
+Player* ClientState::FindPlayer( uint32_t Id )
 {
-    auto& Ent = IEntityManager::GetInstance();
-    auto& CM = CardManager::GetInstance();
+    if( LocalPlayer && LocalPlayer->GetEntityId() == Id )
+        return LocalPlayer;
+    else if( Opponent && Opponent->GetEntityId() == Id )
+        return Opponent;
     
-    // Create the entity
-    Target = Ent.CreateEntity< Player >( Source.EntId );
-    
-    // Load the king
-    // Load King
-    auto Engine = Regicide::LuaEngine::GetInstance();
-    auto L = Engine ? Engine->State() : nullptr;
-    auto King = Target->GetKing();
-    
-    if( !L || !King )
-    {
-        cocos2d::log( "[Client] Failed to get lua state!" );
-        return false;
-    }
-    
-    auto KingTable = luabridge::newTable( L );
-    luabridge::setGlobal( L, KingTable, "KING" );
-    
-    if( !Engine->RunScript( "kings/" + std::to_string( Source.King ) + ".lua" ) )
-    {
-        cocos2d::log( "[Client] Failed to load king with id: %d", Source.King );
-        
-        // Reset KING to nil
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-        return false;
-    }
-    
-    if( !King->Load( KingTable, Target, bOpponent ) )
-    {
-        luabridge::setGlobal( L, luabridge::LuaRef( L ), "KING" );
-        return false;
-    }
-    
-    King->OwningPlayer = Target;
-    King->UpdateMana( Source.Mana );
-    King->UpdateHealth( Source.Health );
-    
-    // Setup State
-    Target->SetMana( Source.Mana );
-    Target->SetHealth( Source.Health );
-    
-    Target->DisplayName     = Source.DisplayName;
-    Target->bOpponent       = bOpponent;
-    Target->CardBackTexture = "CardBack.png";
-    
-    auto Deck = Target->GetDeck();
-    auto Hand = Target->GetHand();
-    
-    if( !Hand )
-    {
-        cocos2d::log( "[Client] Couldnt create hand!" );
-        return false;
-    }
-    
-    Hand->bVisibleLocally = !bOpponent;
-    
-    // Create Cards!
-    for( auto It = Source.Deck.begin(); It != Source.Deck.end(); It++ )
-    {
-        auto Info = CM.GetInfoAddress( It->Id );
-        
-        if( !Info )
-        {
-            cocos2d::log( "[Client] Failed to get card info for id '%d'", (int) It->Id );
-            continue;
-        }
-        
-        auto NewCard    = CM.CreateCard( *It, Target, true );
-        if( !NewCard )
-        {
-            cocos2d::log( "[Client] Failed to create new card!" );
-            continue;
-        }
-
-        Deck->AddToTop( NewCard, false );
-    }
-    
-    return true;
+    return nullptr;
 }
 
-bool ClientState::StreamFrom( AuthState *Target )
+CardEntity* ClientState::LookupCard( uint32_t Id, Player *Owner, CardPos Position )
 {
-    if( !Target )
-        return false;
+    if( !Owner )
+        return nullptr;
     
-    // Game State
-    mState = Target->mState;
-    pState = Target->pState;
-    tState = Target->tState;
+    if( Position == CardPos::HAND || Position == CardPos::NONE )
+    {
+        auto Hand = Owner->GetHand();
+        if( Hand )
+        {
+            for( auto It = Hand->Begin(); It != Hand->End(); It++ )
+            {
+                if( *It && (*It)->GetEntityId() == Id )
+                    return *It;
+            }
+        }
+    }
+    if( Position == CardPos::FIELD || Position == CardPos::NONE )
+    {
+        auto Field = Owner->GetField();
+        if( Field )
+        {
+            for( auto It = Field->Begin(); It != Field->End(); It++ )
+            {
+                if( *It && (*It)->GetEntityId() == Id )
+                    return *It;
+            }
+        }
+    }
+    if( Position == CardPos::DECK || Position == CardPos::NONE )
+    {
+        auto Deck = Owner->GetDeck();
+        if( Deck )
+        {
+            for( auto It = Deck->Begin(); It != Deck->End(); It++ )
+            {
+                if( *It && (*It)->GetEntityId() == Id )
+                    return *It;
+            }
+        }
+    }
+    if( Position == CardPos::GRAVEYARD || Position == CardPos::NONE )
+    {
+        auto Grave = Owner->GetGraveyard();
+        if( Grave )
+        {
+            for( auto It = Grave->Begin(); It != Grave->End(); It++ )
+            {
+                if( *It && (*It)->GetEntityId() == Id )
+                    return *It;
+            }
+        }
+    }
+    
+    return nullptr;
+}
 
-    // Load Players
-    if( !StreamPlayer( LocalPlayer, Target->GetPlayer(), false ) )
-        return false;
-    
-    if( !StreamPlayer( Opponent, Target->GetOpponent(), true ) )
-        return false;
-    
-    
-    return true;
-    
+CardEntity* ClientState::FindCard( uint32_t Id, Player* Owner /* = nullptr */, CardPos Position /* = CardPos::NONE */ )
+{
+    if( Owner )
+        return LookupCard( Id, Owner, Position );
+    else
+    {
+        auto Out = LookupCard( Id, LocalPlayer, Position );
+        if( Out )
+            return Out;
+        else
+        {
+            return LookupCard( Id, Opponent, Position );
+        }
+    }
 }

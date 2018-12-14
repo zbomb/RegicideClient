@@ -15,12 +15,14 @@
 #include <memory>
 #include "AppDelegate.hpp"
 #include "Player.hpp"
-#include "GameState.hpp"
 #include "SimulatedState.hpp"
 
 
+// Note: Most of this is currently DEPRECATED and requires a rewrite!
+
 namespace Game
 {
+    /*
     enum AIState
     {
         Init,
@@ -39,6 +41,7 @@ namespace Game
         std::vector< float > Scores;
         bool Valid;
     };
+     */
 
     class AIController : public EntityBase
     {
@@ -46,6 +49,7 @@ namespace Game
         
         AIController();
         
+        /*
         virtual void Initialize() override;
         virtual void Cleanup() override;
         
@@ -95,6 +99,7 @@ namespace Game
         void OnSimulatedTurnComplete();
         
         friend class SingleplayerLauncher;
+         */
     };
 
 }

@@ -313,7 +313,7 @@ void HandEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std::
         inCard->MoveAnimation( inPos, CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( bVisibleLocally && !inCard->GetState().FaceUp )
+        if( bVisibleLocally && !inCard->FaceUp )
             inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // If were flipped upside down, then ensure the card is also upside down
@@ -392,7 +392,7 @@ void HandEntity::OpenBlitzMode()
         {
             if( *It )
             {
-                SelectedMana += (*It)->GetState().ManaCost;
+                SelectedMana += (*It)->ManaCost;
             }
         }
         
@@ -412,7 +412,7 @@ void HandEntity::OpenBlitzMode()
             return false;
         }
 
-        if( SelectedMana + In->GetState().ManaCost > Pl->GetMana() )
+        if( SelectedMana + In->ManaCost > Pl->GetMana() )
         {
             return false;
         }
@@ -451,7 +451,14 @@ void HandEntity::ConfirmBlitz()
             if( Selector )
                 Selector->Lock();
             
-            Auth->SetBlitzCards( SelectedCards );
+            std::vector< uint32_t > FinalSelection;
+            for( auto It = SelectedCards.begin(); It != SelectedCards.end(); It++ )
+            {
+                if( *It )
+                    FinalSelection.push_back( (*It)->GetEntityId() );
+            }
+            
+            Auth->SetBlitzCards( FinalSelection );
         }
     }
 }

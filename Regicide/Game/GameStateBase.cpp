@@ -36,16 +36,19 @@ void GameStateBase::CopyTo( GameStateBase &Other )
     Opponent    = Other.Opponent;
 }
 
-void GameStateBase::OnCardKilled( CardState& Target )
+void GameStateBase::OnCardKilled( CardState* Target )
 {
+    if( !Target )
+        return;
+    
     // Find card owner
-    PlayerState& Owner = Target.Owner == LocalPlayer.EntId ? LocalPlayer : Opponent;
+    PlayerState& Owner = Target->Owner == LocalPlayer.EntId ? LocalPlayer : Opponent;
     
     // Find this card
     std::vector< CardState >::iterator Position = Owner.Field.end();
     for( auto It = Owner.Field.begin(); It != Owner.Field.end(); It++ )
     {
-        if( It->EntId == Target.EntId )
+        if( It->EntId == Target->EntId )
         {
             Position = It;
             break;
@@ -65,159 +68,168 @@ void GameStateBase::OnCardKilled( CardState& Target )
 
 
 
-void GameStateBase::ShuffleDeck( PlayerState &Target )
+void GameStateBase::ShuffleDeck( PlayerState* Target )
 {
+    if( !Target )
+        return;
+    
     // Create new vector
     std::vector< CardState > NewDeck;
     
     // Add cards into new deck in random order
-    while( !Target.Deck.empty() )
+    while( !Target->Deck.empty() )
     {
-        auto Index = Target.Deck.size() > 1 ? cocos2d::random( 0, (int)Target.Deck.size() - 1 ) : 0;
-        auto It = Target.Deck.begin();
+        auto Index = Target->Deck.size() > 1 ? cocos2d::random( 0, (int)Target->Deck.size() - 1 ) : 0;
+        auto It = Target->Deck.begin();
         std::advance( It, Index );
         
         NewDeck.push_back( *It );
-        Target.Deck.erase( It );
+        Target->Deck.erase( It );
     }
     
     // Assign new deck to player
-    Target.Deck = NewDeck;
+    Target->Deck = NewDeck;
 }
 
-void GameStateBase::DrawCard( PlayerState &Target, uint32_t Count )
+void GameStateBase::DrawCard( PlayerState* Target, uint32_t Count )
 {
-    if( Count <= 0 )
+    if( !Target || Count <= 0 )
         return;
     
     for( int i = 0; i < Count; i++ )
     {
-        if( Target.Deck.size() < 1 )
+        if( Target->Deck.size() < 1 )
         {
             // TODO: Call out to win function
             return;
         }
         
-        auto It = Target.Deck.begin();
+        auto It = Target->Deck.begin();
         
         It->Position    = CardPos::HAND;
         It->FaceUp      = false;
         
-        Target.Hand.push_back( *It );
-        Target.Deck.erase( It );
+        Target->Hand.push_back( *It );
+        Target->Deck.erase( It );
     }
 }
 
-void GameStateBase::TakeMana( PlayerState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::TakeMana( PlayerState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better Damage/Stamina/Mana System
     
-    Target.Mana = Amount > Target.Mana ? 0 : Target.Mana - Amount;
+    Target->Mana = Amount > Target->Mana ? 0 : Target->Mana - Amount;
 }
 
-void GameStateBase::GiveMana( PlayerState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::GiveMana( PlayerState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better Damage/Stamina/Mana System
     
-    Target.Mana += Amount;
+    Target->Mana += Amount;
 }
 
-void GameStateBase::DamageKing( PlayerState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::DamageKing( PlayerState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO
     
-    Target.Health -= Amount;
-    if( Target.Health <= 0 )
+    Target->Health -= Amount;
+    if( Target->Health <= 0 )
     {
         // TODO: Call out to win function
     }
 }
 
-void GameStateBase::HealKing( PlayerState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::HealKing( PlayerState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO
     
-    Target.Health += Amount;
+    Target->Health += Amount;
 }
 
-void GameStateBase::DoCombat( CardState &Target, CardState &Origin, uint32_t Amount, int StaminaChange )
+void GameStateBase::DoCombat( CardState* Target, CardState* Origin, uint32_t Amount, int StaminaChange )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO
     
 }
 
-void GameStateBase::DamageCard( CardState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::DamageCard( CardState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better System
     
-    Target.Power -= Amount;
-    if( Target.Power <= 0 )
+    Target->Power -= Amount;
+    if( Target->Power <= 0 )
     {
         OnCardKilled( Target );
     }
 }
 
-void GameStateBase::HealCard( CardState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::HealCard( CardState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better System
     
-    Target.Power += Amount;
+    Target->Power += Amount;
 }
 
-void GameStateBase::TakeStamina( CardState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::TakeStamina( CardState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better System
     
-    Target.Stamina -= Amount;
-    if( Target.Stamina <= 0 )
+    Target->Stamina -= Amount;
+    if( Target->Stamina <= 0 )
     {
         OnCardKilled( Target );
     }
 }
 
-void GameStateBase::GiveStamina( CardState &Target, CardState &Origin, uint32_t Amount )
+void GameStateBase::GiveStamina( CardState* Target, CardState* Origin, uint32_t Amount )
 {
-    if( Amount <= 0 )
+    if( !Target || !Origin || Amount <= 0 )
         return;
     
     // TODO: Better System
     
-    Target.Stamina += Amount;
+    Target->Stamina += Amount;
 }
 
-bool GameStateBase::PlayCard( PlayerState& Player, CardState& Target )
+bool GameStateBase::PlayCard( PlayerState* Player, CardState* Target )
 {
-    return PlayCard( Player, Target.EntId );
+    if( !Player || !Target )
+        return false;
+    
+    return PlayCard( Player, Target->EntId );
 }
 
-bool GameStateBase::PlayCard( PlayerState& Player, uint32_t Target )
+bool GameStateBase::PlayCard( PlayerState* Player, uint32_t Target )
 {
-    auto Card = Player.Hand.end();
-    for( auto It = Player.Hand.begin(); It != Player.Hand.end(); It++ )
+    if( !Player )
+        return false;
+    
+    auto Card = Player->Hand.end();
+    for( auto It = Player->Hand.begin(); It != Player->Hand.end(); It++ )
     {
         if( It->EntId == Target )
         {
@@ -226,36 +238,36 @@ bool GameStateBase::PlayCard( PlayerState& Player, uint32_t Target )
         }
     }
     
-    if( Card == Player.Hand.end() )
+    if( Card == Player->Hand.end() )
         return false;
     
-    if( Card->ManaCost > Player.Mana )
+    if( Card->ManaCost > Player->Mana )
         return false;
     
     Card->Position = CardPos::FIELD;
     Card->FaceUp = true;
     
-    Player.Mana -= Card->ManaCost;
+    Player->Mana -= Card->ManaCost;
     
-    Player.Field.push_back( *Card );
-    Player.Hand.erase( Card );
+    Player->Field.push_back( *Card );
+    Player->Hand.erase( Card );
     
     return true;
 }
 
-uint32_t GameStateBase::DrawSingle( PlayerState& Target )
+uint32_t GameStateBase::DrawSingle( PlayerState* Target )
 {
-    if( Target.Deck.size() <= 0 )
+    if( !Target || Target->Deck.size() <= 0 )
         return 0;
     
-    auto It = Target.Deck.begin();
+    auto It = Target->Deck.begin();
     auto Output = It->EntId;
     
     It->Position = CardPos::HAND;
     It->FaceUp = false;
     
-    Target.Hand.push_back( *It );
-    Target.Deck.erase( It );
+    Target->Hand.push_back( *It );
+    Target->Deck.erase( It );
     
     return Output;
 }
@@ -287,9 +299,9 @@ PlayerTurn GameStateBase::SwitchPlayerTurn()
 bool GameStateBase::GetCard( uint32_t Id, CardState* Out )
 {
     // Check both players, starting with local player
-    if( GetCard( Id, LocalPlayer, Out ) )
+    if( GetCard( Id, &LocalPlayer, Out ) )
         return true;
-    if( GetCard( Id, Opponent, Out ) )
+    if( GetCard( Id, &Opponent, Out ) )
         return true;
     
     return false;
@@ -316,17 +328,20 @@ bool CheckContainer( uint32_t In, std::vector< CardState >& Container, CardState
     return false;
 }
 
-bool GameStateBase::GetCard( uint32_t In, PlayerState &Owner, CardState* Out, bool bFieldOnly /* = false */ )
+bool GameStateBase::GetCard( uint32_t In, PlayerState* Owner, CardState* Out, bool bFieldOnly /* = false */ )
 {
-    if( CheckContainer( In, Owner.Field, Out ) )
+    if( !Owner )
+        return false;
+    
+    if( CheckContainer( In, Owner->Field, Out ) )
         return true;
     if( bFieldOnly )
         return false;
-    if( CheckContainer( In, Owner.Hand, Out ) )
+    if( CheckContainer( In, Owner->Hand, Out ) )
         return true;
-    if( CheckContainer( In, Owner.Deck, Out ) )
+    if( CheckContainer( In, Owner->Deck, Out ) )
         return true;
-    if( CheckContainer( In, Owner.Graveyard, Out ) )
+    if( CheckContainer( In, Owner->Graveyard, Out ) )
         return true;
     
     return false;
@@ -334,6 +349,9 @@ bool GameStateBase::GetCard( uint32_t In, PlayerState &Owner, CardState* Out, bo
 
 void GameStateBase::OnCardAdded( CardState* Card )
 {
+    if( !Card )
+        return;
+    
     // Check if this card exists
     for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
     {
@@ -346,6 +364,9 @@ void GameStateBase::OnCardAdded( CardState* Card )
 
 void GameStateBase::OnCardRemoved( CardState* Card )
 {
+    if( !Card )
+        return;
+    
     for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
     {
         if( *It == Card )
@@ -354,6 +375,59 @@ void GameStateBase::OnCardRemoved( CardState* Card )
             return;
         }
     }
+}
+
+PlayerState* GameStateBase::GetCardOwner( CardState* Card )
+{
+    if( !Card )
+        return nullptr;
+    
+    if( Card->Owner == LocalPlayer.EntId )
+        return &LocalPlayer;
+    else if( Card->Owner == Opponent.EntId )
+        return &Opponent;
+    
+    return nullptr;
+}
+
+PlayerState* GameStateBase::GetCardOpponent( CardState* Card )
+{
+    if( !Card )
+        return nullptr;
+    
+    if( Card->Owner == LocalPlayer.EntId )
+        return &Opponent;
+    else if( Card->Owner == Opponent.EntId )
+        return &LocalPlayer;
+    
+    return nullptr;
+}
+
+PlayerState* GameStateBase::GetOtherPlayer( PlayerState* Target )
+{
+    if( !Target )
+        return nullptr;
+    
+    if( Target->EntId == LocalPlayer.EntId )
+        return &Opponent;
+    else if( Target->EntId == Opponent.EntId )
+        return &LocalPlayer;
+    
+    return nullptr;
+}
+
+bool GameStateBase::GetPlayer( uint32_t Id, PlayerState* Output )
+{
+    Output = nullptr;
+    
+    if( Id == LocalPlayer.EntId )
+        Output = std::addressof( LocalPlayer );
+    else if( Id == Opponent.EntId )
+        Output = std::addressof( Opponent );
+    else
+        return false;
+    
+    return true;
 }
 
 bool GameStateBase::PreHook( const std::string& HookName )

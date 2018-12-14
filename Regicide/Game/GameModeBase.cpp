@@ -27,23 +27,32 @@ GameModeBase::GameModeBase()
 {
     using namespace std::placeholders;
     
-    SetActionCallback( "CoinFlip",      std::bind( &GameModeBase::Action_CoinFlip,      this, _1, _2 ) );
-    SetActionCallback( "BlitzStart",    std::bind( &GameModeBase::Action_BlitzStart,    this, _1, _2 ) );
-    SetActionCallback( "BlitzQuery",    std::bind( &GameModeBase::Action_BlitzQuery,    this, _1, _2 ) );
-    SetActionCallback( "MatchStart",    std::bind( &GameModeBase::Action_MainStart,     this, _1, _2 ) );
-    SetActionCallback( "BlitzError",    std::bind( &GameModeBase::Action_BlitzError,    this, _1, _2 ) );
-    SetActionCallback( "MarshalStart",  std::bind( &GameModeBase::Action_MarshalStart,  this, _1, _2 ) );
-    SetActionCallback( "AttackStart",   std::bind( &GameModeBase::Action_AttackStart,   this, _1, _2 ) );
-    SetActionCallback( "BlockStart",    std::bind( &GameModeBase::Action_BlockStart,    this, _1, _2 ) );
-    SetActionCallback( "PostTurnStart", std::bind( &GameModeBase::Action_PostTurnStart, this, _1, _2 ) );
-    SetActionCallback( "TurnStart",     std::bind( &GameModeBase::Action_TurnStart,     this, _1, _2 ) );
-    SetActionCallback( "CardDamage",    std::bind( &GameModeBase::Action_CardDamage,    this, _1, _2 ) );
-    SetActionCallback( "DamageStart",   std::bind( &GameModeBase::Action_DamageStart,   this, _1, _2 ) );
-    SetActionCallback( "StaminaDrain",  std::bind( &GameModeBase::Action_StaminaDrain,  this, _1, _2 ) );
-    SetActionCallback( "CleanupBoard",  std::bind( &GameModeBase::Action_CleanupBoard,  this, _1, _2 ) );
+    AddAction( "PlayCard",      std::bind( &GameModeBase::OnCardPlay,       this, _1, _2 ) );
+    AddAction( "UpdateMana",    std::bind( &GameModeBase::OnManaUpdate,     this, _1, _2 ) );
+    AddAction( "DrawCard",      std::bind( &GameModeBase::OnCardDraw,       this, _1, _2 ) );
+    AddAction( "CoinFlip",      std::bind( &GameModeBase::OnCoinFlip,       this, _1, _2 ) );
+    AddAction( "BlitzStart",    std::bind( &GameModeBase::OnBlitzStart,     this, _1, _2 ) );
+    AddAction( "BlitzQuery",    std::bind( &GameModeBase::OnBlitzQuery,     this, _1, _2 ) );
+    AddAction( "BlitzError",    std::bind( &GameModeBase::OnBlitzError,     this, _1, _2 ) );
+    AddAction( "AttackError",   std::bind( &GameModeBase::OnAttackError,    this, _1, _2 ) );
+    AddAction( "MatchStart",    std::bind( &GameModeBase::OnMatchStart,     this, _1, _2 ) );
+    AddAction( "TurnStart",     std::bind( &GameModeBase::OnTurnStart,      this, _1, _2 ) );
+    AddAction( "MarshalStart",  std::bind( &GameModeBase::OnMarshalStart,   this, _1, _2 ) );
+    AddAction( "AttackStart",   std::bind( &GameModeBase::OnAttackStart,    this, _1, _2 ) );
+    AddAction( "BlockStart",    std::bind( &GameModeBase::OnBlockStart,     this, _1, _2 ) );
+    AddAction( "TurnFinish",    std::bind( &GameModeBase::OnTurnFinish,     this, _1, _2 ) );
+    AddAction( "DamageStart",   std::bind( &GameModeBase::OnDamageStart,    this, _1, _2 ) );
+    AddAction( "Damage",        std::bind( &GameModeBase::OnDamage,         this, _1, _2 ) );
+    AddAction( "Combat",        std::bind( &GameModeBase::OnCombat,         this, _1, _2 ) );
+    AddAction( "StaminaUpdate", std::bind( &GameModeBase::OnStaminaUpdate,  this, _1, _2 ) );
+    AddAction( "BoardCleanup",  std::bind( &GameModeBase::OnBoardCleanup,   this, _1, _2 ) );
     
-    lastDamageId    = 0;
-    lastDrainId     = 0;
+    State.mState = MatchState::PreMatch;
+    State.pState = PlayerTurn::None;
+    State.tState = TurnState::None;
+    
+    lastDamageId        = 0;
+    lastDrainId         = 0;
     
     _Viewer         = nullptr;
     _touchedCard    = nullptr;
@@ -52,7 +61,7 @@ GameModeBase::GameModeBase()
     
     _bSelectionEnabled  = true;
     
-    // TODO: Preload Textures?
+    // TODO: Require UI Textures Here
     
 }
 
@@ -225,7 +234,7 @@ void GameModeBase::TouchMoved( cocos2d::Touch *inTouch, cocos2d::DrawNode* inDra
             }
         }
     }
-    else if( _touchedCard && !_bBlockerDrag && tState == TurnState::Block && pState == PlayerTurn::Opponent )
+    else if( _touchedCard && !_bBlockerDrag && State.tState == TurnState::Block && State.pState == PlayerTurn::Opponent )
     {
         if( CanCardBlock( _touchedCard ) )
         {
@@ -309,7 +318,7 @@ bool GameModeBase::OnBlockerSelect( CardEntity *inBlocker, CardEntity *inAttacke
         return false;
 
     // Check Stamina
-    if( inBlocker->GetState().Stamina <= 0 )
+    if( inBlocker->Stamina <= 0 )
         return false;
 
     // Ensure Attacker
@@ -360,7 +369,7 @@ bool GameModeBase::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *Info )
         auto Auth = GetAuthority< AuthorityBase >();
         CC_ASSERT( Auth );
         
-        Auth->PlayCard( inCard, BestIndex );
+        Auth->PlayCard( inCard->EntId, BestIndex );
     }
     
     return false;
@@ -383,7 +392,7 @@ void GameModeBase::OnCardClicked( CardEntity* inCard )
     else if( inCard->OnField() )
     {
         // Check if were in attack phase
-        if( tState == TurnState::Attack )
+        if( State.tState == TurnState::Attack )
         {
             if( inCard && inCard->bAttacking )
             {
@@ -400,7 +409,7 @@ void GameModeBase::OnCardClicked( CardEntity* inCard )
                 }
             }
         }
-        else if( tState == TurnState::Block && pState == PlayerTurn::Opponent )
+        else if( State.tState == TurnState::Block && State.pState == PlayerTurn::Opponent )
         {
             // If we click on a card thats blocking then we will stop blocking
             if( BlockMatrix.count( inCard ) > 0 )
@@ -551,7 +560,7 @@ void GameModeBase::OnCardSwipedUp( CardEntity *inCard )
     if( !inCard )
         return;
     
-    if( pState == PlayerTurn::LocalPlayer && tState == TurnState::Attack )
+    if( State.pState == PlayerTurn::LocalPlayer && State.tState == TurnState::Attack )
     {
         if( inCard && inCard->bAttacking )
         {
@@ -568,7 +577,7 @@ void GameModeBase::OnCardSwipedUp( CardEntity *inCard )
             }
         }
     }
-    else if( pState == PlayerTurn::Opponent && tState == TurnState::Block )
+    else if( State.pState == PlayerTurn::Opponent && State.tState == TurnState::Block )
     {
         
     }
@@ -602,10 +611,7 @@ void GameModeBase::DisableSelection()
 
 void GameModeBase::UpdateMatchState( MatchState In )
 {
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    State->mState = In;
+    State.mState = In;
     
     // Update Label
     auto ParentScene = GetScene();
@@ -639,13 +645,10 @@ void GameModeBase::UpdateMatchState( MatchState In )
 
 void GameModeBase::UpdateTurnState( TurnState In )
 {
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    State->tState = In;
+    State.tState = In;
     
     // Update Label
-    if( mState == MatchState::Main )
+    if( State.mState == MatchState::Main )
     {
         std::string tName;
         auto Scene = dynamic_cast< GameScene* >( GetScene() );
@@ -678,13 +681,10 @@ void GameModeBase::UpdateTurnState( TurnState In )
 
 void GameModeBase::UpdatePlayerTurn( PlayerTurn In )
 {
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    State->pState = In;
+    State.pState = In;
     
     // Update Label
-    if( mState == MatchState::Main )
+    if( State.mState == MatchState::Main )
     {
         auto Scene = dynamic_cast< GameScene* >( GetScene() );
         if( Scene )
@@ -783,7 +783,7 @@ void GameModeBase::PostInit()
     cocos2d::Director::getInstance()->getScheduler()->schedule( std::bind( &GameModeBase::Tick, this, std::placeholders::_1 ), this, 0.f, CC_REPEAT_FOREVER, 0.f, false, "GMTick" );
 }
 
-void GameModeBase::AddAction( const std::string& In, std::function< Action*, std::function< void() > > Handler )
+void GameModeBase::AddAction( const std::string& In, std::function< void( Action*, std::function< void() > ) > Handler )
 {
     ActionHandlers[ In ] = Handler;
 }
@@ -805,27 +805,37 @@ void GameModeBase::RunAction( Action& Target, std::function< void() > Callback )
     }
 }
 
-void GameModeBase::PopAction( ActionQueue& Target )
+void GameModeBase::PopQueue( ActionQueue& Target )
 {
-    if( Target.Actions.empty() )
+    if( Target.Actions.empty() || Target.Position >= Target.Actions.size() )
     {
         // Run queue callback
         if( Target.Callback )
             Target.Callback();
         
+        // Delete Action Queue
+        if( ActiveQueues.count( Target.Identifier ) > 0 )
+        {
+            ActiveQueues.erase( Target.Identifier );
+        }
+        else
+        {
+            cocos2d::log( "[GM] Failed to delete action queue on completion!" );
+        }
+        
         return;
     }
     
-    auto& NextNode = Target.Actions.front();
-    if( NextNode->Name == "Parallel" )
+    if( Target.Actions[ Target.Position ]->Name == "Parallel" )
     {
         // Parallel Actions!
-        ParallelAction* Parallel = dynamic_cast< ParallelAction* >( &NextNode );
+        ParallelAction* Parallel = dynamic_cast< ParallelAction* >( Target.Actions[ Target.Position ].get() );
         if( !Parallel )
         {
             cocos2d::log( "[GM] Invalid parallel action in queue!" );
-            Target.Actions.pop();
-            PopAction( Target );
+            
+            Target.Position++;
+            PopQueue( Target );
             return;
         }
         
@@ -833,7 +843,7 @@ void GameModeBase::PopAction( ActionQueue& Target )
         {
             if( *It )
             {
-                RunAction( *It, [ = ]()
+                RunAction( **It, [ =, &Target ]()
                 {
                     Parallel->Counter++;
                     
@@ -841,8 +851,8 @@ void GameModeBase::PopAction( ActionQueue& Target )
                     {
                         // Parallel action complete!
                         // Pop and continue to next action
-                        Target.Actions.pop();
-                        this->PopAction( Target );
+                        Target.Position++;
+                        PopQueue( Target );
                     }
                 } );
             }
@@ -850,166 +860,55 @@ void GameModeBase::PopAction( ActionQueue& Target )
     }
     else
     {
-        RunAction( *NextNode, [ = ]()
+        RunAction( *Target.Actions[ Target.Position ], [ & ]()
         {
             // Pop and continue to next action
-            Target.Actions.pop();
-            this->PopAction( Target );
+            Target.Position++;
+            PopQueue( Target );
         } );
     }
 }
 
 void GameModeBase::RunActionQueue( ActionQueue&& In )
 {
-    auto State = GetState();
-    
-    // If the match is over, stop running actions
-    if( !State || State->mState == MatchState::PostMatch )
+    if( State.mState == MatchState::PostMatch )
         return;
     
-    // Validate
-    if( In.ActionTree.empty() )
+    if( In.Actions.empty() )
     {
         cocos2d::log( "[GM] Warning: Attempt to run empty action queue!" );
         if( In.Callback )
             In.Callback();
+        
         return;
     }
     
-    // Pop actions off, one by one and execute
-    
-    
-    // Check if identifier is in use
-    auto Identifier = In.Identifier;
-    if( ActiveQueues.count( Identifier ) > 0 )
+    // Check for duplicate identifier
+    if( ActiveQueues.count( In.Identifier ) > 0 )
     {
-        cocos2d::log( "[GM] Warning: Attempt to run action queue with duplicate id!" );
+        cocos2d::log( "[GM] Warning: Attempt to run duplicate action queue" );
+        if( In.Callback )
+            In.Callback();
+        
         return;
     }
     
-    // Update execution counter, to track how many of the total actions have been executed
-    // This function counts up the total number, and sets the member var 'Counter' to that value
-    In.CountActions();
-
-    // Move the action tree into the active list
-    In.Executing = true;
-    auto NewEntry = ActiveQueues.insert( std::make_pair( Identifier, std::move( In ) ) );
+    // Create new entry
+    auto Entry = ActiveQueues.insert( std::make_pair( In.Identifier, std::move( In ) ) );
     
-    if( NewEntry.second == false )
+    // Check for failure
+    if( !Entry.second )
     {
-        cocos2d::log( "[GM] Warning: Failed to add new action to the execution list!" );
+        cocos2d::log( "[GM] Warning: Failed to add new action queue to list!" );
+        if( In.Callback )
+            In.Callback();
+        
         return;
     }
     
-    OnActionQueue();
-    DisableSelection();
-
-    // Begin execution
-    ExecuteActions( NewEntry.first->second.ActionTree, NewEntry.first->first );
-    NewEntry.first->second.Executing = false;
+    // Start popping actions
+    PopQueue( Entry.first->second );
     
-    // Check if it completed syncronously, and delete it if so
-    if( NewEntry.first->second.Counter <= 0 )
-    {
-        ActiveQueues.erase( NewEntry.first );
-    }
-}
-
-void GameModeBase::_OnEndOfBranch( uint32_t QueueId )
-{
-    // Decrement action counter and check if were done executing
-    auto It = ActiveQueues.find( QueueId );
-    if( It == ActiveQueues.end() )
-    {
-        cocos2d::log( "[GM] Failed to decrement action counter for queue (%d)", QueueId );
-    }
-    else
-    {
-        It->second.Counter--;
-        
-        if( It->second.Counter <= 0 )
-        {
-            // Execution finished!
-            if( It->second.Callback )
-                It->second.Callback();
-            
-            // Invalidate Possible Actions
-            _bCheckPossibleActions = true;
-            
-            // If theres no queues left, re-enable input
-            if( ActiveQueues.size() == 1 )
-                EnableSelection();
-            
-            // If the actions run syncronously, erasing the entry will cause the loop
-            // to continue, which will cause an exception to be thrown
-            if( !It->second.Executing )
-            {
-                ActiveQueues.erase( It );
-            }
-        }
-    }
-}
-
-void GameModeBase::ExecuteActions( const std::vector<std::unique_ptr< Game::Action > >& In, uint32_t QueueId, bool bRootAction )
-{
-    // Get iter to the entry in ActiveQueues so we can decremement the action counter
-    auto queueIt = ActiveQueues.find( QueueId );
-    if( queueIt == ActiveQueues.end() )
-    {
-        cocos2d::log( "[GM] Failed to decrement action counter for queue (%d)", QueueId );
-    }
-    else if( !bRootAction )
-    {
-        // Just decrement, we dont need to check for completion, since there is still
-        // children actions to execute
-        queueIt->second.Counter--;
-    }
-    
-    for( auto It = In.begin(); It != In.end(); It++ )
-    {
-        // Check for null actions
-        if( !( *It ) )
-        {
-            cocos2d::log( "[GM] Null action found in action tree (%d)", QueueId );
-            
-            if( queueIt != ActiveQueues.end() )
-                queueIt->second.Counter--;
-            
-            continue;
-        }
-        
-        // Check if this action has already been started
-        if( (*It)->bHasStarted )
-        {
-            cocos2d::log( "[GM] This action has already started! %s", (*It)->ActionName.c_str() );
-            continue;
-        }
-        
-
-        // Lookup Target Entity
-        auto* Target = IEntityManager::GetInstance().GetEntity( (*It)->Target );
-        if( !Target )
-        {
-            cocos2d::log( "[GM] Failed to execute game action \"%s\" in queue (%d) because the target wasnt found [%d]", (*It)->ActionName.c_str(), QueueId, (*It)->Target );
-            
-            if( queueIt != ActiveQueues.end() )
-                queueIt->second.Counter--;
-            
-            continue;
-        }
-        
-        (*It)->bHasStarted = true;
-        
-        // Execute Action
-        if( (*It)->Children.size() > 0 )
-        {
-            Target->PerformAction( (*It).get(), std::bind( &GameModeBase::ExecuteActions, this, std::ref( (*It)->Children ), QueueId, false ) );
-        }
-        else
-        {
-            Target->PerformAction( It->get(), std::bind( &GameModeBase::_OnEndOfBranch, this, QueueId ) );
-        }
-    }
 }
 
 bool GameModeBase::CanPlayCard( CardEntity* In )
@@ -1027,53 +926,60 @@ bool GameModeBase::CanPlayCard( CardEntity* In )
 // We needed a seperate function, that doesnt check if action queues are in progress
 bool GameModeBase::CouldPlayCard( CardEntity* In )
 {
-    auto State = GetState();
-    if( !State )
-        return false;
-    
     if( !In || !In->InHand() )
         return false;
     
-    Player* LocalPlayer = GetPlayer();
+    auto LocalPlayer = State.GetPlayer();
     
-    if( State->mState != MatchState::Main || State->tState != TurnState::Marshal || State->pState != PlayerTurn::LocalPlayer )
+    if( !LocalPlayer || State.mState != MatchState::Main ||
+       State.tState != TurnState::Marshal || State.pState != PlayerTurn::LocalPlayer )
         return false;
     
-    return In->GetOwningPlayer() == LocalPlayer && In->GetState().ManaCost <= LocalPlayer->GetMana();
+    return In->GetOwningPlayer() == LocalPlayer && In->ManaCost <= LocalPlayer->Mana;
 }
 
 bool GameModeBase::CanCardAttack( CardEntity *In )
 {
-    auto State = GetState();
-    
-    if( !State || !In || !In->OnField() )
+    if( !In || !In->OnField() )
         return false;
     
-    Player* LocalPlayer = GetPlayer();
-    if( State->mState != MatchState::Main || State->tState != TurnState::Attack || State->pState != PlayerTurn::LocalPlayer )
+    auto LocalPlayer = State.GetPlayer();
+    if( !LocalPlayer )
+        return false;
+    
+    if( State.mState != MatchState::Main || State.tState != TurnState::Attack ||
+       State.pState != PlayerTurn::LocalPlayer )
         return false;
     
     if( In->Stamina <= 0 )
         return false;
     
-    return In->GetOwningPlayer() == LocalPlayer;
+    if( In->GetOwningPlayer() != LocalPlayer )
+        return false;
+    
+    return true;
 }
 
 bool GameModeBase::CanCardBlock( CardEntity *In, CardEntity *Target )
 {
-    auto State = GetState();
-    
-    if( !State || !In || !In->OnField() )
+    if( !In || !In->OnField() )
         return false;
     
-    Player* LocalPlayer = GetPlayer();
-    if( State->mState != MatchState::Main || State->tState != TurnState::Block || State->pState != PlayerTurn::Opponent )
+    auto LocalPlayer = State.GetPlayer();
+    if( !LocalPlayer )
+        return false;
+    
+    if( State.mState != MatchState::Main || State.tState != TurnState::Block ||
+       State.pState != PlayerTurn::Opponent )
         return false;
     
     if( In->Stamina <= 0 )
         return false;
     
-    return In->GetOwningPlayer() == LocalPlayer;
+    if( In->GetOwningPlayer() != LocalPlayer )
+        return false;
+    
+    return true;
 }
 
 bool GameModeBase::CanTriggerAbility( CardEntity* In )
@@ -1097,11 +1003,7 @@ bool GameModeBase::CanTriggerAbility( CardEntity* In )
             
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                // TODO: Update to new system!
-                auto Context = GameContext();
-                Context.SetState( In->GetState() );
-                
-                if( !( *Ability.CheckFunc )( Context ) )
+                if( !( *Ability.CheckFunc )( State, In ) )
                     continue;
             }
             
@@ -1121,28 +1023,27 @@ bool GameModeBase::PlayCard( CardEntity* In, int Index )
     if( !Auth )
         return false;
     
-    Auth->PlayCard( In, Index );
+    Auth->PlayCard( In->EntId, Index );
     return true;
 }
 
 
 void GameModeBase::FinishTurn()
 {
-    auto State = GetState();
     auto Auth = GetAuthority< AuthorityBase >();
     auto Scene = dynamic_cast< GameScene* >( GetScene() );
-    CC_ASSERT( Auth && Scene && State );
+    CC_ASSERT( Auth && Scene );
     
     cocos2d::log( "[GM] Finishing Turn" );
     
     // If were in the attack or block phase, we need to send card list
-    if( State->mState == MatchState::Main )
+    if( State.mState == MatchState::Main )
     {
-        if( State->pState == PlayerTurn::LocalPlayer )
+        if( State.pState == PlayerTurn::LocalPlayer )
         {
-            if( State->tState == TurnState::Attack )
+            if( State.tState == TurnState::Attack )
             {
-                std::vector< CardEntity* > AttackCards;
+                std::vector< uint32_t > AttackCards;
                 auto pl = GetPlayer();
                 auto field = pl ? pl->GetField() : nullptr;
                 
@@ -1151,7 +1052,7 @@ void GameModeBase::FinishTurn()
                     for( auto It = field->Begin(); It != field->End(); It++ )
                     {
                         if( *It && (*It)->bAttacking )
-                            AttackCards.push_back( *It );
+                            AttackCards.push_back( (*It)->GetEntityId() );
                     }
                 }
                 
@@ -1166,14 +1067,14 @@ void GameModeBase::FinishTurn()
                     Auth->SetAttackers( AttackCards );
                 }
             }
-            else if( State->tState == TurnState::Marshal )
+            else if( State.tState == TurnState::Marshal )
             {
                 Auth->FinishTurn();
             }
         }
-        else if( State->pState == PlayerTurn::Opponent )
+        else if( State.pState == PlayerTurn::Opponent )
         {
-            if( State->tState == TurnState::Block )
+            if( State.tState == TurnState::Block )
             {
                 if( BlockMatrix.size() <= 0 )
                 {
@@ -1181,457 +1082,18 @@ void GameModeBase::FinishTurn()
                 }
                 else
                 {
-                    Auth->SetBlockers( BlockMatrix );
+                    std::map< uint32_t, uint32_t > FinalMatrix;
+                    for( auto It = BlockMatrix.begin(); It != BlockMatrix.end(); It++ )
+                    {
+                        if( It->first && It->second )
+                            FinalMatrix.insert( std::make_pair( It->first->GetEntityId(), It->second->GetEntityId() ) );
+                    }
+                    
+                    Auth->SetBlockers( FinalMatrix );
                 }
             }
         }
     }
-}
-
-
-void GameModeBase::Action_CoinFlip( Action* In, std::function< void() > Callback )
-{
-    UpdateMatchState( MatchState::CoinFlip );
-    
-    // Cast to CoinFlipAction
-    auto coinFlip = dynamic_cast< CoinFlipAction* >( In );
-    if( !coinFlip )
-    {
-        cocos2d::log( "[GM] Failed to run coin flip.. invalid action!" );
-        
-        FinishAction( Callback, 0.25f );
-        return;
-    }
-    
-    UpdatePlayerTurn( coinFlip->StartingPlayer );
-    
-    // TODO: Run animation
-    FinishAction( Callback, 1.f );
-}
-
-void GameModeBase::Action_BlitzStart( Action *In, std::function<void ()> Callback )
-{
-    cocos2d::log( "[GM] Blitz Start!" );
-    // Update match state
-    UpdateMatchState( MatchState::Blitz );
-    
-    // TODO: UI Updates?
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_BlitzQuery( Action *In, std::function<void ()> Callback )
-{
-    // Cast to TimedQueryAction
-    auto blitzStart = dynamic_cast< TimedQueryAction* >( In );
-    if( !blitzStart )
-    {
-        cocos2d::log( "[GM] Failed to start blitz query! Invalid action cast" );
-        
-        FinishAction( Callback, 0.25f );
-        return;
-    }
-    
-    cocos2d::log( "[GM] Starting Blitz Query.." );
-    
-    // Display Timer (TODO)
-    // Open Blitz-Mode hand viewer
-    auto Pl = GetPlayer();
-    auto Hand = Pl ? Pl->GetHand() : nullptr;
-    
-    if( Hand )
-    {
-        Hand->OpenBlitzMode();
-    }
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_BlitzError( Action *In, std::function<void ()> Callback )
-{
-    auto& EntManager = IEntityManager::GetInstance();
-    auto Pl = GetPlayer();
-    auto Hand = Pl ? Pl->GetHand() : nullptr;
-    
-    // Re-enable blitz selection
-    if( Hand )
-        Hand->EnabledBlitzMenu();
-    
-    auto Error = dynamic_cast< CardErrorAction* >( In );
-    if( !Error )
-    {
-        cocos2d::log( "[GM] Invalid Blitz cards selected, but couldnt read error message!" );
-        
-        FinishAction( Callback, 0.25f );
-        return;
-    }
-    
-    for( auto It = Error->Errors.begin(); It != Error->Errors.end(); It++ )
-    {
-        // Attempt to lookup card
-        auto Card = EntManager.GetEntity< CardEntity >( It->first );
-        if( Card )
-        {
-            cocos2d::log( "[GM] Blitz Error: Card (%s) couldnt be selected.. error message #%d", Card->GetInfo()->DisplayName.c_str(), It->second );
-            
-            // Deselect the card
-            if( Hand )
-                Hand->DeselectBlitz( Card );
-        }
-        else
-        {
-            cocos2d::log( "[GM] Blitz Error: Card (%d) cant be selected.. error message #%d", It->first, It->second );
-        }
-    }
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_AttackError( Action *In, std::function<void ()> Callback )
-{
-    EnableSelection();
-    
-    auto Error = dynamic_cast< CardErrorAction* >( In );
-    if( !Error )
-    {
-        cocos2d::log( "[GM] Invalid attack cards selected, but couldnt read error message!" );
-        FinishAction( Callback, 0.25f );
-        return;
-    }
-    
-    auto& EntManager = IEntityManager::GetInstance();
-    
-    for( auto It = Error->Errors.begin(); It != Error->Errors.end(); It++ )
-    {
-        // Attempt to lookup card
-        auto Card = EntManager.GetEntity< CardEntity >( It->first );
-        if( Card )
-        {
-            cocos2d::log( "[GM] Attack Error: Card (%s) couldnt attack.. error message #%d", Card->GetInfo()->DisplayName.c_str(), It->second );
-            
-            // Deselect the card
-            Card->bAttacking = false;
-            Card->ClearOverlay();
-            Card->ClearHighlight();
-        }
-        else
-        {
-            cocos2d::log( "[GM] Blitz Error: Card (%d) cant be selected.. error message #%d", It->first, It->second );
-        }
-    }
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_MainStart( Action *In, std::function<void ()> Callback )
-{
-    // Advance Match State
-    UpdateMatchState( MatchState::Main );
-    cocos2d::log( "[GM] Match Started..." );
-    
-    // Close blitz menu
-    auto Pl = GetPlayer();
-    auto Hand = Pl ? Pl->GetHand() : nullptr;
-    
-    if( Hand )
-    {
-        Hand->CloseBlitzMode();
-    }
-    
-    FinishAction( Callback, 0.3f );
-}
-
-void GameModeBase::Action_TurnStart( Action* In, std::function< void() > Callback )
-{
-    auto turnStart = dynamic_cast< TurnStartAction* >( In );
-    if( !turnStart )
-    {
-        cocos2d::log( "[GM] Action Error: Cast to TurnStartAction failed!" );
-        Callback();
-        return;
-    }
-    
-    // Update State
-    UpdateMatchState( MatchState::Main );
-    UpdatePlayerTurn( turnStart->pState );
-    UpdateTurnState( TurnState::PreTurn );
-    
-    // TODO: Update UI
-    
-    FinishAction( Callback );
-}
-
-void GameModeBase::Action_MarshalStart( Action* In, std::function< void() > Callback )
-{
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::Marshal );
-    
-    // TODO: Update UI
-    cocos2d::log( "[GM] Marshal Started..." );
-    
-    EnableSelection();
-    
-    // Enable Finish Button
-    auto scene = dynamic_cast< GameScene* >( GetScene() );
-    
-    if( State->pState == PlayerTurn::LocalPlayer )
-    {
-        if( scene )
-            scene->ShowFinishButton();
-    }
-    else
-    {
-        if( scene )
-            scene->HideFinishButton();
-    }
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_AttackStart( Action* In, std::function< void() > Callback )
-{
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::Attack );
-    
-    // TODO: Update UI
-    cocos2d::log( "[GM] Attack Started..." );
-    
-    EnableSelection();
-    
-    auto scene = dynamic_cast< GameScene* >( GetScene() );
-    
-    if( State->pState == PlayerTurn::LocalPlayer )
-    {
-        if( scene )
-            scene->ShowFinishButton();
-    }
-    else
-    {
-        if( scene )
-            scene->HideFinishButton();
-    }
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_BlockStart( Action* In, std::function< void() > Callback )
-{
-    auto State = GetState();
-    CC_ASSERT( State );
-    
-    UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::Block );
-    
-    EnableSelection();
-    
-    auto scene = dynamic_cast< GameScene* >( GetScene() );
-    
-    if( State->pState == PlayerTurn::Opponent )
-    {
-        if( scene )
-            scene->ShowFinishButton();
-    }
-    else
-    {
-        if( scene )
-            scene->HideFinishButton();
-    }
-    
-    cocos2d::log( "[GM] Block Started..." );
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_PostTurnStart( Action *In, std::function<void ()> Callback )
-{
-    UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::PostTurn );
-    
-    auto scene = dynamic_cast< GameScene* >( GetScene() );
-    if( scene )
-        scene->HideFinishButton();
-    
-    cocos2d::log( "[GM] Post Turn Started..." );
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_DamageStart( Action* In, std::function< void() > Callback )
-{
-    UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::Damage );
-    
-    auto scene = dynamic_cast< GameScene* >( GetScene() );
-    if( scene )
-        scene->HideFinishButton();
-    
-    cocos2d::log( "[GM] Damage Phase Started" );
-    
-    // Pause Field Invalidation
-    auto Player = GetPlayer();
-    auto Opponent = GetOpponent();
-    auto Field = Player ? Player->GetField() : nullptr;
-    auto OpField = Opponent ? Opponent->GetField() : nullptr;
-    
-    if( Field )
-        Field->PauseInvalidate();
-    
-    if( OpField )
-        OpField->PauseInvalidate();
-    
-    FinishAction( Callback, 0.25f );
-}
-
-void GameModeBase::Action_StaminaDrain( Action *In, std::function<void ()> Callback )
-{
-    auto Drain = dynamic_cast< StaminaDrainAction* >( In );
-    if( !Drain )
-    {
-        cocos2d::log( "[GM] Recieved stamina drain, but the event was invalid" );
-        
-        FinishAction( Callback );
-        return;
-    }
-    
-    if( Drain->Target )
-    {
-        // TODO: Hooks
-        
-        Drain->Target->UpdateStamina( Drain->Target->GetState().Stamina - Drain->Amount );
-        
-        // Check for death
-        if( Drain->Target->GetState().Power <= 0 || Drain->Target->GetState().Stamina <= 0 )
-        {
-            cocos2d::log( "[GM] Card Died!" );
-            auto cont = Drain->Target->GetContainer();
-            if( cont )
-                cont->Remove( Drain->Target );
-            
-            auto Pl = Drain->Target->GetOwningPlayer();
-            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
-            
-            if( Grave )
-            {
-                Drain->Target->DestroyOverlays();
-                Grave->AddToTop( Drain->Target );
-            }
-            else
-            {
-                IEntityManager::GetInstance().DestroyEntity( Drain->Target );
-            }
-        }
-    }
-    
-    FinishAction( Callback, 0.5f );
-}
-
-void GameModeBase::Action_CardDamage( Action *In, std::function<void ()> Callback )
-{
-    auto Damage = dynamic_cast< DamageAction* >( In );
-    if( !Damage )
-    {
-        cocos2d::log( "[GM] Received card damage, but the event was invalid!" );
-        
-        FinishAction( Callback );
-        return;
-    }
-    
-    if( Damage->Target )
-    {
-        // TODO: Hooks
-        
-        Damage->Target->UpdatePower( Damage->Target->GetState().Power - Damage->Damage );
-        
-        // Check for death
-        if( Damage->Target->GetState().Power <= 0 || Damage->Target->GetState().Stamina <= 0 )
-        {
-            cocos2d::log( "[GM] Card Died!" );
-            auto cont = Damage->Target->GetContainer();
-            if( cont )
-                cont->Remove( Damage->Target );
-            
-            auto Pl = Damage->Target->GetOwningPlayer();
-            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
-            
-            if( Grave )
-            {
-                Damage->Target->DestroyOverlays();
-                Grave->AddToTop( Damage->Target );
-            }
-            else
-            {
-                IEntityManager::GetInstance().DestroyEntity( Damage->Target );
-            }
-        }
-    }
-    
-    if( Damage->Inflictor && Damage->StaminaDrain > 0 )
-    {
-        Damage->Inflictor->UpdateStamina( Damage->Inflictor->GetState().Stamina - Damage->StaminaDrain );
-        
-        // Check for death
-        if( Damage->Inflictor->GetState().Power <= 0 || Damage->Inflictor->GetState().Stamina <= 0 )
-        {
-            cocos2d::log( "[GM] Card Died!" );
-            auto cont = Damage->Inflictor->GetContainer();
-            if( cont )
-                cont->Remove( Damage->Inflictor );
-            
-            auto Pl = Damage->Inflictor->GetOwningPlayer();
-            auto Grave = Pl ? Pl->GetGraveyard() : nullptr;
-            
-            if( Grave )
-            {
-                Damage->Inflictor->DestroyOverlays();
-                Grave->AddToTop( Damage->Inflictor );
-            }
-            else
-            {
-                IEntityManager::GetInstance().DestroyEntity( Damage->Inflictor );
-            }
-        }
-    }
-    
-    bool bDirty = false;
-    if( BlockMatrix.count( Damage->Target ) > 0 )
-    {
-        BlockMatrix.erase( Damage->Target );
-        bDirty = true;
-    }
-    
-    if( BlockMatrix.count( Damage->Inflictor ) > 0 )
-    {
-        BlockMatrix.erase( Damage->Inflictor );
-        bDirty = true;
-    }
-    
-    if( bDirty )
-        RedrawBlockers();
-    
-    FinishAction( Callback, 0.5f );
-}
-
-
-void GameModeBase::Action_CleanupBoard( Action *In, std::function<void ()> Callback )
-{
-    // Resume field invalidation
-    auto Player = GetPlayer();
-    auto Opponent = GetOpponent();
-    auto PlField = Player ? Player->GetField() : nullptr;
-    auto OpField = Opponent ? Opponent->GetField() : nullptr;
-    
-    if( PlField )
-        PlField->ResumeInvalidate();
-    
-    if( OpField )
-        OpField->ResumeInvalidate();
-    
-    FinishAction( Callback, 0.75f );
 }
 
 
@@ -1647,11 +1109,11 @@ void GameModeBase::Tick( float Delta )
         auto Hand = Pl ? Pl->GetHand() : nullptr;
         auto Field = Pl ? Pl->GetField() : nullptr;
         
-        if( mState == MatchState::Main )
+        if( State.mState == MatchState::Main )
         {
-            if( pState == PlayerTurn::LocalPlayer )
+            if( State.pState == PlayerTurn::LocalPlayer )
             {
-                if( tState == TurnState::Marshal )
+                if( State.tState == TurnState::Marshal )
                 {
                     // Check if any cards in hand can be played
                     if( Hand )
@@ -1683,7 +1145,7 @@ void GameModeBase::Tick( float Delta )
                     
                     bPlayersMove = true;
                 }
-                else if( tState == TurnState::Attack )
+                else if( State.tState == TurnState::Attack )
                 {
                     // Check if the player can attack with any cards
                     if( Field )
@@ -1717,9 +1179,9 @@ void GameModeBase::Tick( float Delta )
                     bPlayersMove = true;
                 }
             }
-            else if( pState == PlayerTurn::Opponent )
+            else if( State.pState == PlayerTurn::Opponent )
             {
-                if( tState == TurnState::Block )
+                if( State.tState == TurnState::Block )
                 {
                     // Check if the player can block with any cards
                     if( Field )
@@ -1772,7 +1234,7 @@ void GameModeBase::Tick( float Delta )
             if( *It )
             {
                 // Check if we can clear attack/block overlay
-                if( tState == TurnState::PostTurn || tState == TurnState::PreTurn )
+                if( State.tState == TurnState::PostTurn || State.tState == TurnState::PreTurn )
                 {
                     (*It)->ClearOverlay();
                     (*It)->bAttacking = false;
@@ -1788,11 +1250,11 @@ void GameModeBase::Tick( float Delta )
         if( !ActionableCards.empty() )
         {
             auto highlightColor = cocos2d::Color3B();
-            if( tState == TurnState::Marshal )
+            if( State.tState == TurnState::Marshal )
                 highlightColor = cocos2d::Color3B( 30, 50, 240 );
-            else if( tState == TurnState::Attack )
+            else if( State.tState == TurnState::Attack )
                 highlightColor = cocos2d::Color3B( 240, 30, 30 );
-            else if( tState == TurnState::Block )
+            else if( State.tState == TurnState::Block )
                 highlightColor = cocos2d::Color3B( 30, 50, 240 );
             else
                 return;
@@ -1818,4 +1280,546 @@ void GameModeBase::Tick( float Delta )
             }
         }
     }
+}
+
+void GameModeBase::OnCardDied( CardEntity *Target )
+{
+    if( !Target )
+        return;
+    
+    auto Container = Target->GetContainer();
+    if( Container )
+        Container->Remove( Target );
+    
+    auto Owner = Target->GetOwningPlayer();
+    auto Grave = Owner ? Owner->GetGraveyard() : nullptr;
+    
+    if( Grave )
+    {
+        Target->DestroyOverlays();
+        Grave->AddToTop( Target );
+    }
+    else
+    {
+        Target->SetPosition( cocos2d::Vec2( 0.f, -1000.f ) );
+        Target->Invalidate();
+    }
+}
+
+void GameModeBase::OnCardPlay( Action* In, std::function< void() > Callback )
+{
+    PlayCardAction* PlayAction = dynamic_cast< PlayCardAction* >( In );
+    if( !PlayAction )
+    {
+        cocos2d::log( "[GM] Invalid Action! Attempt to run 'PlayCardAction' with invalid action" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    // Move card onto field
+    // First, we need to lookup card by entity id
+    auto& Ent = IEntityManager::GetInstance();
+    auto* Card = Ent.GetEntity< CardEntity >( PlayAction->TargetCard );
+    auto* Owner = Ent.GetEntity< Player >( PlayAction->TargetPlayer );
+    
+    if( !Card || !Owner || Card->GetOwningPlayer() != Owner || !Card->InHand() )
+    {
+        cocos2d::log( "[GM] Invalid play card action! Entity numbers were not correct!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    // Now were going to actually move the card to the field
+    auto Container = Card->GetContainer();
+    
+    if( PlayAction->bWasSuccessful )
+    {
+        if( PlayAction->bNeedsMove )
+        {
+            if( Container )
+                Container->Remove( Card );
+            
+            auto Index = PlayAction->TargetIndex;
+            auto Field = Owner->GetField();
+            
+            if( Field )
+            {
+                if( Index > Field->Count() )
+                    Field->AddToTop( Card, true, Callback );
+                else if( Index < 0 )
+                    Field->AddToBottom( Card, true, Callback );
+                else
+                    Field->AddAtIndex( Card, Index, true, Callback );
+                
+                return;
+            }
+        }
+    }
+    else
+    {
+        if( Container )
+        {
+            Container->InvalidateCards();
+        }
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnManaUpdate( Action *In, std::function<void ()> Callback )
+{
+    UpdateManaAction* Update = dynamic_cast< UpdateManaAction* >( In );
+    if( !Update )
+    {
+        cocos2d::log( "[GM] Invalid Action! Couldnt cast to UpdateManaAction!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    // Find targeted player
+    auto Target = State.FindPlayer( Update->TargetPlayer );
+    if( !Target )
+    {
+        cocos2d::log( "[GM] Invalid Mana Update! Target Id Invalid!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    Target->SetMana( Update->Amount );
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnCardDraw( Action *In, std::function< void () > Callback )
+{
+    DrawCardAction* Draw = dynamic_cast< DrawCardAction* >( In );
+    if( !Draw )
+    {
+        cocos2d::log( "[GM] Invalid Action! Couldnt cast to DrawCardAction" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto& Ent = IEntityManager::GetInstance();
+    auto Target = State.FindPlayer( Draw->TargetPlayer );
+    auto Card = Ent.GetEntity< CardEntity >( Draw->TargetCard );
+    
+    if( !Target || !Card || Card->GetOwningPlayer() != Target || !Card->InDeck() )
+    {
+        cocos2d::log( "[GM] Invalid Draw Action! Entity Ids Invalid!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    // Move Card Into Hand
+    auto Container = Card->GetContainer();
+    auto Hand = Target->GetHand();
+    
+    if( Container )
+        Container->Remove( Card );
+    
+    if( Hand )
+        Hand->AddToBottom( Card, true, Callback );
+    else
+        FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnCoinFlip( Action* In, std::function< void() > Callback )
+{
+    CoinFlipAction* CoinFlip = dynamic_cast< CoinFlipAction* >( In );
+    if( !CoinFlip )
+    {
+        cocos2d::log( "[GM] Invalid Coin Flip Action! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto LocalPlayer = State.GetPlayer();
+    if( LocalPlayer && LocalPlayer->GetEntityId() == CoinFlip->Player )
+        UpdatePlayerTurn( PlayerTurn::LocalPlayer );
+    else
+        UpdatePlayerTurn( PlayerTurn::Opponent );
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBlitzStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Blitz Start" );
+    UpdateMatchState( MatchState::Blitz );
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBlitzQuery( Action* In, std::function< void() > Callback )
+{
+    TimedQueryAction* Query = dynamic_cast< TimedQueryAction* >( In );
+    if( !Query )
+    {
+        cocos2d::log( "[GM] Invalid Blitz Query! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto Player = State.GetPlayer();
+    auto Hand = Player ? Player->GetHand() : nullptr;
+    
+    if( !Hand )
+    {
+        cocos2d::log( "[GM] Failed to start blitz query! Couldnt get local players hand!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    Hand->OpenBlitzMode();
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBlitzError( Action* In, std::function< void() > Callback )
+{
+    CardErrorAction* Err = dynamic_cast< CardErrorAction* >( In );
+    if( !Err )
+    {
+        cocos2d::log( "[GM] Invalid Blitz Error! Cast Failed" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto LocalPlayer = State.GetPlayer();
+    auto Hand = LocalPlayer ? LocalPlayer->GetHand() : nullptr;
+    
+    if( !Hand )
+    {
+        cocos2d::log( "[GM] Invalid Blitz Error! Couldnt get hand!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    for( auto i = Err->Errors.begin(); i != Err->Errors.end(); i++ )
+    {
+        cocos2d::log( "[GM] Failed to select card '%d' for blitz.. error code %d", i->first, i->second );
+        
+        for( auto j = Hand->Begin(); j != Hand->End(); j++ )
+        {
+            if( *j && (*j)->GetEntityId() == i->first )
+            {
+                Hand->DeselectBlitz( *j );
+                break;
+            }
+        }
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnAttackError( Action* In, std::function< void() > Callback )
+{
+    CardErrorAction* Err = dynamic_cast< CardErrorAction* >( In ); 
+    if( !Err )
+    {
+        cocos2d::log( "[GM] Invalid Attack Error! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto& Ent = IEntityManager::GetInstance();
+    
+    for( auto It = Err->Errors.begin(); It != Err->Errors.end(); It++ )
+    {
+        auto Card = Ent.GetEntity< CardEntity >( It->first );
+        if( Card )
+        {
+            // Deselect the card
+            Card->bAttacking = false;
+            Card->ClearOverlay();
+            Card->ClearHighlight();
+        }
+        
+        cocos2d::log( "[GM] Failed to attack with '%d' with error code %d", It->first, It->second );
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnMatchStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Match Starting" );
+    
+    UpdateMatchState( MatchState::Main );
+    auto LocalPlayer = State.GetPlayer();
+    auto Hand = LocalPlayer ? LocalPlayer->GetHand() : nullptr;
+    
+    if( Hand )
+        Hand->CloseBlitzMode();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnTurnStart( Action* In, std::function< void() > Callback )
+{
+    TurnStartAction* TurnStart = dynamic_cast< TurnStartAction* >( In );
+    if( !TurnStart )
+    {
+        cocos2d::log( "[GM] Invalid Turn Start! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::PreTurn );
+    
+    auto LocalPlayer = State.GetPlayer();
+    if( LocalPlayer && LocalPlayer->GetEntityId() == TurnStart->Player )
+    {
+        UpdatePlayerTurn( PlayerTurn::LocalPlayer );
+    }
+    else
+    {
+        UpdatePlayerTurn( PlayerTurn::Opponent );
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnMarshalStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Marshal Started" );
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::Marshal );
+    
+    EnableSelection();
+    
+    GameScene* Scene = dynamic_cast< GameScene* >( GetScene() );
+    if( State.pState == PlayerTurn::LocalPlayer && Scene )
+        Scene->ShowFinishButton();
+    else
+        Scene->HideFinishButton();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnAttackStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Attacking Started" );
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::Attack );
+    
+    EnableSelection();
+    
+    GameScene* Scene = dynamic_cast< GameScene* >( GetScene() );
+    if( State.pState == PlayerTurn::LocalPlayer && Scene )
+        Scene->ShowFinishButton();
+    else
+        Scene->HideFinishButton();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBlockStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Block Started" );
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::Attack );
+    
+    EnableSelection();
+    
+    GameScene* Scene = dynamic_cast< GameScene* >( GetScene() );
+    if( State.pState == PlayerTurn::Opponent && Scene )
+        Scene->ShowFinishButton();
+    else
+        Scene->HideFinishButton();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnTurnFinish( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Post Turn Started!" );
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::PostTurn );
+    
+    GameScene* Scene = dynamic_cast< GameScene* >( GetScene() );
+    if( Scene )
+        Scene->HideFinishButton();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnDamageStart( Action* In, std::function< void() > Callback )
+{
+    cocos2d::log( "[GM] Damage Started!" );
+    
+    UpdateMatchState( MatchState::Main );
+    UpdateTurnState( TurnState::Damage );
+    
+    GameScene* Scene = dynamic_cast< GameScene* >( GetScene() );
+    if( Scene )
+        Scene->HideFinishButton();
+    
+    auto LocalPlayer = State.GetPlayer();
+    auto Opponent = State.GetOpponent();
+    auto PlayerField = LocalPlayer ? LocalPlayer->GetField() : nullptr;
+    auto OpponentField = Opponent ? Opponent->GetField() : nullptr;
+    
+    if( PlayerField )
+        PlayerField->PauseInvalidate();
+    if( OpponentField )
+        OpponentField->PauseInvalidate();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnDamage( Action *In, std::function<void ()> Callback )
+{
+    DamageAction* Damage = dynamic_cast< DamageAction* >( In );
+    if( !Damage )
+    {
+        cocos2d::log( "[GM] Invalid Card Damage Action! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    bool IsDirty    = false;
+    auto Target     = State.FindPlayer( Damage->Target );
+    
+    if( Target )
+    {
+        // Damage Player
+        Target->SetHealth( Damage->UpdatedPower );
+    }
+    else
+    {
+        auto Card = State.FindCard( Damage->Target, nullptr, CardPos::FIELD );
+        if( !Card )
+        {
+            cocos2d::log( "[GM] Invalid Card Damage Action! Couldnt find specified player" );
+            FinishAction( Callback, 0.2f );
+            return;
+        }
+        
+        Card->UpdatePower( Damage->UpdatedPower );
+        
+        if( Card->Power <= 0 || Card->Stamina <= 0 )
+        {
+            // Move Card To Grave
+            OnCardDied( Card );
+        }
+        
+        if( BlockMatrix.count( Card ) > 0 )
+        {
+            BlockMatrix.erase( Card );
+            IsDirty = true;
+        }
+    }
+    
+    auto Inflictor = State.FindCard( Damage->Inflictor, nullptr, CardPos::FIELD );
+    if( Inflictor && BlockMatrix.count( Inflictor ) > 0 )
+    {
+        BlockMatrix.erase( Inflictor );
+        IsDirty = true;
+    }
+    
+    if( IsDirty )
+        RedrawBlockers();
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnCombat( Action *In, std::function< void() > Callback )
+{
+    CombatAction* Combat = dynamic_cast< CombatAction* >( In );
+    if( !Combat )
+    {
+        cocos2d::log( "[GM] Invalid Combat Action! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto Attacker = State.FindCard( Combat->Attacker, nullptr, CardPos::FIELD );
+    auto Blocker = State.FindCard( Combat->Blocker, nullptr, CardPos::FIELD );
+    
+    if( !Attacker || !Blocker )
+    {
+        cocos2d::log( "[GM] Invalid Combat Action! Couldnt Find Combat Pair!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    Attacker->UpdatePower( Combat->AttackerPower );
+    Blocker->UpdatePower( Combat->BlockerPower );
+    
+    if( Attacker->Power <= 0 || Attacker->Stamina <= 0 )
+    {
+        OnCardDied( Attacker );
+    }
+    
+    if( Blocker->Power <= 0 || Blocker->Stamina <= 0 )
+    {
+        OnCardDied( Blocker );
+    }
+    
+    bool IsDirty = false;
+    if( BlockMatrix.count( Attacker ) > 0 )
+    {
+        BlockMatrix.erase( Attacker );
+        IsDirty = true;
+    }
+    
+    if( BlockMatrix.count( Blocker ) > 0 )
+    {
+        BlockMatrix.erase( Blocker );
+        IsDirty = true;
+    }
+    
+    if( IsDirty )
+    {
+        RedrawBlockers();
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnStaminaUpdate( Action* In, std::function< void() > Callback )
+{
+    UpdateStaminaAction* Update = dynamic_cast< UpdateStaminaAction* >( In );
+    if( !Update )
+    {
+        cocos2d::log( "[GM] Invalid Stamina Update! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto Target = State.FindCard( Update->Target, nullptr, CardPos::NONE );
+    if( !Target )
+    {
+        cocos2d::log( "[GM] Invalid Stamina Update! Couldnt Find Target!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    Target->UpdateStamina( Update->UpdatedAmount );
+    
+    if( Target->Stamina <= 0 || Target->Power <= 0 )
+    {
+        OnCardDied( Target );
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBoardCleanup( Action* In, std::function< void() > Callback )
+{
+    auto LocalPlayer = State.GetPlayer();
+    auto Opponent = State.GetOpponent();
+    auto PlayerField = LocalPlayer ? LocalPlayer->GetField() : nullptr;
+    auto OpponentField = Opponent ? Opponent->GetField() : nullptr;
+    
+    if( PlayerField )
+        PlayerField->ResumeInvalidate();
+    if( OpponentField )
+        OpponentField->ResumeInvalidate();
+    
+    FinishAction( Callback, 0.75f );
 }

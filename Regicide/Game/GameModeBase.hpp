@@ -85,44 +85,42 @@ namespace Game
             End of Input Logic
          ====================================================*/
         
+    public:
+        
         virtual bool CouldPlayCard( CardEntity* In );
         virtual bool CanPlayCard( CardEntity* In );
         
         virtual bool CanCardAttack( CardEntity* In );
         virtual bool CanCardBlock( CardEntity* In, CardEntity* Target = nullptr );
         virtual bool CanTriggerAbility( CardEntity* In );
-
+        
+        void RunActionQueue( Game::ActionQueue&& In );
+        bool PlayCard( CardEntity* In, int Index = -1 );
+        
+        inline void InvalidatePossibleActions() { _bCheckPossibleActions = true; }
+        
+        void FinishTurn();
+        
+        inline ClientState& GetState() { return State; }
+        
     protected:
         
         template< typename T >
         T* GetAuthority() const;
         
-        inline Player* GetPlayer()  { return GetWorld()->GetLocalPlayer(); }
-        inline Player* GetOpponent()   { return GetWorld()->GetOpponent(); }
-        
-    public:
-        
-        void RunActionQueue( Game::ActionQueue&& In );
-        bool PlayCard( CardEntity* In, int Index = -1 );
-
-        inline void InvalidatePossibleActions() { _bCheckPossibleActions = true; }
-        
-        inline ClientState* GetState() { return GetWorld()->GetState(); }
-        
-    protected:
+        inline Player* GetPlayer()  { return State.GetPlayer(); }
+        inline Player* GetOpponent()   { return State.GetOpponent(); }
         
         void RunAction( Action& Target, std::function< void() > Callback );
         void PopQueue( ActionQueue& Target );
-        void AddAction( const std::string& Name, std::function< Action*, std::function< void() > > Handler );
+        void AddAction( const std::string& Name, std::function< void( Action*, std::function< void() > ) > Handler );
         
-        std::map< std::string, std::function< Action*, std::function< void() > > ActionHandlers;
+        std::map< uint32_t, ActionQueue > ActiveQueues;
+        std::map< std::string, std::function< void( Action*, std::function< void() > ) > > ActionHandlers;
         
         void UpdateMatchState( MatchState In );
         void UpdateTurnState( TurnState In );
         void UpdatePlayerTurn( PlayerTurn In );
-        
-        std::map< uint32_t, ActionQueue > ActiveQueues;
-        virtual void ExecuteActions( const std::vector< std::unique_ptr< Game::Action > >& In, uint32_t QueueId, bool bRootAction = true );
         
         void Tick( float Delta );
         bool _bCheckPossibleActions = false;
@@ -130,35 +128,35 @@ namespace Game
         uint32_t lastDamageId;
         uint32_t lastDrainId;
         
+        ClientState State;
+
+        // Updated Action Callbacks
+        virtual void OnCardDraw( Action* In, std::function< void() > Callback );
+        virtual void OnCardPlay( Action* In, std::function< void() > Callback );
+        virtual void OnManaUpdate( Action* In, std::function< void() > Callback );
+        virtual void OnCoinFlip( Action* In, std::function< void() > Callback );
+        virtual void OnBlitzStart( Action* In, std::function< void() > Callback );
+        virtual void OnBlitzQuery( Action* In, std::function< void() > Callback );
+        virtual void OnBlitzError( Action* In, std::function< void() > Callback );
+        virtual void OnAttackError( Action* In, std::function< void() > Callback );
+        virtual void OnMatchStart( Action* In, std::function< void() > Callback );
+        virtual void OnTurnStart( Action* In, std::function< void() > Callback );
+        virtual void OnMarshalStart( Action* In, std::function< void() > Callback );
+        virtual void OnAttackStart( Action* In, std::function< void() > Callback );
+        virtual void OnBlockStart( Action* In, std::function< void() > Callback );
+        virtual void OnTurnFinish( Action* In, std::function< void() > Callback );
+        virtual void OnDamageStart( Action* In, std::function< void() > Callback );
+        virtual void OnDamage( Action* In, std::function< void() > Callback );
+        virtual void OnCombat( Action* In, std::function< void() > Callback );
+        virtual void OnStaminaUpdate( Action* In, std::function< void() > Callback );
+        virtual void OnBoardCleanup( Action* In, std::function< void() > Callback );
+        
+        void OnCardDied( CardEntity* Target );
+        virtual void OnActionQueue();
+        
     private:
         
         void _OnEndOfBranch( uint32_t QueueId );
-        
-        // Actions
-        
-    protected:
-        
-        virtual void Action_CoinFlip( Action* In, std::function< void() > Callback );
-        virtual void Action_BlitzStart( Action* In, std::function< void() > Callback );
-        virtual void Action_BlitzQuery( Action* In, std::function< void() > Callback );
-        virtual void Action_MainStart( Action* In, std::function< void() > Callback );
-        virtual void Action_BlitzError( Action* In, std::function< void() > Callback );
-        virtual void Action_AttackError( Action* In, std::function< void() > Callback );
-        virtual void Action_TurnStart( Action* In, std::function< void() > Callback );
-        virtual void Action_MarshalStart( Action* In, std::function< void() > Callback );
-        virtual void Action_AttackStart( Action* In, std::function< void() > Callback );
-        virtual void Action_BlockStart( Action* In, std::function< void() > Callback );
-        virtual void Action_PostTurnStart( Action* In, std::function< void() > Callback );
-        virtual void Action_CardDamage( Action* In, std::function< void() > Callback );
-        virtual void Action_DamageStart( Action* In, std::function< void() > Callback );
-        virtual void Action_StaminaDrain( Action* In, std::function< void() > Callback );
-        virtual void Action_CleanupBoard( Action* In, std::function< void() > Callback );
-        
-        virtual void OnActionQueue();
-        
-    public:
-        
-        void FinishTurn();
         
     };
     

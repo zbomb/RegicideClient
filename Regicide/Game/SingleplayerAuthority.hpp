@@ -14,7 +14,7 @@
 #include "KingEntity.hpp"
 #include <chrono>
 #include "Actions.hpp"
-#include "GameContext.hpp"
+
 
 namespace Game
 {
@@ -59,8 +59,8 @@ namespace Game
         
         void WaitOnPlayer( std::function< void( float, bool ) > OnReady, float Timeout );
         
-        std::vector< CardState& > PlayerBlitzSelection;
-        std::vector< CardState& > OpponentBlitzSelection;
+        std::vector< uint32_t > PlayerBlitzSelection;
+        std::vector< uint32_t > OpponentBlitzSelection;
         
         template< typename T >
         T* GetGameMode();
@@ -71,8 +71,8 @@ namespace Game
         void FinishBlitz();
         void StartMatch();
         
-        PlayerState& GetActivePlayer();
-        PlayerState& GetInactivePlayer();
+        PlayerState* GetActivePlayer();
+        PlayerState* GetInactivePlayer();
         
         void PreTurn( PlayerTurn pTurn );
         void Marshal();
@@ -88,7 +88,7 @@ namespace Game
         
     private:
         
-        bool DoLoad( PlayerState& Target, const std::string& Name, uint16_t Mana, uint16_t Stamina, const Regicide::Deck& Deck );
+        bool DoLoad( PlayerState* Target, const std::string& Name, uint16_t Mana, uint16_t Stamina, const Regicide::Deck& Deck );
         
         std::chrono::steady_clock::time_point _tWaitStart;
         std::function< void( float, bool ) > _fWaitCallback;

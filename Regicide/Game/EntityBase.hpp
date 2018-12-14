@@ -53,12 +53,7 @@ namespace Game
         float GetAbsoluteRotation() const;
         
         virtual void Invalidate();
-        
-        // Actions
-        void PerformAction( Game::Action* In, std::function< void() > OnComplete );
-        
         inline bool IsCard() const { return _bIsCard; }
-        
         void RequireTexture( const std::string& InTex, std::function< void( cocos2d::Texture2D* ) > Callback );
         
     protected:
@@ -79,20 +74,15 @@ namespace Game
         std::vector< EntityBase* >::iterator ChildEnd() { return Children.end(); }
         
         World* GetWorld() const;
-        
-        std::map< std::string, std::function< void( Game::Action* In, std::function< void() > ) > > ActionCallbacks;
-        void SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback );
-        
         bool _bIsCard;
         
         std::map< std::string, std::function< void( cocos2d::Texture2D* ) > > ResourceList;
         
-        // Action Callbacks
-        void FinishAction( std::function< void() > InCallback, float InDelay = 0.f );
+        uint32_t LastActionCallback;
+        void FinishAction( std::function< void() > Callback, float Delay = 0.f );
         
     private:
         
-        uint64 LastActionCallback;
         uint32 EID;
         std::string EName;
         std::vector< EntityBase* > Children;

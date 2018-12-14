@@ -22,6 +22,7 @@
 #include "KingEntity.hpp"
 #include "AIController.hpp"
 #include "ClientState.hpp"
+#include "CardEntity.hpp"
 
 
 using namespace Game;
@@ -218,18 +219,6 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     NewWorld->AddChild( GM ); 
     NewWorld->GM = GM;
     
-    // Create GameState
-    auto* State = EntityManager.CreateEntity< Game::ClientState >();
-    if( !State )
-    {
-        EntityManager.DestroyEntity( NewWorld );
-        Error( "Failed to create game state" );
-        return;
-    }
-    
-    NewWorld->AddChild( State );
-    NewWorld->State = State;
-    
     // Begin Loading Authority
     if( !Authority->LoadPlayers( PlayerName, 20, 8, PlayerDeck, OpponentName, 20, 8, OpponentDeck ) )
     {
@@ -240,10 +229,10 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
     
     // Now we need to stream AuthState into the client-side of the game
     // During this process, all the entities will be created
-    if( !State->StreamFrom( & Authority->GetState() ) )
+    if( !StreamEntities( GM, Authority ) )
     {
         EntityManager.DestroyEntity( NewWorld );
-        Error( "Failed to stream state into client" );
+        Error( "Failed to stream entities" );
         return;
     }
     
@@ -256,8 +245,8 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
         return;
     }
     
-    // Setup AI
-    NewAI->Difficulty   = Difficulty;
+    // Setup AI (Requires ReWrite)
+    //NewAI->Difficulty   = Difficulty;
      
     Authority->AddChild( NewAI );
     Authority->AI = NewAI;
@@ -277,4 +266,118 @@ Game::World* SingleplayerLauncher::CreateWorld()
     auto world = Game::IEntityManager::GetInstance().CreateEntity< Game::World >();
     
     return world;
+}
+
+bool StreamContainer( std::vector< CardState >& Source, Player* Target, ICardContainer* Container )
+{
+    auto& Ent = IEntityManager::GetInstance();
+    auto& CM = CardManager::GetInstance();
+    
+    if( !Target || !Container )
+    {
+        cocos2d::log( "[Launcher] Failed to stream card container.. player or container was null" );
+        return false;
+    }
+    
+    for( auto It = Source.begin(); It != Source.end(); It++ )
+    {
+        if( It->EntId <= 0 )
+        {
+            cocos2d::log( "[Launcher] Warning! Auth card has an invalid entity id!" );
+            continue;
+        }
+        
+        auto* Card = CM.CreateCard( *It, Target, true );
+        if( !Card )
+        {
+            cocos2d::log( "[Launcher] Warning! Failed to create new card!" );
+            continue;
+        }
+        
+        Container->AddToTop( Card, true );
+    }
+    
+    return true;
+}
+
+bool StreamPlayer( PlayerState* Source, Player* Target, bool bOpponent )
+{
+    if( !Source || !Target )
+    {
+        cocos2d::log( "[Launcher] Failed to stream player.. null!" );
+        return false;
+    }
+    
+    // Stream King Entity
+    auto King = Target->GetKing();
+    if( !King )
+    {
+        cocos2d::log( "[Launcher] Failed to stream player.. king is null!" );
+        return false;
+    }
+    
+    King->Load( Source->King, bOpponent );
+
+    return( StreamContainer( Source->Deck, Target, Target->GetDeck() ) &&
+            StreamContainer( Source->Hand, Target, Target->GetHand() ) &&
+            StreamContainer( Source->Field, Target, Target->GetField() ) &&
+            StreamContainer( Source->Graveyard, Target, Target->GetGraveyard() ) );
+}
+
+bool SingleplayerLauncher::StreamEntities( GameModeBase* Target, AuthorityBase* Source )
+{
+    if( !Target || !Source )
+        return false;
+    
+    // We need to build the GameMode state from the Authority State
+    auto& AuthState = Source->GetState();
+    auto& ClientState = Target->GetState();
+    
+    ClientState.mState = AuthState.mState;
+    ClientState.pState = AuthState.pState;
+    ClientState.tState = AuthState.tState;
+    
+    auto& Ent = IEntityManager::GetInstance();
+    
+    auto AuthPlayer    = AuthState.GetPlayer();
+    auto AuthOpponent  = AuthState.GetOpponent();
+    
+    if( !AuthPlayer || AuthPlayer->EntId <= 0 || !AuthOpponent || AuthOpponent->EntId <= 0 )
+    {
+        cocos2d::log( "[Launcher] Failed to stream entities! Auth version is invalid (Player ID)" );
+        return false;
+    }
+    
+    ClientState.LocalPlayer     = Ent.CreateEntity< Player >( AuthPlayer->EntId );
+    ClientState.Opponent        = Ent.CreateEntity< Player >( AuthOpponent->EntId );
+    
+    if( !ClientState.LocalPlayer || !ClientState.Opponent )
+    {
+        cocos2d::log( "[Launcher] Failed to stream entities! Couldnt create players" );
+        
+        if( ClientState.LocalPlayer )
+            Ent.DestroyEntity( ClientState.LocalPlayer );
+        if( ClientState.Opponent )
+            Ent.DestroyEntity( ClientState.Opponent );
+        
+        return false;
+    }
+    
+    Target->AddChild( ClientState.LocalPlayer );
+    Target->AddChild( ClientState.Opponent );
+    
+    // Now we just need to stream the card containers for each player
+    if( !StreamPlayer( AuthPlayer, ClientState.LocalPlayer, false ) )
+    {
+        cocos2d::log( "[Launcher] Failed to stream local player info!" );
+        return false;
+    }
+    
+    if( !StreamPlayer( AuthOpponent, ClientState.Opponent, true ) )
+    {
+        cocos2d::log( "[Launcher] Fialed to stream opponent info!" );
+        return false;
+    }
+    
+    return true;
 }

@@ -299,7 +299,7 @@ void GraveyardEntity::MoveCard( CardEntity* inCard, std::function< void() > Call
         inCard->MoveAnimation( GetPosition(), CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( !inCard->GetState().FaceUp )
+        if( !inCard->FaceUp )
             inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // Card should always be face up

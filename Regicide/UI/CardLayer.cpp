@@ -58,11 +58,12 @@ Game::CardEntity* CardLayer::TraceTouch( const cocos2d::Vec2 &inPos )
     // We need to trace through all cards in the game to check if
     // the touch hit any of them. TODO: Find quicker way to trace touches?
     auto world = Game::World::GetWorld();
+    auto GM = world ? world->GetGameMode() : nullptr;
     
-    if( world )
+    if( GM )
     {
-        auto pl = world->GetLocalPlayer();
-        auto op = world->GetOpponent();
+        auto pl = GM->GetState().GetPlayer();
+        auto op = GM->GetState().GetOpponent();
         
         if( pl )
         {

@@ -9,7 +9,7 @@
 //
 
 #pragma once
-
+#include "LuaEngine.hpp"
 
 namespace Game
 {
@@ -34,8 +34,22 @@ namespace Game
         bool FaceUp;
         CardPos Position;
         uint32_t Owner;
+        
+        int _lua_GetPosition() const { return (int) Position; }
     };
-
+    
+    struct KingState
+    {
+        uint16_t Id;
+        uint32_t Owner;
+        
+        std::string DisplayName;
+        std::string PlayerTexture;
+        std::string OpponentTexture;
+        
+        std::shared_ptr< luabridge::LuaRef > Hooks;
+    };
+    
     struct PlayerState
     {
         std::string DisplayName;
@@ -48,7 +62,7 @@ namespace Game
         std::vector< CardState > Field;
         std::vector< CardState > Graveyard;
         
-        uint16_t King;
+        KingState King;
     };
     
     

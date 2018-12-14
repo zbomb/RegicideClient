@@ -13,6 +13,7 @@
 #include "EntityBase.hpp"
 #include "LuaEngine.hpp"
 #include "CardEntity.hpp"
+#include "ObjectStates.hpp"
 
 namespace Game
 {
@@ -36,15 +37,10 @@ namespace Game
         inline std::string GetName() const { return DisplayName; }
         inline Player* GetOwningPlayer() { return OwningPlayer; }
         
-        bool GetHook( const std::string& Name, luabridge::LuaRef& Out );
-        std::shared_ptr< luabridge::LuaRef > Hooks;
-        
-        void MarkAsState();
-        inline CardState GetState() const { return State; }
+        void Load( KingState& Source, bool bOpponent );
         
     protected:
         
-        bool Load( luabridge::LuaRef& inLua, Player* inOwner, bool bOpponent = false );
         virtual void Invalidate() override;
         
         cocos2d::Sprite* Sprite;
@@ -59,10 +55,7 @@ namespace Game
         
         bool bAddedToScene;
         bool bIsOpponent;
-        bool bIsState;
         
-        CardState State;
         friend class SingleplayerLauncher;
-        friend class ClientState;
     };
 }

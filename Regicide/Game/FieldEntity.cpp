@@ -339,7 +339,7 @@ void FieldEntity::MoveCard( CardEntity* inCard, const cocos2d::Vec2& inPos, std:
         inCard->MoveAnimation( inPos, CARD_DEFAULT_MOVE_TIME );
         
         // Flip face up if it isnt already
-        if( !inCard->GetState().FaceUp )
+        if( !inCard->FaceUp )
             inCard->Flip( true, CARD_DEFAULT_MOVE_TIME );
         
         // On field, card should always be upright

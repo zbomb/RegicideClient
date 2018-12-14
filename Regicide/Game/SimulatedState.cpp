@@ -19,6 +19,10 @@
 using namespace Game;
 
 
+
+// ALL CODE BELOW IS DEPRECATED!!
+
+/*
 CardState* DoLookup( std::deque< CardState >& Container, uint32_t Id )
 {
     for( auto It = Container.begin(); It != Container.end(); It++ )
@@ -49,114 +53,9 @@ CardState* SimulatedPlayer::LookupCard( uint32_t Id )
 
 
 
-bool SimulatorContext::DrawCard( uint32_t inPlayer, int ActionType )
-{
-    SimulatedPlayer* Player = Simulator ? Simulator->LookupPlayer( inPlayer ) : nullptr;
-    if( !Player )
-    {
-        cocos2d::log( "[Sim] Failed to simulate card draw.. invalid simulator or player" );
-        return false;
-    }
-    
-    // Move top card to deck
-    if( !Simulator->PerformDraw( Player ) )
-    {
-        // Do Win
-    }
-    
-    return true;
-}
-
-bool SimulatorContext::DealDamage( uint32_t inTarget, int Amount, int ActionType )
-{
-    CardState* Target = Simulator ? Simulator->LookupCard( inTarget ) : nullptr;
-    if( !Target )
-    {
-        cocos2d::log( "[Sim] Failed to simulate damage.. invalid sim ref or target" );
-        return false;
-    }
-    
-    // Target must be on field
-    if( Target->Position != CardPos::FIELD )
-    {
-        cocos2d::log( "[Sim] Failed to simulate damage.. target not on field" );
-        return false;
-    }
-    
-    Target->Power -= Amount;
-    if( Target->Power <= 0 )
-    {
-        // Card Died! Hooks?
-        if( !Simulator->KillCard( Target ) )
-        {
-            cocos2d::log( "[Sim] ERROR: Failed to kill card!" );
-        }
-    }
-    
-    return true;
-}
-
-bool SimulatorContext::IsTurn()
-{
-    auto State = GetState();
-    
-    // Check if its the turn of the associated cards owner
-    if( State.Owner == Simulator->LocalPlayer.State.EntId )
-        return Simulator->pState == PlayerTurn::LocalPlayer;
-    else if( State.Owner == Simulator->Opponent.State.EntId )
-        return Simulator->pState == PlayerTurn::Opponent;
-    
-    return false;
-}
-
-luabridge::LuaRef SimulatorContext::GetField( uint32_t inPlayer )
-{
-    auto Engine = Regicide::LuaEngine::GetInstance();
-    CC_ASSERT( Engine );
-    
-    luabridge::LuaRef Output = luabridge::newTable( Engine->State() );
-    if( !Simulator )
-        return Output;
-    
-    SimulatedPlayer* Target = Simulator->LookupPlayer( inPlayer );
-    if( !Target )
-        return Output;
-    
-    int Index = 1;
-    for( auto It = Target->Field.begin(); It != Target->Field.end(); It++ )
-    {
-        Output[ Index ] = *It;
-        Index++;
-    }
-    
-    return Output;
-}
-
-uint32_t SimulatorContext::GetOwner()
-{
-    return State.Owner;
-}
-
-uint32_t SimulatorContext::GetOpponent()
-{
-    auto Owner = State.Owner;
-    if( !Simulator )
-        return 0;
-    
-    if( Simulator->LocalPlayer.State.EntId == Owner )
-        return Simulator->Opponent.State.EntId;
-    else if( Simulator->Opponent.State.EntId == Owner )
-        return Simulator->LocalPlayer.State.EntId;
-    
-    return 0;
-}
-
-
-
 
 SimulatedState::SimulatedState()
 {
-    Context.SetSimulator( this );
 }
 
 bool DoKill( SimulatedPlayer* inPlayer, CardState* inCard )
@@ -341,12 +240,7 @@ bool SimulatedState::CanTriggerAbility( CardState* inCard, uint8_t inAbility )
     {
         try
         {
-            Context.SetState( *inCard );
-            if( !( *Ability.CheckFunc )( Context ) )
-            {
-                cocos2d::log( "[Sim DEBUG] Check Func Failed" );
-                return false;
-            }
+            // RAN CHECK FUNC
         }
         catch( std::exception& e )
         {
@@ -763,28 +657,29 @@ void CopyPlayer( SimulatedPlayer& inPlayer, Player* Target )
 void SimulatedState::Sync()
 {
     auto World = Game::World::GetWorld();
-    auto State = World ? World->GetGameState() : nullptr;
+    auto GM = World ? World->GetGameMode() : nullptr;
     auto Auth = World ? World->GetAuthority< SingleplayerAuthority >() : nullptr;
     
-    if( !State || !Auth )
+    if( !Auth || !GM )
     {
         cocos2d::log( "[Simulator] Failed to sync with active game.. couldnt get game state" );
         return;
     }
     
     // Copy Player States and Cards
-    CopyPlayer( LocalPlayer, State->GetPlayer() );
-    CopyPlayer( Opponent, State->GetOpponent() );
+    CopyPlayer( LocalPlayer, GM->GetState().GetPlayer() );
+    CopyPlayer( Opponent, GM->GetState().GetOpponent() );
     
     // Copy Battle Matrix
     BattleMatrix.clear();
     
     // Copy Match/Turn State
-    mState = Auth->GetMatchState();
-    tState = Auth->GetTurnState();
-    pState = Auth->GetPlayerTurn();
+    auto State = Auth->GetState();
     
-    TurnHalf = State->TurnHalf;
+    mState = State.mState;
+    tState = State.tState;
+    pState = State.pState;
+    
     TurnNumber = State->TurnNumber;
     
     for( auto It = Auth->BattleMatrix.begin(); It != Auth->BattleMatrix.end(); It++ )
@@ -805,3 +700,4 @@ void SimulatedState::Sync()
     }
     
 }
+*/

@@ -18,20 +18,23 @@
 
 using namespace Game;
 
+/*
 struct MarshalPossibility
 {
     std::vector< CardEntity* > Cards;
     int RemainingMana;
 };
+ */
 
 AIController::AIController()
 : EntityBase( "AIController" )
 {
-    State = AIState::Init;
+    //State = AIState::Init;
     
     cocos2d::log( "[AI] CONSTRUCTOR" );
 }
 
+/*
 void AIController::Initialize()
 {
     EntityBase::Initialize();
@@ -512,3 +515,4 @@ void AIController::OnSimulatedTurnComplete()
 {
     
 }
+*/

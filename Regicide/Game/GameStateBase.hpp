@@ -13,6 +13,7 @@
 #include "Actions.hpp"
 #include "ObjectStates.hpp"
 #include "RegicideAPI/Account.hpp"
+#include "CardEntity.hpp"
 
 
 namespace Game
@@ -42,35 +43,40 @@ namespace Game
         
         void CopyTo( GameStateBase& Other );
         
-        inline PlayerState& GetPlayer() { return LocalPlayer; }
-        inline PlayerState& GetOpponent() { return Opponent; }
+        inline PlayerState* GetPlayer() { return &LocalPlayer; }
+        inline PlayerState* GetOpponent() { return &Opponent; }
         
         // Lua Interface
         // Player Targeted Actions
-        virtual void ShuffleDeck( PlayerState& Target );
-        virtual void DrawCard( PlayerState& Target, uint32_t Count );
-        virtual void TakeMana( PlayerState& Target, CardState& Origin, uint32_t Amount );
-        virtual void GiveMana( PlayerState& Target, CardState& Origin, uint32_t Amount );
-        virtual void DamageKing( PlayerState& Target, CardState& Origin, uint32_t Amount );
-        virtual void HealKing( PlayerState& Target, CardState& Origin, uint32_t Amount );
+        virtual void ShuffleDeck( PlayerState* Target );
+        virtual void DrawCard( PlayerState* Target, uint32_t Count );
+        virtual void TakeMana( PlayerState* Target, CardState* Origin, uint32_t Amount );
+        virtual void GiveMana( PlayerState* Target, CardState* Origin, uint32_t Amount );
+        virtual void DamageKing( PlayerState* Target, CardState* Origin, uint32_t Amount );
+        virtual void HealKing( PlayerState* Target, CardState* Origin, uint32_t Amount );
         
         // Card Targeted Actions
-        virtual void DoCombat( CardState& Target, CardState& Origin, uint32_t Amount, int StaminaChange );
-        virtual void DamageCard( CardState& Target, CardState& Origin, uint32_t Amount );
-        virtual void HealCard( CardState& Target, CardState& Origin, uint32_t Amount );
-        virtual void GiveStamina( CardState& Target, CardState& Origin, uint32_t Amount );
-        virtual void TakeStamina( CardState& Target, CardState& Origin, uint32_t Amount );
+        virtual void DoCombat( CardState* Target, CardState* Origin, uint32_t Amount, int StaminaChange );
+        virtual void DamageCard( CardState* Target, CardState* Origin, uint32_t Amount );
+        virtual void HealCard( CardState* Target, CardState* Origin, uint32_t Amount );
+        virtual void GiveStamina( CardState* Target, CardState* Origin, uint32_t Amount );
+        virtual void TakeStamina( CardState* Target, CardState* Origin, uint32_t Amount );
         
-        virtual void OnCardKilled( CardState& Dead );
-        virtual bool PlayCard( PlayerState& Player, CardState& Target );
-        virtual bool PlayCard( PlayerState& Player, uint32_t Target );
-        virtual uint32_t DrawSingle( PlayerState& Target );
+        virtual void OnCardKilled( CardState* Dead );
+        virtual bool PlayCard( PlayerState* Player, CardState* Target );
+        virtual bool PlayCard( PlayerState* Player, uint32_t Target );
+        virtual uint32_t DrawSingle( PlayerState* Target );
         virtual PlayerTurn SwitchPlayerTurn();
         
         void SetStartingPlayer( PlayerTurn In );
         bool GetCard( uint32_t In, CardState* Out );
-        bool GetCard( uint32_t In, PlayerState& Owner, CardState* Out, bool bFieldOnly = false );
+        bool GetCard( uint32_t In, PlayerState* Owner, CardState* Out, bool bFieldOnly = false );
         bool GetPlayer( uint32_t In, PlayerState* Owner );
+        
+        // Lua Specific Interface
+        PlayerState* GetCardOwner( CardState* Card );
+        PlayerState* GetCardOpponent( CardState* Card );
+        PlayerState* GetOtherPlayer( PlayerState* Target );
         
         MatchState mState;
         PlayerTurn pState;

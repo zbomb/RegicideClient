@@ -33,7 +33,6 @@ namespace Game
         
         inline GameModeBase* GetGameMode() { return GM; }
         inline AuthorityBase* GetAuthority() { return Auth; }
-        inline ClientState* GetGameState() { return State; }
         
         template< typename T >
         T* GetGameMode();
@@ -43,17 +42,12 @@ namespace Game
         
         inline cocos2d::Scene* GetScene() { return LinkedScene; }
         
-        Player* GetLocalPlayer();
-        Player* GetOpponent();
-        
     protected:
         
         GameModeBase* GM;
         AuthorityBase* Auth;
-        ClientState* State;
 
         static World* CurrentInstance;
-    
         friend class SingleplayerLauncher;
 
     };

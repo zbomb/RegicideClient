@@ -216,10 +216,10 @@ EntityBase::EntityBase( const std::string& Name )
 {
     EName = Name;
     
-    LastActionCallback = 0;
     Position = cocos2d::Vec2::ZERO;
     Rotation = 0.f;
     LinkedScene = nullptr;
+    LastActionCallback = 0;
 }
 
 /*=================================================================================================
@@ -482,59 +482,6 @@ int EntityBase::LoadResources( const std::function<void ()> &Callback )
 }
 
 /*=================================================================================================
-    EntityBase::PerformAction( Action* In, function( void ) OnComplete ) [INTERNAL]
-    -> Checks if there is an ActionHandler bound to handle an incoming action
-    -> 'OnComplete' will be called once the action is finished executing
- =================================================================================================*/
-void EntityBase::PerformAction( Game::Action* In, std::function< void() > OnComplete )
-{
-    if( !In )
-    {
-        cocos2d::log( "[ENT] Attempt to run null action!" );
-        if( OnComplete )
-            OnComplete();
-    }
-    
-    // Check if theres a callback tied to this action
-    if( ActionCallbacks.count( In->ActionName ) > 0 && ActionCallbacks[ In->ActionName ] )
-    {
-        ActionCallbacks[ In->ActionName ]( In, OnComplete );
-    }
-    else if( OnComplete )
-    {
-        // Print Warning
-        cocos2d::log( "[Ent] Warning: Unbound Action! Name: %s", In->ActionName.c_str() );
-        OnComplete();
-    }
-}
-
-/*======================================================================================================
-    EntityBase::SetActionCallback( string ActionId, function( Action*, function( void ) ) Callback )
-    -> Binds an ActionHandler to be called when an incoming action matches the specified name
- ======================================================================================================*/
-void EntityBase::SetActionCallback( const std::string& ActionId, std::function< void( Game::Action* In, std::function< void() > ) > Callback )
-{
-    ActionCallbacks[ ActionId ] = Callback;
-}
-
-/*======================================================================================================
-    EntityBase::FinishAction( function() ActionCallback, float Delay )
-    -> Calls an action callback to signal the completion of an action after a specified delay
-    -> Generates unique id's so there is no issue with overlapping timer id's
- ======================================================================================================*/
-void EntityBase::FinishAction( std::function<void ()> InCallback, float InDelay /* = 0.f */ )
-{
-    if( InDelay <= 0.f )
-    {
-        InCallback();
-    }
-    else
-    {
-        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( InCallback ) InCallback(); }, this, InDelay, 0, 0.f, false, "ActionFinish_" + std::to_string( LastActionCallback++ ) );
-    }
-}
-
-/*=================================================================================================
     EntityBase::GetWorld()
     -> Returns the current Game World entity
  =================================================================================================*/
@@ -544,4 +491,16 @@ World* EntityBase::GetWorld() const
     CC_ASSERT( world );
     
     return world;
+}
+
+void EntityBase::FinishAction( std::function< void () > Callback, float Delay /* = 0.f */ )
+{
+    if( Delay <= 0.f )
+    {
+        Callback();
+    }
+    else
+    {
+        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float f ) { if( Callback ) Callback(); }, this, Delay, 0, 0.f, false, "ActionFinish_" + std::to_string( LastActionCallback++ ) );
+    }
 }

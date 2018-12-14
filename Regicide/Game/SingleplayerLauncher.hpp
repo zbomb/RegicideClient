@@ -21,7 +21,8 @@ namespace Game
     class World;
     class Player;
     class SingleplayerAuthority;
-
+    class GameModeBase;
+    class AuthorityBase;
     
     class SingleplayerLauncher
     {
@@ -62,6 +63,8 @@ namespace Game
         int TextureCount = 0;
         int LoadedTextures = 0;
         bool bTexturesChecked = false;
+        
+        bool StreamEntities( GameModeBase* Target, AuthorityBase* Source );
         
     };
 }

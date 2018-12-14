@@ -353,7 +353,7 @@ void DeckEntity::MoveCard( CardEntity* inCard, std::function< void() > Callback 
         inCard->MoveAnimation( GetPosition(), CARD_DEFAULT_MOVE_TIME );
         
         // Make sure its face down if in deck
-        if( inCard->GetState().FaceUp )
+        if( inCard->FaceUp )
             inCard->Flip( false, CARD_DEFAULT_MOVE_TIME );
         
         // Card should always be rotated face up, irregardless of parent

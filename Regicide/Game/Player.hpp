@@ -37,15 +37,15 @@ namespace Game
         inline FieldEntity* GetField() { return Field; }
         inline GraveyardEntity* GetGraveyard() { return Graveyard; }
         inline KingEntity* GetKing() { return King; }
-        inline std::string GetName() { return State.DisplayName; }
+        inline std::string GetName() { return DisplayName; }
         
         std::vector< CardEntity* > GetAllCards();
         CardEntity* PerformTouchTrace( const cocos2d::Vec2& inPos );
         
-        inline int GetMana() const { return State.Mana; }
+        inline int GetMana() const { return Mana; }
         void SetMana( int In );
         
-        inline int GetHealth() const { return State.Health; }
+        inline int GetHealth() const { return Health; }
         void SetHealth( int In );
         
         inline bool IsOpponent() const { return bOpponent; }
@@ -55,7 +55,6 @@ namespace Game
         
         // Custom Card Back Textures
         inline std::string GetBackTexture() { return CardBackTexture; }
-        inline PlayerState GetState() const { return State; }
         
         // State
         std::string DisplayName;
@@ -73,16 +72,7 @@ namespace Game
         
         std::string CardBackTexture;
         bool bOpponent;
-        
-        // Actions
-        void Action_PlayCard( Action* In, std::function< void() > Callback );
-        void Action_UpdateMana( Action* In, std::function< void() > Callback );
-        void Action_DrawCard( Action* In, std::function< void() > Callback );
-        void Action_KingDamage( Action* In, std::function< void() > Callback );
-
         uint32_t lastDrawId = 0;
-        
-        PlayerState State;
         
     private:
         

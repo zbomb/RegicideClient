@@ -19,7 +19,7 @@ namespace Game
     class Player;
     class AuthState;
 
-    class ClientState : public EntityBase
+    class ClientState
     {
     public:
         
@@ -32,14 +32,16 @@ namespace Game
         PlayerTurn pState;
         TurnState tState;
         
+        Player* FindPlayer( uint32_t Id );
+        CardEntity* FindCard( uint32_t Id, Player* Owner = nullptr, CardPos Position = CardPos::NONE );
+        
     protected:
         
         Player* LocalPlayer;
         Player* Opponent;
         
-        bool StreamPlayer( Player*& Target, PlayerState& Source, bool bOpponent );
-        bool StreamFrom( AuthState* Target );
-        
+        CardEntity* LookupCard( uint32_t Id, Player* Owner, CardPos Position );
+
         friend class SingleplayerLauncher;
         
     };

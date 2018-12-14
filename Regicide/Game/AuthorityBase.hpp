@@ -32,9 +32,6 @@ namespace Game
         
         virtual void Cleanup();
         
-        inline Player* GetPlayer()      { return GetWorld()->GetLocalPlayer(); }
-        inline Player* GetOpponent()    { return GetWorld()->GetOpponent(); }
-        
         // GM -> Authority Calls
         // In multiplayer, these calls are sent over the network
         // Since this code is always running on the local machine, the target is always

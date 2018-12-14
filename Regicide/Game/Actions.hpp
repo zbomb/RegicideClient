@@ -53,6 +53,9 @@ namespace Game
         : Name( In )
         {}
         
+        virtual ~Action()
+        {}
+        
     };
     
     class ParallelAction : public Action
@@ -82,15 +85,16 @@ namespace Game
     public:
         
         uint32_t Identifier;
+        uint32_t Position;
         std::function< void() > Callback;
-        std::queue< std::unique_ptr< Game::Action > > Actions;
+        std::vector< std::unique_ptr< Game::Action > > Actions;
         
         ActionQueue()
-        : Callback( nullptr ), Identifier( ++_nextQueueId )
+        : Callback( nullptr ), Identifier( ++_nextQueueId ), Position( 0 )
         {}
         
         ActionQueue( std::function< void() > InCallback )
-        : Callback( InCallback ), Identifier( ++_nextQueueId )
+        : Callback( InCallback ), Identifier( ++_nextQueueId ), Position( 0 )
         {}
         
         template< typename T >
@@ -99,7 +103,7 @@ namespace Game
             // Check type, create new action, move into vector, return reference
             static_assert( std::is_base_of< Game::Action, T >::value, "Template argument must be derived from Action" );
             
-            Actions.push( std::move( std::unique_ptr< T >( new (std::nothrow) T() ) ) );
+            Actions.push_back( std::move( std::unique_ptr< T >( new (std::nothrow) T() ) ) );
             
             // We need to get the new unique_ptr we added, get the raw pointer and cast back to desired type
             auto& newEntry = Actions.back();
@@ -179,8 +183,7 @@ namespace Game
         : Action( "CoinFlip" )
         {}
         
-        uint32_t PlayerId; // TODO: Switch over to Id system
-        PlayerTurn StartingPlayer;
+        uint32_t Player;
     };
     
     // Generic Action
@@ -224,7 +227,7 @@ namespace Game
         : Action( "TurnStart" )
         {}
         
-        uint32_t Player; // TODO: Move to Player Id system
+        uint32_t Player;
     };
     
     // Damage
@@ -233,27 +236,13 @@ namespace Game
     public:
         
         DamageAction()
-        : Action( "Damage" ), StaminaDrain( 0 )
+        : Action( "Damage" )
         {}
         
         uint32_t Target;
         uint32_t Inflictor;
+        int UpdatedPower;
         uint16_t Damage;
-        uint16_t StaminaDrain;
-    };
-    
-    // Stamina Drain
-    class StaminaDrainAction : public Action
-    {
-    public:
-        
-        StaminaDrainAction()
-        : Action( "StaminaDrain" )
-        {}
-        
-        uint32_t Target;
-        uint32_t Inflictor;
-        uint16_t Amount;
     };
     
     class UpdateStaminaAction : public Action
@@ -267,6 +256,7 @@ namespace Game
         uint32_t Target;
         uint32_t Inflictor;
         uint16_t Amount;
+        int UpdatedAmount;
     };
     
     class WinAction : public Action
@@ -277,7 +267,7 @@ namespace Game
         : Action( "Win" )
         {}
         
-        uint32_t Player; // TODO: Move to player id system
+        uint32_t Player;
     };
     
     class CombatAction : public Action
@@ -290,11 +280,9 @@ namespace Game
         
         uint32_t Attacker;
         uint32_t Blocker;
-        uint16_t FinalAttackerPower;
-        uint16_t FinalBlockerPower;
-        uint16_t FinalAttackerStamina;
-        uint16_t FinalBlockerStamina;
-        
+        int AttackerPower;
+        int BlockerPower;
+        uint16_t Damage;
     };
     
     

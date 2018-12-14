@@ -32,9 +32,6 @@ namespace Game
     protected:
         
         virtual void Initialize() override;
-        
-        void Action_GameWon( Action* In, std::function< void() > Callback );
-
         friend class SingleplayerLauncher;
         
     };

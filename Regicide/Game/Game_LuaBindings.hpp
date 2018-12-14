@@ -23,8 +23,9 @@
 #include "GameModeBase.hpp"
 #include "SingleplayerAuthority.hpp"
 #include "Utils.hpp"
-#include "GameContext.hpp"
 #include "GraveyardEntity.hpp"
+#include "GameStateBase.hpp"
+#include "ClientState.hpp"
 #include "SimulatedState.hpp"
 
 #define LUA_POS_HAND 1
@@ -100,20 +101,31 @@ namespace Regicide
             .addData( "ManaCost", &Game::CardState::ManaCost )
             .addData( "FaceUp", &Game::CardState::FaceUp )
             .addProperty( "Position", &Game::CardState::_lua_GetPosition )
-            .addProperty( "Owner", &Game::CardState::_lua_GetOwner )
+            .addData( "Owner", &Game::CardState::Owner )
         .endClass()
-        .beginClass< Game::LuaContext >( "LuaContext" )
-            .addFunction( "DrawCard", &Game::LuaContext::DrawCard )
-            .addFunction( "DealDamage", &Game::LuaContext::DealDamage )
-            .addFunction( "GetState", &Game::LuaContext::GetState )
-            .addFunction( "IsTurn", &Game::LuaContext::IsTurn )
-            .addFunction( "GetField", &Game::LuaContext::GetField )
-            .addFunction( "GetOwner", &Game::LuaContext::GetOwner )
-            .addFunction( "GetOpponent", &Game::LuaContext::GetOpponent )
+        .beginClass< Game::PlayerState >( "PlayerState" )
         .endClass()
-        .deriveClass< Game::GameContext, Game::LuaContext >( "GameContext" )
+        .beginClass< Game::GameStateBase >( "GameState" )
+            //.addFunction( "GetPlayer", &Game::GameStateBase::GetPlayer )
+            .addFunction( "GetOpponent", &Game::GameStateBase::GetOpponent )
+            .addFunction( "ShuffleDeck", &Game::GameStateBase::ShuffleDeck )
+            .addFunction( "DrawCard", &Game::GameStateBase::DrawCard )
+            .addFunction( "TakeMana", &Game::GameStateBase::TakeMana )
+            .addFunction( "GiveMana", &Game::GameStateBase::GiveMana )
+            .addFunction( "DamageKing", &Game::GameStateBase::DamageKing )
+            .addFunction( "HealKing", &Game::GameStateBase::HealKing )
+            .addFunction( "DoCombat", &Game::GameStateBase::DoCombat )
+            .addFunction( "DamageCard", &Game::GameStateBase::DamageCard )
+            .addFunction( "HealCard", &Game::GameStateBase::HealCard )
+            .addFunction( "GiveStamina", &Game::GameStateBase::GiveStamina )
+            .addFunction( "TakeStamina", &Game::GameStateBase::TakeStamina )
+            .addFunction( "GetOwner", &Game::GameStateBase::GetCardOwner )
+            .addFunction( "GetOpponent", &Game::GameStateBase::GetCardOpponent )
+            .addFunction( "GetOtherPlayer", &Game::GameStateBase::GetOtherPlayer )
         .endClass()
-        .deriveClass< Game::SimulatorContext, Game::LuaContext >( "SimulatorContext" )
+        .deriveClass< Game::AuthState, Game::GameStateBase >( "AuthState" )
+        .endClass()
+        .deriveClass< Game::SimulatedState, Game::GameStateBase >( "SimulatorState" )
         .endClass();
 
     }

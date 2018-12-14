@@ -15,6 +15,7 @@
 #include "cocos2d.h"        // For Sprite, Texture2D & TextureCache
 #include "LuaEngine.hpp"    // For luabridge::LuaRef
 #include "Actions.hpp"
+#include "ObjectStates.hpp"
 
 // Action Tags
 // These are assigned to cocos2d 'actions' to be able to cancel the animation if needed
@@ -157,10 +158,10 @@ namespace Game
         void HidePowerStamina();
 
         // Getters for Lua
-        int _lua_GetCardId() const { return State.Id; }
-        int _lua_GetPower() const { return State.Power; }
-        int _lua_GetStamina() const { return State.Stamina; }
-        int _lua_GetManaCost() const { return State.ManaCost; }
+        int _lua_GetCardId() const { return Id; }
+        int _lua_GetPower() const { return Power; }
+        int _lua_GetStamina() const { return Stamina; }
+        int _lua_GetManaCost() const { return ManaCost; }
         std::string _lua_GetName() const { return ""; }
         
         bool bAttacking;
@@ -175,7 +176,6 @@ namespace Game
         cocos2d::Texture2D* BackTexture;
         cocos2d::Texture2D* FullSizedTexture;
         
-        inline CardState GetState() const { return State; }
         inline CardInfo* GetInfo() { return Info; }
         
         uint16_t Id;
@@ -184,7 +184,7 @@ namespace Game
         int Stamina;
         int ManaCost;
         bool FaceUp;
-        CardPos Position;
+        CardPos Pos;
         uint32_t Owner;
 
     protected:
@@ -201,7 +201,6 @@ namespace Game
         
         uint32_t lastMoveId;
         
-        CardState State;
         CardInfo* Info;
         
         // Fiend Class Declarations
