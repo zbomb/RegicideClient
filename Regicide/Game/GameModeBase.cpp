@@ -34,6 +34,7 @@ GameModeBase::GameModeBase()
     AddAction( "BlitzStart",    std::bind( &GameModeBase::OnBlitzStart,     this, _1, _2 ) );
     AddAction( "BlitzQuery",    std::bind( &GameModeBase::OnBlitzQuery,     this, _1, _2 ) );
     AddAction( "BlitzError",    std::bind( &GameModeBase::OnBlitzError,     this, _1, _2 ) );
+    AddAction( "BlitzSuccess",  std::bind( &GameModeBase::OnBlitzSuccess,   this, _1, _2 ) );
     AddAction( "AttackError",   std::bind( &GameModeBase::OnAttackError,    this, _1, _2 ) );
     AddAction( "MatchStart",    std::bind( &GameModeBase::OnMatchStart,     this, _1, _2 ) );
     AddAction( "TurnStart",     std::bind( &GameModeBase::OnTurnStart,      this, _1, _2 ) );
@@ -44,8 +45,9 @@ GameModeBase::GameModeBase()
     AddAction( "DamageStart",   std::bind( &GameModeBase::OnDamageStart,    this, _1, _2 ) );
     AddAction( "Damage",        std::bind( &GameModeBase::OnDamage,         this, _1, _2 ) );
     AddAction( "Combat",        std::bind( &GameModeBase::OnCombat,         this, _1, _2 ) );
-    AddAction( "StaminaUpdate", std::bind( &GameModeBase::OnStaminaUpdate,  this, _1, _2 ) );
-    AddAction( "BoardCleanup",  std::bind( &GameModeBase::OnBoardCleanup,   this, _1, _2 ) );
+    AddAction( "UpdateStamina", std::bind( &GameModeBase::OnStaminaUpdate,  this, _1, _2 ) );
+    AddAction( "CleanupBoard",  std::bind( &GameModeBase::OnBoardCleanup,   this, _1, _2 ) );
+    AddAction( "Attackers",     std::bind( &GameModeBase::OnAttackersSet,   this, _1, _2 ) );
     
     State.mState = MatchState::PreMatch;
     State.pState = PlayerTurn::None;
@@ -60,7 +62,7 @@ GameModeBase::GameModeBase()
     _graveViewer    = nullptr;
     
     _bSelectionEnabled  = true;
-    
+    TurnFinished        = false;
     // TODO: Require UI Textures Here
     
 }
@@ -117,7 +119,7 @@ void GameModeBase::TouchBegan( cocos2d::Touch *inTouch, CardEntity *inCard )
     
     if( inCard && inCard->Sprite && inTouch )
     {
-        // Set drag offset to the difference of the card center
+        // Set drag offset to the difference of the card                                                                                                               center
         // and the click position
         _DragOffset = inCard->Sprite->getPosition() - inTouch->getLocation();
     }
@@ -357,6 +359,16 @@ bool GameModeBase::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *Info )
     if( hand && hand->AttemptDrop( inCard, DropPos ) )
         return true;
     
+    for( auto It = hand->Begin(); It != hand->End(); It++ )
+    {
+        
+    }
+    
+    for( auto It = field->Begin(); It != field->End(); It++ )
+    {
+        
+    }
+    
     // If not, then try the field
     if( field )
     {
@@ -369,7 +381,7 @@ bool GameModeBase::OnCardDragDrop( CardEntity *inCard, cocos2d::Touch *Info )
         auto Auth = GetAuthority< AuthorityBase >();
         CC_ASSERT( Auth );
         
-        Auth->PlayCard( inCard->EntId, BestIndex );
+        Auth->PlayCard( inCard->GetEntityId(), BestIndex );
     }
     
     return false;
@@ -676,7 +688,7 @@ void GameModeBase::UpdateTurnState( TurnState In )
         }
     }
     
-    _bFinishCalled = false;
+    TurnFinished = false;
 }
 
 void GameModeBase::UpdatePlayerTurn( PlayerTurn In )
@@ -765,10 +777,6 @@ void GameModeBase::PostInit()
     OpponentGrave->SetPosition( cocos2d::Vec2( -Size.width * -0.45f, -Size.height * 0.35f ) );
     OpponentGrave->SetRotation( 180.f );
     
-    // Setup starting state on everything
-    LocalPlayer->SetMana( 10 );
-    Opponent->SetMana( 10 );
-    
     auto PlayerKing = LocalPlayer->GetKing();
     auto OpponentKing = Opponent->GetKing();
     
@@ -821,6 +829,13 @@ void GameModeBase::PopQueue( ActionQueue& Target )
         else
         {
             cocos2d::log( "[GM] Failed to delete action queue on completion!" );
+        }
+        
+        // Check for possible actions
+        if( ActiveQueues.empty() )
+        {
+            _bCheckPossibleActions = true;
+            EnableSelection();
         }
         
         return;
@@ -906,6 +921,9 @@ void GameModeBase::RunActionQueue( ActionQueue&& In )
         return;
     }
     
+    // Disable Input
+    DisableSelection();
+    
     // Start popping actions
     PopQueue( Entry.first->second );
     
@@ -942,18 +960,18 @@ bool GameModeBase::CanCardAttack( CardEntity *In )
 {
     if( !In || !In->OnField() )
         return false;
-    
+
     auto LocalPlayer = State.GetPlayer();
     if( !LocalPlayer )
         return false;
-    
+
     if( State.mState != MatchState::Main || State.tState != TurnState::Attack ||
        State.pState != PlayerTurn::LocalPlayer )
         return false;
-    
+
     if( In->Stamina <= 0 )
         return false;
-    
+
     if( In->GetOwningPlayer() != LocalPlayer )
         return false;
     
@@ -1003,7 +1021,7 @@ bool GameModeBase::CanTriggerAbility( CardEntity* In )
             
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                if( !( *Ability.CheckFunc )( State, In ) )
+                if( !( *Ability.CheckFunc )( std::addressof( State ), In ) )
                     continue;
             }
             
@@ -1014,6 +1032,56 @@ bool GameModeBase::CanTriggerAbility( CardEntity* In )
     return false;
 }
 
+bool GameModeBase::CanTriggerAbility( CardEntity* In, uint8_t AbilityId )
+{
+    if( !In )
+        return false;
+    
+    auto Player = In->GetOwningPlayer();
+    auto Info = In->GetInfo();
+    
+    if( !Player || !Info )
+        return false;
+    
+    if( Info->Abilities.count( AbilityId ) <= 0 )
+        return false;
+    
+    auto& Ability = Info->Abilities[ AbilityId ];
+    if( Ability.ManaCost > Player->GetMana() || Ability.StaminaCost > In->Stamina )
+        return false;
+    
+    if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
+    {
+        if( !( *Ability.CheckFunc )( std::addressof( State ), In ) )
+            return false;
+    }
+    
+    return true;
+}
+
+bool GameModeBase::TriggerAbility( CardEntity *Target, uint8_t AbilityId )
+{
+    if( !Target )
+        return false;
+    
+    if( !CanTriggerAbility( Target, AbilityId ) )
+    {
+        cocos2d::log( "[GM] Failed to trigger ability.. chcek failed!" );
+        return false;
+    }
+    
+    // Looks good to trigger
+    auto Auth = GetAuthority< AuthorityBase >();
+    if( !Auth )
+        return false;
+    
+    CloseCardViewer();
+    
+    Auth->TriggerAbility( Target->GetEntityId(), AbilityId );
+    return true;
+}
+
+
 bool GameModeBase::PlayCard( CardEntity* In, int Index )
 {
     if( !CanPlayCard( In ) )
@@ -1023,7 +1091,7 @@ bool GameModeBase::PlayCard( CardEntity* In, int Index )
     if( !Auth )
         return false;
     
-    Auth->PlayCard( In->EntId, Index );
+    Auth->PlayCard( In->GetEntityId(), Index );
     return true;
 }
 
@@ -1051,10 +1119,15 @@ void GameModeBase::FinishTurn()
                 {
                     for( auto It = field->Begin(); It != field->End(); It++ )
                     {
-                        if( *It && (*It)->bAttacking )
-                            AttackCards.push_back( (*It)->GetEntityId() );
+                        if( *It )
+                        {
+                            if( (*It)->bAttacking )
+                                AttackCards.push_back( (*It)->GetEntityId() );
+                        }
                     }
                 }
+                
+                TurnFinished = true;
                 
                 // Check if any cards are selected
                 if( AttackCards.size() <= 0 )
@@ -1076,6 +1149,8 @@ void GameModeBase::FinishTurn()
         {
             if( State.tState == TurnState::Block )
             {
+                TurnFinished = true;
+                
                 if( BlockMatrix.size() <= 0 )
                 {
                     Auth->FinishTurn();
@@ -1094,6 +1169,8 @@ void GameModeBase::FinishTurn()
             }
         }
     }
+    
+    _bCheckPossibleActions = true;
 }
 
 
@@ -1120,11 +1197,11 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Hand->Begin(); It != Hand->End(); It++ )
                         {
-                            if( *It && CanTriggerAbility( *It ) )
+                            if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
-                            else if( *It && CouldPlayCard( *It ) )
+                            else if( *It && CouldPlayCard( *It ) && !TurnFinished )
                             {
                                 ActionableCards.push_back( *It );
                             }
@@ -1136,7 +1213,7 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Field->Begin(); It != Field->End(); It++ )
                         {
-                            if( *It && CanTriggerAbility( *It ) )
+                            if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
@@ -1152,11 +1229,11 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Field->Begin(); It != Field->End(); It++ )
                         {
-                            if( *It && CanCardAttack( *It ) )
+                            if( *It && CanCardAttack( *It ) && !TurnFinished )
                             {
                                 ActionableCards.push_back( *It );
                             }
-                            else if( *It && CanTriggerAbility( *It ) )
+                            else if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
@@ -1169,7 +1246,7 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Hand->Begin(); It != Hand->End(); It++ )
                         {
-                            if( *It && CanTriggerAbility( *It ) )
+                            if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
@@ -1188,11 +1265,11 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Field->Begin(); It != Field->End(); It++ )
                         {
-                            if( *It && CanCardBlock( *It ) )
+                            if( *It && CanCardBlock( *It ) && !TurnFinished )
                             {
                                 ActionableCards.push_back( *It );
                             }
-                            else if( *It && CanTriggerAbility( *It ) )
+                            else if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
@@ -1204,7 +1281,7 @@ void GameModeBase::Tick( float Delta )
                     {
                         for( auto It = Hand->Begin(); It != Hand->End(); It++ )
                         {
-                            if( *It && CanTriggerAbility( *It ) )
+                            if( *It && CanTriggerAbility( *It ) && !TurnFinished )
                             {
                                 AbilityCards.push_back( *It );
                             }
@@ -1218,11 +1295,11 @@ void GameModeBase::Tick( float Delta )
         
         // If the game is waiting on the player, check if they have any possible
         // moves they can make, highlight them, or if not, advance round state
-        if( bPlayersMove && !_bFinishCalled )
+        if( bPlayersMove && !TurnFinished )
         {
             if( ActionableCards.empty() && AbilityCards.empty() )
             {
-                _bFinishCalled = true;
+                TurnFinished = true;
                 FinishTurn();
             }
         }
@@ -1243,7 +1320,9 @@ void GameModeBase::Tick( float Delta )
                 // Allow highlight to stay if were attacking, it will still get cleared
                 // when TurnState reaches Post/PreTurn
                 if( !(*It)->bAttacking )
+                {
                     (*It)->ClearHighlight();
+                }
             }
         }
         
@@ -1294,9 +1373,10 @@ void GameModeBase::OnCardDied( CardEntity *Target )
     auto Owner = Target->GetOwningPlayer();
     auto Grave = Owner ? Owner->GetGraveyard() : nullptr;
     
+    Target->DestroyOverlays();
+    
     if( Grave )
     {
-        Target->DestroyOverlays();
         Grave->AddToTop( Target );
     }
     else
@@ -1417,6 +1497,8 @@ void GameModeBase::OnCardDraw( Action *In, std::function< void () > Callback )
     if( Container )
         Container->Remove( Card );
     
+    Card->CreateOverlays();
+    
     if( Hand )
         Hand->AddToBottom( Card, true, Callback );
     else
@@ -1505,6 +1587,46 @@ void GameModeBase::OnBlitzError( Action* In, std::function< void() > Callback )
                 break;
             }
         }
+    }
+    
+    FinishAction( Callback, 0.2f );
+}
+
+void GameModeBase::OnBlitzSuccess( Action *In, std::function<void ()> Callback )
+{
+    // Check which player finished selecting blitz cards
+    PlayerEventAction* Event = dynamic_cast< PlayerEventAction* >( In );
+    if( !Event )
+    {
+        cocos2d::log( "[GM] Invalid Blitz Success! Cast Failed!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    auto Target = State.FindPlayer( Event->Player );
+    if( !Target )
+    {
+        cocos2d::log( "[GM] Invalid Blitz Success! Invalid Target!" );
+        FinishAction( Callback, 0.2f );
+        return;
+    }
+    
+    if( Target == GetPlayer() )
+    {
+        // Close Blitz Menu
+        auto Hand = Target->GetHand();
+        if( !Hand )
+        {
+            cocos2d::log( "[GM] Blitz Success Failed! Couldnt get local player hand" );
+            FinishAction( Callback, 0.2f );
+            return;
+        }
+        
+        Hand->CloseBlitzMode();
+    }
+    else if( Target == GetOpponent() )
+    {
+        // TODO: Update UI
     }
     
     FinishAction( Callback, 0.2f );
@@ -1620,7 +1742,7 @@ void GameModeBase::OnBlockStart( Action* In, std::function< void() > Callback )
     cocos2d::log( "[GM] Block Started" );
     
     UpdateMatchState( MatchState::Main );
-    UpdateTurnState( TurnState::Attack );
+    UpdateTurnState( TurnState::Block );
     
     EnableSelection();
     
@@ -1664,9 +1786,13 @@ void GameModeBase::OnDamageStart( Action* In, std::function< void() > Callback )
     auto OpponentField = Opponent ? Opponent->GetField() : nullptr;
     
     if( PlayerField )
+    {
         PlayerField->PauseInvalidate();
+    }
     if( OpponentField )
+    {
         OpponentField->PauseInvalidate();
+    }
     
     FinishAction( Callback, 0.2f );
 }
@@ -1700,6 +1826,8 @@ void GameModeBase::OnDamage( Action *In, std::function<void ()> Callback )
         }
         
         Card->UpdatePower( Damage->UpdatedPower );
+        Card->ClearOverlay();
+        Card->ClearHighlight();
         
         if( Card->Power <= 0 || Card->Stamina <= 0 )
         {
@@ -1715,10 +1843,16 @@ void GameModeBase::OnDamage( Action *In, std::function<void ()> Callback )
     }
     
     auto Inflictor = State.FindCard( Damage->Inflictor, nullptr, CardPos::FIELD );
-    if( Inflictor && BlockMatrix.count( Inflictor ) > 0 )
+    if( Inflictor )
     {
-        BlockMatrix.erase( Inflictor );
-        IsDirty = true;
+        Inflictor->ClearOverlay();
+        Inflictor->ClearHighlight();
+        
+        if( BlockMatrix.count( Inflictor ) > 0 )
+        {
+            BlockMatrix.erase( Inflictor );
+            IsDirty = true;
+        }
     }
     
     if( IsDirty )
@@ -1749,6 +1883,11 @@ void GameModeBase::OnCombat( Action *In, std::function< void() > Callback )
     
     Attacker->UpdatePower( Combat->AttackerPower );
     Blocker->UpdatePower( Combat->BlockerPower );
+    
+    Attacker->ClearOverlay();
+    Attacker->ClearHighlight();
+    Blocker->ClearOverlay();
+    Blocker->ClearHighlight();
     
     if( Attacker->Power <= 0 || Attacker->Stamina <= 0 )
     {
@@ -1817,9 +1956,57 @@ void GameModeBase::OnBoardCleanup( Action* In, std::function< void() > Callback 
     auto OpponentField = Opponent ? Opponent->GetField() : nullptr;
     
     if( PlayerField )
+    {
         PlayerField->ResumeInvalidate();
+        
+        for( auto It = PlayerField->Begin(); It != PlayerField->End(); It++ )
+            if( *It )
+            {
+                (*It)->ClearOverlay();
+                (*It)->ClearHighlight();
+            }
+    }
     if( OpponentField )
+    {
         OpponentField->ResumeInvalidate();
+        
+        for( auto It = OpponentField->Begin(); It != OpponentField->End(); It++ )
+            if( *It )
+            {
+                (*It)->ClearOverlay();
+                (*It)->ClearHighlight();
+            }
+    }
     
     FinishAction( Callback, 0.75f );
+}
+
+void GameModeBase::OnAttackersSet( Action *In, std::function<void ()> Callback )
+{
+    CardListEvent* Event = dynamic_cast< CardListEvent* >( In );
+    if( !Event )
+    {
+        cocos2d::log( "[GM] Invalid 'AttackersSet' event received! Cast Failed!" );
+        return;
+    }
+    
+    auto Opponent = State.GetOpponent();
+    CC_ASSERT( Opponent );
+    
+    for( auto It = Event->Cards.begin(); It != Event->Cards.end(); It++ )
+    {
+        // Lookup each card, highlight and set each to attacking
+        CardEntity* Target = State.FindCard( *It, Opponent, CardPos::FIELD );
+        if( Target )
+        {
+            Target->bAttacking = true;
+            Target->SetHighlight( cocos2d::Color3B( 240, 30, 30 ) );
+        }
+        else
+        {
+            cocos2d::log( "[GM] Failed to find a card inside of the 'AttackerSet' event!" );
+        }
+    }
+    
+    FinishAction( Callback, 0.3f );
 }

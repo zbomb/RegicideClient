@@ -41,8 +41,8 @@ namespace Game
         
         GameStateBase();
         
-        void CopyTo( GameStateBase& Other );
-        
+        void CopyFrom( GameStateBase& Other );
+
         inline PlayerState* GetPlayer() { return &LocalPlayer; }
         inline PlayerState* GetOpponent() { return &Opponent; }
         
@@ -69,9 +69,11 @@ namespace Game
         virtual PlayerTurn SwitchPlayerTurn();
         
         void SetStartingPlayer( PlayerTurn In );
-        bool GetCard( uint32_t In, CardState* Out );
-        bool GetCard( uint32_t In, PlayerState* Owner, CardState* Out, bool bFieldOnly = false );
-        bool GetPlayer( uint32_t In, PlayerState* Owner );
+        bool FindCard( uint32_t In, CardState*& Out );
+        bool FindCard( uint32_t In, PlayerState* Owner, CardState*& Out, bool bFieldOnly = false );
+        bool FindPlayer( uint32_t In, PlayerState*& Owner );
+        
+        bool IsPlayerTurn( uint32_t Target );
         
         // Lua Specific Interface
         PlayerState* GetCardOwner( CardState* Card );
@@ -83,9 +85,6 @@ namespace Game
         TurnState tState;
         
         int TurnNumber;
-        
-        void OnCardAdded( CardState* Card );
-        void OnCardRemoved( CardState* Card );
         
         // Hooks
         void CallHook( const std::string& HookName );
@@ -105,11 +104,11 @@ namespace Game
         PlayerState Opponent;
         PlayerTurn StartingPlayer;
         
-        // Pointer Store
-        std::vector< CardState* > CardStore;
-        
         virtual bool PreHook( const std::string& HookName );
         virtual void PostHook();
+        
+        void ExecuteOnPlayerCards( PlayerState* Target, std::function< void( CardState* ) > Func );
+        void ExecuteOnCards( std::function< void( CardState* ) > Func );
         
     };
     
@@ -123,31 +122,31 @@ namespace Game
         auto& CM = CardManager::GetInstance();
         
         // Loop through all cards in game, and call the hook
-        for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
-        {
-            if( *It )
-            {
-                // We need to get info for this card
-                CardInfo Info;
-                PlayerState* Owner = nullptr;
-                
-                if( CM.GetInfo( (*It)->Id, Info ) && GetPlayer( (*It)->Owner, Owner ) && Owner )
-                {
-                    if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
-                    {
-                        // Call hook using current active queue, card owner, and this card
-                        try
-                        {
-                            ( *Info.Hooks )[ HookName ]( *this, *(*It), Arg1 );
-                        }
-                        catch( std::exception& e )
-                        {
-                            cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
-                        }
-                    }
-                }
-            }
-        }
+        ExecuteOnCards( [ & ] ( CardState* Card )
+           {
+               if( Card )
+               {
+                   // We need to get info for this card
+                   CardInfo Info;
+                   PlayerState* Owner = nullptr;
+                   
+                   if( CM.GetInfo( Card->Id, Info ) && FindPlayer( Card->Owner, Owner ) && Owner )
+                   {
+                       if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
+                       {
+                           // Call hook using current active queue, card owner, and this card
+                           try
+                           {
+                               ( *Info.Hooks )[ HookName ]( *this, *Card, Arg1 );
+                           }
+                           catch( std::exception& e )
+                           {
+                               cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
+                           }
+                       }
+                   }
+               }
+           } );
         
         PostHook();
     }
@@ -162,31 +161,31 @@ namespace Game
         auto& CM = CardManager::GetInstance();
         
         // Loop through all cards in game, and call the hook
-        for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
-        {
-            if( *It )
-            {
-                // We need to get info for this card
-                CardInfo Info;
-                PlayerState* Owner = nullptr;
-                
-                if( CM.GetInfo( (*It)->Id, Info ) && GetPlayer( (*It)->Owner, Owner ) && Owner )
-                {
-                    if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
-                    {
-                        // Call hook using current active queue, card owner, and this card
-                        try
-                        {
-                            ( *Info.Hooks )[ HookName ]( *this, *(*It), Arg1, Arg2 );
-                        }
-                        catch( std::exception& e )
-                        {
-                            cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
-                        }
-                    }
-                }
-            }
-        }
+        ExecuteOnCards( [ & ] ( CardState* Card )
+           {
+               if( Card )
+               {
+                   // We need to get info for this card
+                   CardInfo Info;
+                   PlayerState* Owner = nullptr;
+                   
+                   if( CM.GetInfo( Card->Id, Info ) && FindPlayer( Card->Owner, Owner ) && Owner )
+                   {
+                       if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
+                       {
+                           // Call hook using current active queue, card owner, and this card
+                           try
+                           {
+                               ( *Info.Hooks )[ HookName ]( *this, *Card, Arg1, Arg2 );
+                           }
+                           catch( std::exception& e )
+                           {
+                               cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
+                           }
+                       }
+                   }
+               }
+           } );
         
         PostHook();
     }
@@ -201,31 +200,31 @@ namespace Game
         auto& CM = CardManager::GetInstance();
         
         // Loop through all cards in game, and call the hook
-        for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
-        {
-            if( *It )
-            {
-                // We need to get info for this card
-                CardInfo Info;
-                PlayerState* Owner = nullptr;
-                
-                if( CM.GetInfo( (*It)->Id, Info ) && GetPlayer( (*It)->Owner, Owner ) && Owner )
-                {
-                    if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
-                    {
-                        // Call hook using current active queue, card owner, and this card
-                        try
-                        {
-                            ( *Info.Hooks )[ HookName ]( *this, *(*It), Arg1, Arg2, Arg3 );
-                        }
-                        catch( std::exception& e )
-                        {
-                            cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
-                        }
-                    }
-                }
-            }
-        }
+        ExecuteOnCards( [ & ] ( CardState* Card )
+           {
+               if( Card )
+               {
+                   // We need to get info for this card
+                   CardInfo Info;
+                   PlayerState* Owner = nullptr;
+                   
+                   if( CM.GetInfo( Card->Id, Info ) && FindPlayer( Card->Owner, Owner ) && Owner )
+                   {
+                       if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
+                       {
+                           // Call hook using current active queue, card owner, and this card
+                           try
+                           {
+                               ( *Info.Hooks )[ HookName ]( *this, *Card, Arg1, Arg2, Arg3 );
+                           }
+                           catch( std::exception& e )
+                           {
+                               cocos2d::log( "[State] Failed to run card hook! %s", e.what() );
+                           }
+                       }
+                   }
+               }
+           } );
         
         PostHook();
     }

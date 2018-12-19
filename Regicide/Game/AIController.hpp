@@ -13,6 +13,8 @@
 #include "EntityBase.hpp"
 #include <thread>
 #include <memory>
+#include <chrono>
+#include <mutex>
 #include "AppDelegate.hpp"
 #include "Player.hpp"
 #include "SimulatedState.hpp"
@@ -22,17 +24,21 @@
 
 namespace Game
 {
-    /*
-    enum AIState
+    class SingleplayerAuthority;
+    
+    enum class AIState
     {
         Init,
         Idle,
+        Blitz,
         Marshal,
+        Ability,
         Attack,
         Block,
         Exit
     };
     
+    /*
     struct DecisionNode
     {
         std::vector< uint32_t > PlayCards;
@@ -42,12 +48,77 @@ namespace Game
         bool Valid;
     };
      */
+    
+    enum class MoveType
+    {
+        Blitz,
+        Play,
+        Ability,
+        Attack,
+        Block
+    };
+    
+    struct Decision
+    {
+        std::vector< std::pair< uint32_t, uint32_t > > Move;
+        MoveType Type;
+        std::vector< float > Scores;
+        SimulatedState State;
+        SimulatedState BaseState;
+        int SimulationCount;
+    };
 
     class AIController : public EntityBase
     {
     public:
         
         AIController();
+        
+        virtual void Initialize() override;
+        virtual void Cleanup() override;
+        
+        void Post( std::function< void() > Task, std::function< void( float ) > OnComplete = nullptr );
+        inline AIDifficulty GetDifficulty() const { return Difficulty; }
+        
+        void ChooseBlitz();
+        void PlayCards();
+        void TriggerAbilities();
+        void ChooseAttackers();
+        void ChooseBlockers( std::vector< uint32_t > Attackers );
+        
+    protected:
+        
+        std::shared_ptr< std::thread > Thread;
+        std::queue< std::pair< std::function< void() >, std::function< void( float ) > > > Tasks;
+        AIState State;
+        AIDifficulty Difficulty;
+        
+        std::vector< Decision > DecisionList;
+        int SimulationCount;
+        
+        void StartThink();
+        void ExitThink();
+        void DoThink();
+        void RunTasks( std::chrono::steady_clock::time_point EndBy );
+        void Push( std::function< void() > Task );
+        
+        SingleplayerAuthority* GetAuthority();
+        
+        bool DecisionExists( const std::vector< std::pair< uint32_t, uint32_t > >& In, bool bMatchOrder );
+        void DoBuildPlay( Decision& Base );
+        void BuildPlayOptions( MoveType inType );
+        void DoBuildAttack( Decision& Base );
+        void BuildAttackOptions();
+        void SimulateAll();
+        void Simulate( Decision& Target, int Turns );
+        void FirstRunComplete();
+        void CalculateReward( Decision& Target );
+        Decision* GetOptionToSimulate();
+        Decision* GetMostSimulated();
+        void Clear();
+        
+        
+        friend class SingleplayerLauncher;
         
         /*
         virtual void Initialize() override;

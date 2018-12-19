@@ -106,3 +106,29 @@ CardEntity* ClientState::FindCard( uint32_t Id, Player* Owner /* = nullptr */, C
         }
     }
 }
+
+bool ClientState::IsPlayerTurn( Player* Target )
+{
+    if( !Target )
+        return false;
+    
+    if( Target == LocalPlayer && pState == PlayerTurn::LocalPlayer )
+        return true;
+    else if( Target == Opponent && pState == PlayerTurn::Opponent )
+        return true;
+    
+    return false;
+}
+
+Player* ClientState::GetOtherPlayer( Player* Owner )
+{
+    if( !Owner )
+        return nullptr;
+    
+    if( Owner == LocalPlayer )
+        return Opponent;
+    else if( Owner == Opponent )
+        return LocalPlayer;
+    
+    return nullptr;
+}

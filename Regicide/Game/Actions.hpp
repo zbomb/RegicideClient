@@ -285,5 +285,26 @@ namespace Game
         uint16_t Damage;
     };
     
+    class PlayerEventAction : public Action
+    {
+    public:
+        
+        PlayerEventAction()
+        : Action( "PlayerEvent" )
+        {}
+        
+        uint32_t Player;
+    };
+    
+    class CardListEvent : public Action
+    {
+    public:
+        
+        CardListEvent()
+        : Action( "CardList" )
+        {}
+        
+        std::vector< uint32_t > Cards;
+    };
     
 }

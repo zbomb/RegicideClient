@@ -93,6 +93,7 @@ namespace Game
         virtual bool CanCardAttack( CardEntity* In );
         virtual bool CanCardBlock( CardEntity* In, CardEntity* Target = nullptr );
         virtual bool CanTriggerAbility( CardEntity* In );
+        virtual bool CanTriggerAbility( CardEntity* In, uint8_t AbilityId );
         
         void RunActionQueue( Game::ActionQueue&& In );
         bool PlayCard( CardEntity* In, int Index = -1 );
@@ -102,6 +103,8 @@ namespace Game
         void FinishTurn();
         
         inline ClientState& GetState() { return State; }
+        
+        virtual bool TriggerAbility( CardEntity* Target, uint8_t AbilityId );
         
     protected:
         
@@ -138,6 +141,7 @@ namespace Game
         virtual void OnBlitzStart( Action* In, std::function< void() > Callback );
         virtual void OnBlitzQuery( Action* In, std::function< void() > Callback );
         virtual void OnBlitzError( Action* In, std::function< void() > Callback );
+        virtual void OnBlitzSuccess( Action* In, std::function< void() > Callback );
         virtual void OnAttackError( Action* In, std::function< void() > Callback );
         virtual void OnMatchStart( Action* In, std::function< void() > Callback );
         virtual void OnTurnStart( Action* In, std::function< void() > Callback );
@@ -150,6 +154,7 @@ namespace Game
         virtual void OnCombat( Action* In, std::function< void() > Callback );
         virtual void OnStaminaUpdate( Action* In, std::function< void() > Callback );
         virtual void OnBoardCleanup( Action* In, std::function< void() > Callback );
+        virtual void OnAttackersSet( Action* In, std::function< void() > Callback );
         
         void OnCardDied( CardEntity* Target );
         virtual void OnActionQueue();
@@ -157,6 +162,7 @@ namespace Game
     private:
         
         void _OnEndOfBranch( uint32_t QueueId );
+        bool TurnFinished;
         
     };
     

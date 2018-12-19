@@ -175,6 +175,7 @@ CardEntity* CardManager::CreateCard( CardState& State, Player* inOwner, bool bPr
     Output->Stamina         = State.Stamina;
     Output->Info            = Info;
     Output->OwningPlayer    = inOwner;
+    Output->_bIsCard        = true;
     
     if( bPreloadTextures )
     {
@@ -251,7 +252,6 @@ CardEntity* CardManager::CreateCard( uint16_t inId, Player *inOwner, bool bPrelo
         Output->Pos             = CardPos::NONE;
         Output->Power         = thisInfo.Power;
         Output->Stamina       = thisInfo.Stamina;
-        Output->EntId         = Output->GetEntityId();
         
         // Store a reference to the 'CardInfo' so we can easily lookup static info
         // without having to perform map lookups every time
@@ -473,7 +473,6 @@ void CardEntity::CreateOverlays()
 
 void CardEntity::DestroyOverlays()
 {
-    
     if( Highlight )
     {
         Highlight->removeFromParent();

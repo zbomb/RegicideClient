@@ -20,34 +20,27 @@ CARD.Abilities[ 1 ].Name            = "Draw Card";
 CARD.Abilities[ 1 ].Description     = "Draw a card";
 CARD.Abilities[ 1 ].ManaCost        = 2;
 CARD.Abilities[ 1 ].StaminaCost     = 1;
-CARD.Abilities[ 1 ].PreCheck = function( Context )
+CARD.Abilities[ 1 ].PreCheck = function( Client, Card )
 
-    local State = Context:GetState();
-    print( "=========> %d", Context:GetState().Position );
-    return Context:IsTurn() and Context:GetState().Position == POSITION_FIELD;
+    return( Client:IsPlayerTurn( Card:GetOwner() ) and Card:OnField() );
 
 end
 
-CARD.Abilities[ 1 ].OnTrigger = function( Context )
+CARD.Abilities[ 1 ].OnTrigger = function( Auth, Card )
 
-    -- Draw Card
-    Context:DrawCard( Context:GetState().Owner, ACTION_SERIAL );
+    if( Auth:IsPlayerTurn( Card:GetOwner() ) and Card:OnField() ) then
 
-end
+        local Owner = Auth:GetOwner( Card );
+        if( Owner ) then
 
--- TODO: Deprecated
-CARD.Abilities[ 1 ].Simulate = function( thisCard )
+            Auth:DrawCard( Owner, 1 );
+            return true;
 
-    local Output = {}
+        end
+    end
 
-    Output[ 1 ] = {}
-    Output[ 1 ].Type        = ACTION_TYPE_DRAW
-    Output[ 1 ].TargetType  = ACTION_TARGET_SINGLE;
-    Output[ 1 ].Targets     = thisCard:GetOwner();
-    Output[ 1 ].Param       = 1
-
-    return Output;
-
+    return false;
+    
 end
 
 CARD.Abilities[ 2 ] = {};
@@ -55,50 +48,42 @@ CARD.Abilities[ 2 ].Name        = "Blind Smite";
 CARD.Abilities[ 2 ].Description = "Deal damage equal to this cards power to a random enemy";
 CARD.Abilities[ 2 ].ManaCost    = 0;
 CARD.Abilities[ 2 ].StaminaCost = 3;
-CARD.Abilities[ 2 ].PreCheck = function( Context )
+CARD.Abilities[ 2 ].PreCheck = function( Client, Card )
 
-    -- Must be player's turn, and this card must be on the field
-    if( !Context:IsTurn() or Context:GetState().Position != POSITION_FIELD ) then return false end
+    if( Client:IsPlayerTurn( Card:GetOwner() ) and Card:OnField() ) then
 
-    -- Opponent must have at least one card on the field
-    local Field = Context:GetField( Context:GetOpponent() );
+        local Opponent = Client:GetOtherPlayer( Card:GetOwner() );
+        if( Opponent ) then
 
-    return #Field > 0;
+            local Field = Opponent:GetField();
+            return( Field and Field:GetCount() > 0 );
 
-end
+        end
+    end
 
-CARD.Abilities[ 2 ].OnTrigger = function( Context )
-
-    -- Damage random opponent card
-    local Field = Context:GetField( Context:GetOpponent() );
-
-    if( #Field <= 0 ) then return end
-
-    math.randomseed( tonumber( tostring( os.time() ):reverse():sub( 1,6 ) ) );
-
-    local RandIndex = math.random( 1, #Field );
-    local Target = Field[ RandIndex ];
-
-    Context:DealDamage( Target.Id, Target.Power, ACTION_SERIAL );
+    return false;
 
 end
 
--- Simulate Function
--- Used by the AI to determine what this ability actually does when making decisions
-CARD.Abilities[ 2 ].Simulate = function( thisCard )
+CARD.Abilities[ 2 ].OnTrigger = function( Auth, Card )
 
-    local Opponent = Game.GetOpponent( thisCard );
-    local Field = Opponent:GetField();
+    local Field = Auth:GetOpponent( Card ):GetField();
+    if( #Field > 0 ) then
 
-    local Output = {}
+        math.randomseed( tonumber( tostring( os.time() ):reverse():sub( 1, 6 ) ) );
 
-    Output[ 1 ]             = {}
-    Output[ 1 ].Type        = ACTION_TYPE_POWER;
-    Output[ 1 ].TargetType  = ACTION_TARGET_RANDOM;
-    Output[ 1 ].Targets     = Field:GetCards();
-    Output[ 1 ].Param       = -thisCard:GetPower();
+        local Index = math.random( 1, #Field );
+        local Target = Field[ Index ];
 
-    return Output;
+        if( Target ) then
+
+            Auth:DamageCard( Target, Card, Target:GetPower() );
+            return true;
+
+        end
+    end
+
+    return false;
 
 end
 

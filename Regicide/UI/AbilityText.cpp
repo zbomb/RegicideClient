@@ -127,7 +127,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
             bool bCheck = true;
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                bCheck = ( *Ability.CheckFunc )( GM->GetState(), InCard );
+                bCheck = ( *Ability.CheckFunc )( std::addressof( GM->GetState() ), InCard );
             }
             
             if( bCheck )
@@ -262,35 +262,15 @@ void AbilityText::onTouchEnd( cocos2d::Touch *inTouch, cocos2d::Event *inEvent )
     auto GM = World ? World->GetGameMode() : nullptr;
     
     // Check if the user was just scrolling and this ability can be triggered
-    if( bCanTrigger && inTouch->getLocation().distance( _touchStart ) < 9.f )
+    if( GM && bCanTrigger && inTouch->getLocation().distance( _touchStart ) < 9.f )
     {
-        if( GM && Card && Ability.MainFunc && Ability.MainFunc->isFunction() )
+        if( !GM->TriggerAbility( Card, Ability.Index ) )
         {
-            // Perform Check Again
-            if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
-            {
-                if( !( *Ability.CheckFunc )( GM->GetState(), Card ) )
-                {
-                    cocos2d::log( "[CardViewer] Ability Check Failed!" );
-                    
-                    bCanTrigger = false;
-                    if( Draw )
-                        Draw->clear();
-                    
-                    return;
-                }
-            }
+            bCanTrigger = false;
+            if( Draw )
+                Draw->clear();
             
-            cocos2d::log( "[CardViewer] Triggering Ability" );
-            
-            // Good To Trigger
-            auto World = Game::World::GetWorld();
-            CC_ASSERT( World );
-            
-            auto Auth = World->GetAuthority();
-            CC_ASSERT( Auth );
-            
-            Auth->TriggerAbility( Card->GetEntityId(), Ability.Index );
+            return;
         }
     }
 }

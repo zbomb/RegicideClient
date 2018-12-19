@@ -35,6 +35,9 @@ namespace Game
         Player* FindPlayer( uint32_t Id );
         CardEntity* FindCard( uint32_t Id, Player* Owner = nullptr, CardPos Position = CardPos::NONE );
         
+        bool IsPlayerTurn( Player* Target );
+        Player* GetOtherPlayer( Player* Owner );
+        
     protected:
         
         Player* LocalPlayer;

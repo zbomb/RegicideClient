@@ -42,7 +42,9 @@ namespace Game
         virtual void SetBlockers( const std::map< uint32_t, uint32_t >& Cards ) override;
         virtual void TriggerAbility( uint32_t Card, uint8_t AbilityId ) override;
         
-        void AI_PlayCard( uint32_t In, std::function< void() > Callback );
+        void AI_SetBlitz( const std::vector< uint32_t >& Cards );
+        void AI_PlayCards( const std::vector< uint32_t >& Cards );
+        void AI_FinishPlay();
         void AI_SetAttackers( const std::vector< uint32_t >& In );
         void AI_SetBlockers( const std::map< uint32_t, uint32_t >& Cards );
         

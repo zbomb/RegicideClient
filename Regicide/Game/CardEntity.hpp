@@ -163,6 +163,7 @@ namespace Game
         int _lua_GetStamina() const { return Stamina; }
         int _lua_GetManaCost() const { return ManaCost; }
         std::string _lua_GetName() const { return ""; }
+        bool _lua_IsFaceUp() const { return FaceUp; }
         
         bool bAttacking;
         
@@ -179,7 +180,6 @@ namespace Game
         inline CardInfo* GetInfo() { return Info; }
         
         uint16_t Id;
-        uint32_t EntId;
         int Power;
         int Stamina;
         int ManaCost;

@@ -245,8 +245,7 @@ void SingleplayerLauncher::PerformLaunch( const std::string &PlayerName, const s
         return;
     }
     
-    // Setup AI (Requires ReWrite)
-    //NewAI->Difficulty   = Difficulty;
+    NewAI->Difficulty = Difficulty;
      
     Authority->AddChild( NewAI );
     Authority->AI = NewAI;
@@ -270,7 +269,6 @@ Game::World* SingleplayerLauncher::CreateWorld()
 
 bool StreamContainer( std::vector< CardState >& Source, Player* Target, ICardContainer* Container )
 {
-    auto& Ent = IEntityManager::GetInstance();
     auto& CM = CardManager::GetInstance();
     
     if( !Target || !Container )
@@ -300,13 +298,16 @@ bool StreamContainer( std::vector< CardState >& Source, Player* Target, ICardCon
     return true;
 }
 
-bool StreamPlayer( PlayerState* Source, Player* Target, bool bOpponent )
+bool SingleplayerLauncher::StreamPlayer( PlayerState* Source, Player* Target, bool bOpponent )
 {
     if( !Source || !Target )
     {
         cocos2d::log( "[Launcher] Failed to stream player.. null!" );
         return false;
     }
+    
+    Target->SetHealth( Source->Health );
+    Target->SetMana( Source->Mana );
     
     // Stream King Entity
     auto King = Target->GetKing();
@@ -316,6 +317,7 @@ bool StreamPlayer( PlayerState* Source, Player* Target, bool bOpponent )
         return false;
     }
     
+    King->OwningPlayer = Target;
     King->Load( Source->King, bOpponent );
 
     return( StreamContainer( Source->Deck, Target, Target->GetDeck() ) &&
@@ -365,6 +367,14 @@ bool SingleplayerLauncher::StreamEntities( GameModeBase* Target, AuthorityBase* 
     
     Target->AddChild( ClientState.LocalPlayer );
     Target->AddChild( ClientState.Opponent );
+    
+    auto LocalHand = ClientState.LocalPlayer->GetHand();
+    auto OppHand = ClientState.Opponent->GetHand();
+    
+    if( LocalHand )
+        LocalHand->bVisibleLocally = true;
+    if( OppHand )
+        OppHand->bVisibleLocally = false;
     
     // Now we just need to stream the card containers for each player
     if( !StreamPlayer( AuthPlayer, ClientState.LocalPlayer, false ) )

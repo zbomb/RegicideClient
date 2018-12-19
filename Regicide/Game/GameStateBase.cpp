@@ -25,8 +25,8 @@ GameStateBase::GameStateBase()
     Opponent.DisplayName    = "Unnmaed Opponent";
 }
 
-
-void GameStateBase::CopyTo( GameStateBase &Other )
+// Copy from this to parameter
+void GameStateBase::CopyFrom( GameStateBase &Other )
 {
     mState = Other.mState;
     pState = Other.pState;
@@ -34,6 +34,8 @@ void GameStateBase::CopyTo( GameStateBase &Other )
     
     LocalPlayer = Other.LocalPlayer;
     Opponent    = Other.Opponent;
+    
+    TurnNumber = Other.TurnNumber;
 }
 
 void GameStateBase::OnCardKilled( CardState* Target )
@@ -103,7 +105,7 @@ void GameStateBase::DrawCard( PlayerState* Target, uint32_t Count )
             // TODO: Call out to win function
             return;
         }
-        
+
         auto It = Target->Deck.begin();
         
         It->Position    = CardPos::HAND;
@@ -296,18 +298,18 @@ PlayerTurn GameStateBase::SwitchPlayerTurn()
     return pState;
 }
 
-bool GameStateBase::GetCard( uint32_t Id, CardState* Out )
+bool GameStateBase::FindCard( uint32_t Id, CardState*& Out )
 {
     // Check both players, starting with local player
-    if( GetCard( Id, &LocalPlayer, Out ) )
+    if( FindCard( Id, &LocalPlayer, Out ) )
         return true;
-    if( GetCard( Id, &Opponent, Out ) )
+    if( FindCard( Id, &Opponent, Out ) )
         return true;
     
     return false;
 }
 
-bool CheckContainer( uint32_t In, std::vector< CardState >& Container, CardState* Out )
+bool CheckContainer( uint32_t In, std::vector< CardState >& Container, CardState*& Out )
 {
     auto Card = Container.end();
     for( auto It = Container.begin(); It != Container.end(); It++ )
@@ -328,7 +330,36 @@ bool CheckContainer( uint32_t In, std::vector< CardState >& Container, CardState
     return false;
 }
 
-bool GameStateBase::GetCard( uint32_t In, PlayerState* Owner, CardState* Out, bool bFieldOnly /* = false */ )
+void GameStateBase::ExecuteOnPlayerCards( PlayerState* Target, std::function< void( CardState* ) > Func )
+{
+    if( !Func || !Target )
+        return;
+    
+    // Loop through all card containers and call func
+    for( auto It = Target->Deck.begin(); It != Target->Deck.end(); It++ )
+        Func( std::addressof( *It ) );
+    
+    for( auto It = Target->Hand.begin(); It != Target->Hand.end(); It++ )
+        Func( std::addressof( *It ) );
+    
+    for( auto It = Target->Field.begin(); It != Target->Field.end(); It++ )
+        Func( std::addressof( *It ) );
+    
+    for( auto It = Target->Graveyard.begin(); It != Target->Graveyard.end(); It++ )
+        Func( std::addressof( *It ) );
+    
+}
+
+void GameStateBase::ExecuteOnCards( std::function<void (CardState *)> Func )
+{
+    if( !Func )
+        return;
+    
+    ExecuteOnPlayerCards( GetPlayer(), Func );
+    ExecuteOnPlayerCards( GetOpponent(), Func );
+}
+
+bool GameStateBase::FindCard( uint32_t In, PlayerState* Owner, CardState*& Out, bool bFieldOnly /* = false */ )
 {
     if( !Owner )
         return false;
@@ -347,36 +378,6 @@ bool GameStateBase::GetCard( uint32_t In, PlayerState* Owner, CardState* Out, bo
     return false;
 }
 
-void GameStateBase::OnCardAdded( CardState* Card )
-{
-    if( !Card )
-        return;
-    
-    // Check if this card exists
-    for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
-    {
-        if( *It == Card )
-            return;
-    }
-    
-    CardStore.push_back( Card );
-}
-
-void GameStateBase::OnCardRemoved( CardState* Card )
-{
-    if( !Card )
-        return;
-    
-    for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
-    {
-        if( *It == Card )
-        {
-            CardStore.erase( It );
-            return;
-        }
-    }
-}
-
 PlayerState* GameStateBase::GetCardOwner( CardState* Card )
 {
     if( !Card )
@@ -388,6 +389,16 @@ PlayerState* GameStateBase::GetCardOwner( CardState* Card )
         return &Opponent;
     
     return nullptr;
+}
+
+bool GameStateBase::IsPlayerTurn( uint32_t Target )
+{
+    if( LocalPlayer.EntId == Target && pState == PlayerTurn::LocalPlayer )
+        return true;
+    else if( Opponent.EntId == Target && pState == PlayerTurn::Opponent )
+        return true;
+    
+    return false;
 }
 
 PlayerState* GameStateBase::GetCardOpponent( CardState* Card )
@@ -416,7 +427,7 @@ PlayerState* GameStateBase::GetOtherPlayer( PlayerState* Target )
     return nullptr;
 }
 
-bool GameStateBase::GetPlayer( uint32_t Id, PlayerState* Output )
+bool GameStateBase::FindPlayer( uint32_t Id, PlayerState*& Output )
 {
     Output = nullptr;
     
@@ -450,23 +461,22 @@ void GameStateBase::CallHook( const std::string& HookName )
     // Ensure theres an active action queue, we will create one if needed
     auto& CM = CardManager::GetInstance();
     
-    // Loop through all cards in game, and call the hook
-    for( auto It = CardStore.begin(); It != CardStore.end(); It++ )
+    ExecuteOnCards( [ & ] ( CardState* Card )
     {
-        if( *It )
+        if( Card )
         {
             // We need to get info for this card
             CardInfo Info;
             PlayerState* Owner = nullptr;
             
-            if( CM.GetInfo( (*It)->Id, Info ) && GetPlayer( (*It)->Owner, Owner ) && Owner )
+            if( CM.GetInfo( Card->Id, Info ) && FindPlayer( Card->Owner, Owner ) && Owner )
             {
                 if( Info.Hooks && ( *Info.Hooks )[ HookName ] && (*Info.Hooks )[ HookName ].isFunction() )
                 {
                     // Call hook using current active queue, card owner, and this card
                     try
                     {
-                        ( *Info.Hooks )[ HookName ]( *this, *(*It) );
+                        ( *Info.Hooks )[ HookName ]( *this, *Card );
                     }
                     catch( std::exception& e )
                     {
@@ -475,7 +485,7 @@ void GameStateBase::CallHook( const std::string& HookName )
                 }
             }
         }
-    }
+    } );
     
     PostHook();
 }

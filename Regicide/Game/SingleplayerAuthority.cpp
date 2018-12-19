@@ -165,7 +165,7 @@ void SingleplayerAuthority::CoinFlipFinish()
         OpponentCard->FaceUp    = false;
         
         LocalPlayer->Hand.push_back( *PlayerCard );
-        Opponent->Hand.push_back( *PlayerCard );
+        Opponent->Hand.push_back( *OpponentCard );
         
         auto PlDraw = Parallel->CreateAction< DrawCardAction >();
         PlDraw->TargetPlayer = LocalPlayer->EntId;
@@ -188,11 +188,96 @@ void SingleplayerAuthority::CoinFlipFinish()
     OpponentBlitzSelection.clear();
     
     GM->RunActionQueue( std::move( Queue ) );
+    
+    // Start AI
+    auto AI = GetAI();
+    CC_ASSERT( AI );
+    
+    AI->ChooseBlitz();
 }
 
 /*========================================================================================
     Local Player Input
 ========================================================================================*/
+void SingleplayerAuthority::AI_SetBlitz( const std::vector< uint32_t >& Cards )
+{
+    if( State.mState != MatchState::Blitz )
+    {
+        cocos2d::log( "[Authority] AI attempted to set blitz cards outside of blitz round!" );
+        return;
+    }
+    
+    if( OpponentBlitzSelection.size() > 0 )
+    {
+        cocos2d::log( "[Authority] AI attempted to re-select blitz cards" );
+        return;
+    }
+    
+    // Validate Selection
+    std::vector< uint32_t > ValidCards;
+    auto Player = State.GetOpponent();
+    CC_ASSERT( Player );
+    
+    int ManaLeft = Player->Mana;
+    
+    for( auto It = Cards.begin(); It != Cards.end(); It++ )
+    {
+        // Check if card is in player hand, and theres enough mana to play it
+        auto Target = Player->Hand.end();
+        for( auto i = Player->Hand.begin(); i != Player->Hand.end(); i++ )
+        {
+            if( i->EntId == *It )
+            {
+                Target = i;
+                break;
+            }
+        }
+        
+        if( Target == Player->Hand.end() )
+        {
+            cocos2d::log( "[Authority] Invalid card found in AI blitz selection! Not in hand" );
+            continue;
+        }
+        
+        // Ensure this card wasnt selected twice
+        bool bValid = true;
+        for( auto i = OpponentBlitzSelection.begin(); i != OpponentBlitzSelection.end(); i++ )
+        {
+            if( *i == Target->EntId )
+            {
+                cocos2d::log( "[Authority] Invalid card found in AI blitz selection! Already in blitz selection!" );
+                bValid = false;
+                break;
+            }
+        }
+        
+        if( !bValid )
+            continue;
+        
+        if( Target->ManaCost > ManaLeft )
+        {
+            cocos2d::log( "[Authority] Invalid AI blitz selection.. not enough mana!" );
+            continue;
+        }
+        
+        ManaLeft -= Target->ManaCost;
+        OpponentBlitzSelection.push_back( Target->EntId );
+    }
+    
+    /*
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Success = Queue.CreateAction< PlayerEventAction >();
+    Success->Name = "BlitzSuccess";
+    Success->Player = Player->EntId;
+    
+    GM->RunActionQueue( Queue );
+     */
+}
+
+
 void SingleplayerAuthority::SetBlitzCards( const std::vector< uint32_t >& Cards )
 {
     if( State.mState != MatchState::Blitz )
@@ -264,20 +349,27 @@ void SingleplayerAuthority::SetBlitzCards( const std::vector< uint32_t >& Cards 
         PlayerBlitzSelection.push_back( (*Target).EntId );
     }
     
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    
     // Check if there were errors
     if( !Errors.empty() )
     {
         PlayerBlitzSelection.clear();
         
-        auto GM = GetGameMode< GameModeBase >();
-        CC_ASSERT( GM );
-        
-        auto Queue = ActionQueue();
         auto Error = Queue.CreateAction< CardErrorAction >();
         Error->Errors = Errors;
-        
-        GM->RunActionQueue( std::move( Queue ) );
     }
+    else
+    {
+        auto Success    = Queue.CreateAction< PlayerEventAction >();
+        Success->Name   = "BlitzSuccess";
+        Success->Player = Player->EntId;
+    }
+    
+    GM->RunActionQueue( std::move( Queue ) );
 }
 
 
@@ -410,7 +502,7 @@ void SingleplayerAuthority::PreTurn( PlayerTurn pTurn )
     
     // Call Lua Hook
     CardState* Target = nullptr;
-    if( State.GetCard( DrawnCard, Player, Target) && Target )
+    if( State.FindCard( DrawnCard, Player, Target) && Target )
     {
         State.SetActiveQueue( &Queue );
         State.CallHook( "OnDraw", Player, *Target );
@@ -443,7 +535,7 @@ void SingleplayerAuthority::Marshal()
     
     // Call Hook
     State.SetActiveQueue( &Queue );
-    State.CallHook( "OnMarshal" );
+    State.CallHook( "MarshalStart", GetActivePlayer() );
     State.ClearActiveQueue();
     
     GM->RunActionQueue( std::move( Queue ) );
@@ -453,14 +545,8 @@ void SingleplayerAuthority::Marshal()
     
     if( State.pState == PlayerTurn::Opponent )
     {
-        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
-        {
-            if( AI )
-            {
-                //AI->StartMarshal();
-            }
-            
-        }, this, 1.f, 0, 0.f, false, "DEBUG_AIPlayCard" );
+        CC_ASSERT( AI );
+        AI->PlayCards();
     }
     
 }
@@ -497,14 +583,8 @@ void SingleplayerAuthority::Attack()
     
     if( State.pState == PlayerTurn::Opponent )
     {
-        // Attack with one card
-        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
-        {
-            if( AI )
-            {
-                //AI->StartAttack();
-            }
-        }, this, 1.f, 0, 0.f, false, "DEBUG_AI_Attack" );
+        CC_ASSERT( AI );
+        AI->ChooseAttackers();
     }
 }
 
@@ -550,9 +630,9 @@ void SingleplayerAuthority::Block()
         for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
         {
             CardState* Attacker = nullptr;
-            if( State.GetCard( It->first, AttackingPlayer, Attacker, true ) && Attacker )
+            if( State.FindCard( It->first, AttackingPlayer, Attacker, true ) && Attacker )
             {
-                Table[ Index ] = *Attacker;
+                Table[ Index ] = Attacker;
                 Index++;
             }
         }
@@ -566,18 +646,15 @@ void SingleplayerAuthority::Block()
     
     // Allow player/opponent to select blockers, the player must call FinishTurn
     // to advance the round state
-    
-    // DEBUG
     if( State.pState == PlayerTurn::LocalPlayer )
     {
-        cocos2d::Director::getInstance()->getScheduler()->schedule( [=]( float d )
-        {
-            if( AI )
-            {
-                //AI->StartBlock();
-            }
-            
-        }, this, 0.75f, 0, 0.f, false, "DEBUG_AI_Block" );
+        CC_ASSERT( AI );
+        
+        std::vector< uint32_t > Attackers;
+        for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
+            Attackers.push_back( It->first );
+        
+        AI->ChooseBlockers( Attackers );
     }
     
 }
@@ -619,23 +696,24 @@ void SingleplayerAuthority::Damage()
     
     if( L )
     {
+        /*
         auto Table = luabridge::newTable( L );
         
         for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
         {
             CardState* Attacker = nullptr;
             
-            if( State.GetCard( It->first, AttackingPlayer, Attacker ) && Attacker )
+            if( State.FindCard( It->first, AttackingPlayer, Attacker ) && Attacker )
             {
-                Table[ *Attacker ] = luabridge::newTable( L );
+                Table[ Attacker ] = luabridge::newTable( L );
                 int Index = 1;
                 
                 for( auto BIt = It->second.begin(); BIt != It->second.end(); BIt++ )
                 {
                     CardState* Blocker = nullptr;
-                    if( State.GetCard( *BIt, BlockingPlayer, Blocker ) && Blocker )
+                    if( State.FindCard( *BIt, BlockingPlayer, Blocker ) && Blocker )
                     {
-                        Table[ *Attacker ][ Index ] = *Blocker;
+                        Table[ Attacker ][ Index ] = Blocker;
                         Index++;
                     }
                 }
@@ -645,13 +723,14 @@ void SingleplayerAuthority::Damage()
         State.SetActiveQueue( &Queue );
         State.CallHook( "StartDamage", AttackingPlayer, BlockingPlayer, Table );
         State.ClearActiveQueue();
+         */
     }
     
     for( auto It = BattleMatrix.begin(); It != BattleMatrix.end(); It++ )
     {
         // Lookup Attacker
         CardState* Attacker = nullptr;
-        if( !State.GetCard( It->first, Attacker ) || !Attacker )
+        if( !State.FindCard( It->first, Attacker ) || !Attacker )
         {
             cocos2d::log( "[Auth] Attacker in battle matrix was not found!" );
             continue;
@@ -666,31 +745,34 @@ void SingleplayerAuthority::Damage()
             BlockingPlayer->Health   -= TotalAttack;
             Attacker->Stamina        -= 1;
             
-            if( Attacker->Stamina <= 0 )
-            {
-                State.OnCardKilled( Attacker );
-            }
-            
             auto Parallel = Queue.CreateAction< ParallelAction >();
             
-            auto Stamina        = Parallel->CreateAction< UpdateStaminaAction >();
-            Stamina->Target     = Attacker->EntId;
-            Stamina->Amount     = Attacker->Stamina;
-            Stamina->Inflictor  = Attacker->EntId;
+            auto Stamina            = Parallel->CreateAction< UpdateStaminaAction >();
+            Stamina->Target         = Attacker->EntId;
+            Stamina->UpdatedAmount  = Attacker->Stamina;
+            Stamina->Amount         = 1;
+            Stamina->Inflictor      = Attacker->EntId;
             
             auto Damage             = Parallel->CreateAction< DamageAction >();
             Damage->Inflictor       = Attacker->EntId;
             Damage->Target          = BlockingPlayer->EntId;
             Damage->UpdatedPower    = BlockingPlayer->Health;
             Damage->Damage          = TotalAttack;
+            
+            if( Attacker->Stamina <= 0 )
+            {
+                State.OnCardKilled( Attacker );
+            }
         }
         else
         {
             // Dole out damage among blockers
+            bool bAttackerKilled = false;
+            
             for( auto BIt = BlockerList.begin(); BIt != BlockerList.end(); BIt++ )
             {
                 CardState* Blocker = nullptr;
-                if( !State.GetCard( *BIt, BlockingPlayer, Blocker, true ) || !Blocker )
+                if( !State.FindCard( *BIt, BlockingPlayer, Blocker, true ) || !Blocker )
                 {
                     cocos2d::log( "[Auth] Invalid blocker in BattleMatrix!" );
                     continue;
@@ -704,7 +786,6 @@ void SingleplayerAuthority::Damage()
                 Blocker->Power   -= CardDamage;
                 
                 Blocker->Stamina     -= 1;
-                Attacker->Stamina    -= 1;
                 
                 auto Parallel = Queue.CreateAction< ParallelAction >();
                 
@@ -730,6 +811,7 @@ void SingleplayerAuthority::Damage()
                 // Check for death
                 if( Attacker->Power <= 0 || Attacker->Stamina <= 0 )
                 {
+                    bAttackerKilled = true;
                     State.OnCardKilled( Attacker );
                     break;
                 }
@@ -740,76 +822,112 @@ void SingleplayerAuthority::Damage()
                 }
             }
             
-            // TODO: Call Lua Hook
-            
-            auto Finish = Queue.CreateAction< EventAction >();
-            Finish->Name = "CleanupBoard";
-            
-            Queue.Callback = std::bind( &SingleplayerAuthority::PostTurn, this );
-            GM->RunActionQueue( std::move( Queue ) );
+            if( !bAttackerKilled )
+            {
+                Attacker->Stamina    -= 1;
+                
+                if( Attacker->Stamina <= 0 )
+                {
+                    State.OnCardKilled( Attacker );
+                }
+            }
         }
     }
+    
+    
+    // TODO: Call Lua Hook
+    
+    auto Finish = Queue.CreateAction< EventAction >();
+    Finish->Name = "CleanupBoard";
+    
+    Queue.Callback = std::bind( &SingleplayerAuthority::PostTurn, this );
+    GM->RunActionQueue( std::move( Queue ) );
     
     // Clear Battle Matrix
     BattleMatrix.clear();
     
 }
 
-
-void SingleplayerAuthority::AI_PlayCard( uint32_t In, std::function< void() > Callback )
+void SingleplayerAuthority::AI_PlayCards( const std::vector< uint32_t >& Cards )
 {
-    if( State.mState == MatchState::PostMatch )
+    if( State.mState != MatchState::Main || State.tState != TurnState::Marshal || State.pState != PlayerTurn::Opponent )
+    {
+        cocos2d::log( "[Auth] AI attempted to play cards outisde of proper marshal phase" );
         return;
+    }
     
     auto GM = GetGameMode< GameModeBase >();
     CC_ASSERT( GM );
+    auto Player = State.GetOpponent();
+    CC_ASSERT( Player );
     
-    auto Opponent = State.GetOpponent();
-    CC_ASSERT( Opponent );
-    
-    auto Queue = ActionQueue();
-    if( Callback )
-        Queue.Callback = Callback;
-    
-    if( State.PlayCard( Opponent, In ) )
+    if( Cards.size() > 0 )
     {
-        // Validate Move
-        auto Parallel = Queue.CreateAction< ParallelAction >();
-        auto Play = Parallel->CreateAction< PlayCardAction >();
-        Play->TargetPlayer = Opponent->EntId;
-        Play->TargetCard = In;
-        Play->bWasSuccessful = true;
+        auto Queue = ActionQueue();
+        Queue.Callback = std::bind( &SingleplayerAuthority::AI_FinishPlay, this );
         
-        auto Mana = Parallel->CreateAction< UpdateManaAction >();
-        Mana->TargetPlayer = Opponent->EntId;
-        Mana->Amount = Opponent->Mana;
+        State.SetActiveQueue( std::addressof( Queue ) );
         
-        GM->RunActionQueue( std::move( Queue ) );
-        
-        CardState* Target = nullptr;
-        if( State.GetCard( In, Opponent, Target, true ) )
+        for( auto It = Cards.begin(); It != Cards.end(); It++ )
         {
-            State.SetActiveQueue( &Queue );
-            State.CallHook( "PlayCard", Opponent, *Target );
-            State.ClearActiveQueue();
+            if( State.PlayCard( Player, *It ) )
+            {
+                // Build action queue
+                // Were going to play cards in serial, instead of parallel
+                auto Root = Queue.CreateAction< ParallelAction >();
+                auto Play = Root->CreateAction< PlayCardAction >();
+                Play->TargetPlayer = Player->EntId;
+                Play->TargetCard = *It;
+                Play->bWasSuccessful = true;
+                
+                auto Mana = Root->CreateAction< UpdateManaAction >();
+                Mana->TargetPlayer = Player->EntId;
+                Mana->Amount = Player->Mana;
+                
+                // Call hook
+                CardState* Target = nullptr;
+                if( State.FindCard( *It, Player, Target, true ) && Target )
+                {
+                    State.CallHook( "PlayCard", Player, Target );
+                }
+                
+            }
+        }
+        
+        State.ClearActiveQueue();
+        
+        if( Queue.Actions.size() > 0 )
+        {
+            GM->RunActionQueue( std::move( Queue ) );
+            return;
         }
     }
-    else
+    
+    // If we didnt run the action queue, we need to advance the state manually
+    AI_FinishPlay();
+}
+
+void SingleplayerAuthority::AI_FinishPlay()
+{
+    // TODO: Make the AI choose abilities to trigger
+    if( State.mState != MatchState::Main || State.tState != TurnState::Marshal || State.pState != PlayerTurn::Opponent )
     {
-        cocos2d::log( "[Auth] AI attempted to play an invalid card!" );
-        
-        if( Callback )
-            Callback();
+        cocos2d::log( "[Auth] AI Attempted to finish marshal phase outside of marshal phase!" );
+        return;
     }
     
-    GM->RunActionQueue( std::move( Queue ) );
+    // DEBUG: Skip ability decision for now.. skip to attack
+    Attack();
 }
 
 
 void SingleplayerAuthority::PlayCard( uint32_t In, int Index )
 {
-    if( State.mState == MatchState::PostMatch )
+    if( State.mState != MatchState::Main || State.tState != TurnState::Marshal || State.pState != PlayerTurn::LocalPlayer )
+    {
+        cocos2d::log( "[Auth] Player attempted to play card outside of proper marshal phase" );
         return;
+    }
     
     auto GM = GetGameMode< GameModeBase >();
     CC_ASSERT( GM );
@@ -823,7 +941,7 @@ void SingleplayerAuthority::PlayCard( uint32_t In, int Index )
     Play->TargetPlayer = Player->EntId;
     Play->TargetCard = In;
     Play->TargetIndex = Index;
-    
+
     if( State.PlayCard( Player, In ) )
     {
         Play->bWasSuccessful = true;
@@ -833,10 +951,10 @@ void SingleplayerAuthority::PlayCard( uint32_t In, int Index )
         Mana->Amount        = Player->Mana;
         
         CardState* Target = nullptr;
-        if( State.GetCard( In, Player, Target, true ) )
+        if( State.FindCard( In, Player, Target, true ) )
         {
             State.SetActiveQueue( &Queue );
-            State.CallHook( "PlayCard", Player, *Target );
+            State.CallHook( "PlayCard", Player, Target );
             State.ClearActiveQueue();
         }
     }
@@ -905,6 +1023,8 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< uint32_t >& In )
     auto Opponent = State.GetOpponent();
     CC_ASSERT( Opponent );
     
+    std::vector< uint32_t > ValidCards;
+    
     for( auto It = In.begin(); It != In.end(); It++ )
     {
         auto Card = Opponent->Field.end();
@@ -924,11 +1044,20 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< uint32_t >& In )
         }
         
         BattleMatrix.insert( std::make_pair( Card->EntId, std::vector< uint32_t >() ) );
+        ValidCards.push_back( Card->EntId );
         
-        // TODO: Tell GameMode to highlight these cards
     }
     
-    Block();
+    auto Queue = ActionQueue();
+    Queue.Callback = std::bind( &SingleplayerAuthority::Block, this );
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Attack = Queue.CreateAction< CardListEvent >();
+    Attack->Name = "Attackers";
+    Attack->Cards = ValidCards;
+    
+    GM->RunActionQueue( std::move( Queue ) );
 }
 
 
@@ -952,7 +1081,7 @@ void SingleplayerAuthority::SetAttackers( const std::vector< uint32_t >& In )
     for( auto It = In.begin(); It != In.end(); It++ )
     {
         CardState* Target = nullptr;
-        if( !State.GetCard( *It, Player, Target, true )
+        if( !State.FindCard( *It, Player, Target, true )
            || !Target || Target->Power <= 0 || Target->Stamina <= 0 )
         {
             cocos2d::log( "[Auth] Player attempted to attack with an invalid card!" );
@@ -1001,12 +1130,12 @@ void SingleplayerAuthority::AI_SetBlockers( const std::map< uint32_t, uint32_t >
         CardState* Blocker      = nullptr;
         CardState* Attacker     = nullptr;
         
-        if( !State.GetCard( It->first, BlockingPlayer, Blocker, true ) || !Blocker )
+        if( !State.FindCard( It->first, BlockingPlayer, Blocker, true ) || !Blocker )
         {
             cocos2d::log( "[Auth] AI Set Blockers: Bad blocker.. wasnt found" );
             continue;
         }
-        if( !State.GetCard( It->second, AttackingPlayer, Attacker, true ) || !Attacker )
+        if( !State.FindCard( It->second, AttackingPlayer, Attacker, true ) || !Attacker )
         {
             cocos2d::log( "[Auth] AI Set Blockers: Bad attacker.. wasnt found" );
             continue;
@@ -1046,14 +1175,14 @@ void SingleplayerAuthority::SetBlockers( const std::map< uint32_t, uint32_t >& M
         CardState* Attacker     = nullptr;
         CardState* Blocker      = nullptr;
         
-        if( !State.GetCard( It->first, BlockingPlayer, Blocker, true ) || !Blocker )
+        if( !State.FindCard( It->first, BlockingPlayer, Blocker, true ) || !Blocker )
         {
             cocos2d::log( "[Auth] Player Set Blockers: Blocking card wasnt found" );
             bError = true;
             break;
         }
         
-        if( !State.GetCard( It->second, AttackingPlayer, Attacker, true ) || !Attacker )
+        if( !State.FindCard( It->second, AttackingPlayer, Attacker, true ) || !Attacker )
         {
             cocos2d::log( "[Auth] Player Set Blockers: Attacking card wasnt found" );
             bError = true;
@@ -1091,7 +1220,7 @@ void SingleplayerAuthority::TriggerAbility( uint32_t Card, uint8_t AbilityId )
     
     CC_ASSERT( GM && Player );
     
-    if( !State.GetCard( Card, Player, Target ) || !Target )
+    if( !State.FindCard( Card, Player, Target ) || !Target )
     {
         cocos2d::log( "[Auth] Failed to trigger ability.. couldnt find card!" );
         return;
@@ -1119,24 +1248,6 @@ void SingleplayerAuthority::TriggerAbility( uint32_t Card, uint8_t AbilityId )
         return;
     }
     
-    // Run Custom Check Function
-    if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
-    {
-        try
-        {
-            if( !( *Ability.CheckFunc )( State, Player, *Target ) )
-            {
-                cocos2d::log( "[Auth] Failed to trigger ability.. Check func returned false" );
-                return;
-            }
-        }
-        catch( std::exception& e )
-        {
-            cocos2d::log( "[Auth] An exception was thrown while performing ability check func! %s", e.what() );
-            return;
-        }
-    }
-    
     // Ensure function is valid
     if( !Ability.MainFunc || !Ability.MainFunc->isFunction() )
     {
@@ -1144,9 +1255,34 @@ void SingleplayerAuthority::TriggerAbility( uint32_t Card, uint8_t AbilityId )
         return;
     }
     
-    // Build Action Queue
+    // Create Action Queue, and parallel action needed for later
     auto Queue = ActionQueue();
     auto Parallel = Queue.CreateAction< ParallelAction >();
+    bool bCanRun = false;
+    State.SetActiveQueue( &Queue );
+    
+    try
+    {
+        bCanRun = ( *Ability.MainFunc )( std::addressof( State ), *Target );
+    }
+    catch( std::exception& e )
+    {
+        cocos2d::log( "[Auth] An exception was thrown in an ability function! %s", e.what() );
+        
+        State.ClearActiveQueue();
+        return;
+    }
+    
+    // If main func returns false, it means that this ability isnt allowed to be triggered
+    // with the current state of the game
+    if( !bCanRun )
+    {
+        cocos2d::log( "[Auth] Failed to trigger ability.. main func returned false!" );
+        
+        State.ClearActiveQueue();
+        return;
+    }
+    
     if( Ability.ManaCost > 0 )
     {
         // Take Mana
@@ -1167,21 +1303,8 @@ void SingleplayerAuthority::TriggerAbility( uint32_t Card, uint8_t AbilityId )
         auto Stamina = Parallel->CreateAction< UpdateStaminaAction >();
         Stamina->Target = Target->EntId;
         Stamina->Inflictor = Target->EntId;
-        Stamina->Amount = Target->Stamina;
-    }
-    
-    State.SetActiveQueue( &Queue );
-    
-    try
-    {
-        ( *Ability.MainFunc )( State, *Target );
-    }
-    catch( std::exception& e )
-    {
-        cocos2d::log( "[Auth] An exception was thrown in an ability function! %s", e.what() );
-        
-        State.ClearActiveQueue();
-        return;
+        Stamina->Amount = Ability.StaminaCost;
+        Stamina->UpdatedAmount = Target->Stamina;
     }
     
     // Call Hook
@@ -1245,7 +1368,7 @@ void SingleplayerAuthority::Tick( float Delta )
     else if( State.mState == MatchState::Blitz )
     {
         // Check for blitz completion
-        if( !_bBlitzComplete && PlayerBlitzSelection.size() > 0 ) //&& OpponentBlitzSelection.size() > 0 )
+        if( !_bBlitzComplete && PlayerBlitzSelection.size() > 0 && OpponentBlitzSelection.size() > 0 )
         {
             _bBlitzComplete = true;
             FinishBlitz();
@@ -1327,7 +1450,6 @@ bool SingleplayerAuthority::DoLoad( PlayerState* Target, const std::string &Name
                 Card.Stamina    = Info.Stamina;
                 
                 Target->Deck.push_back( Card );
-                State.OnCardAdded( std::addressof( Target->Deck.back() ) );
             }
         }
         else

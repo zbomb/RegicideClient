@@ -17,8 +17,13 @@ using namespace Game;
 KingEntity::KingEntity()
 : EntityBase( "king" ), Sprite( nullptr ), HealthLabel( nullptr ), ManaLabel( nullptr )
 {
-    bAddedToScene = false;
-    bIsOpponent = false;
+    bAddedToScene   = false;
+    bIsOpponent     = false;
+    
+    Sprite          = nullptr;
+    HealthLabel     = nullptr;
+    ManaLabel       = nullptr;
+    OwningPlayer    = nullptr;
     
     cocos2d::log( "[DEBUG] CREATING KING ENTITY" );
 }
@@ -31,9 +36,10 @@ KingEntity::~KingEntity()
         Sprite->removeFromParent();
     }
     
-    Sprite = nullptr;
-    HealthLabel = nullptr;
-    ManaLabel = nullptr;
+    Sprite          = nullptr;
+    HealthLabel     = nullptr;
+    ManaLabel       = nullptr;
+    OwningPlayer    = nullptr;
 }
 
 void KingEntity::Cleanup()
@@ -53,13 +59,20 @@ void KingEntity::AddToScene( cocos2d::Node *inNode )
     Sprite->setAnchorPoint( bIsOpponent ? cocos2d::Vec2( 1.f, 1.f ) : cocos2d::Vec2( 0.f, 0.f ) );
     Sprite->setName( "king" );
     
-    HealthLabel = cocos2d::Label::createWithTTF( "30", "fonts/arial.ttf", 45 );
+    HealthLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 45 );
     HealthLabel->setAnchorPoint( bIsOpponent ? cocos2d::Vec2( 1.f, 1.f ) : cocos2d::Vec2( 0.f, 0.f ) );
     HealthLabel->setTextColor( cocos2d::Color4B( 250, 30, 30, 255 ) );
     
     ManaLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 45 );
     ManaLabel->setAnchorPoint( bIsOpponent ? cocos2d::Vec2( 1.f, 1.f ) : cocos2d::Vec2( 0.f, 0.f ) );
     ManaLabel->setTextColor( cocos2d::Color4B( 40, 50, 250, 255 ) );
+    
+    auto Owner = GetOwningPlayer();
+    if( Owner )
+    {
+        HealthLabel->setString( std::to_string( Owner->GetHealth() ) );
+        ManaLabel->setString( std::to_string( Owner->GetMana() ) );
+    }
     
     inNode->addChild( Sprite );
     Sprite->addChild( HealthLabel );

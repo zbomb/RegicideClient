@@ -23,6 +23,7 @@ namespace Game
     class SingleplayerAuthority;
     class GameModeBase;
     class AuthorityBase;
+    class PlayerState;
     
     class SingleplayerLauncher
     {
@@ -64,6 +65,7 @@ namespace Game
         int LoadedTextures = 0;
         bool bTexturesChecked = false;
         
+        bool StreamPlayer( PlayerState* Source, Player* Target, bool bOpponent );
         bool StreamEntities( GameModeBase* Target, AuthorityBase* Source );
         
     };

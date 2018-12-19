@@ -98,8 +98,13 @@ void AuthState::DrawCard( PlayerState* Target, uint32_t Count )
         Draw->TargetCard = It->EntId;
         Draw->TargetPlayer = Target->EntId;
         
+        cocos2d::log( "AUTH CARD: %d", It->EntId );
+        
         Target->Hand.push_back( *It );
         Target->Deck.erase( It );
+        
+        auto Next = Target->Deck.begin();
+        cocos2d::log( "NEXT CARD: %d", Next->EntId );
     }
 }
 
