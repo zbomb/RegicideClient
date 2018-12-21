@@ -282,7 +282,6 @@ void AIController::DoBuildPlay( Decision& Base )
                 }
                 
                 Node.Type = MoveType::Play;
-                Node.BaseState.CopyFrom( Node.State );
                 DecisionList.push_back( Node );
                 
                 DoBuildPlay( Node );
@@ -305,7 +304,6 @@ void AIController::BuildPlayOptions( MoveType inType )
     // Sync state to base reality
     auto Auth = GetAuthority();
     Node.State.CopyFrom( Auth->GetState() );
-    Node.BaseState.CopyFrom( Node.State );
 
     // This is the base option (no cards played)
     // So were going to add it to the decision list, then start adding play options
@@ -337,10 +335,7 @@ void AIController::DoBuildAttack( Decision& Base )
         if( !bAttacking )
         {
             // TODO: Check if this card can actually attack
-            std::vector< std::pair< uint32_t, uint32_t > > Cards;
-            for( auto j = Base.Move.begin(); j != Base.Move.end(); j++ )
-                Cards.push_back( *j );
-            
+            std::vector< std::pair< uint32_t, uint32_t > > Cards( Base.Move.begin(), Base.Move.end() );
             Cards.push_back( std::make_pair( It->EntId, 0 ) );
             
             // Check if this combination exists
@@ -356,10 +351,6 @@ void AIController::DoBuildAttack( Decision& Base )
                 // Add card to battle matrix
                 Node.State.BattleMatrix[ It->EntId ] = std::vector< uint32_t >();
                 Node.Type = MoveType::Attack;
-                
-                // Create base state, so we can jump back after simulations are ran
-                Node.BaseState.CopyFrom( Node.State );
-                Node.BaseState.BattleMatrix = Node.State.BattleMatrix;
                 
                 // Add to list, and continue building
                 DecisionList.push_back( Node );
@@ -383,10 +374,176 @@ void AIController::BuildAttackOptions()
     CC_ASSERT( Auth );
     
     Node.State.CopyFrom( Auth->GetState() );
-    Node.BaseState.CopyFrom( Node.State );
     
     DecisionList.push_back( Node );
     DoBuildAttack( Node );
+}
+
+bool CheckOptions( std::map< uint32_t, std::vector< uint32_t > > First, std::map< uint32_t, std::vector< uint32_t > > Second )
+{
+    // If the number of attakcers are different, then theyre not the same
+    if( First.size() != Second.size() )
+        return false;
+    
+    // Loop through each attacker
+    for( auto It = First.begin(); It != First.end(); It++ )
+    {
+        // Check if the other list has this attacker
+        if( Second.count( It->first ) == 0 )
+        {
+            // They dont have the same attackers
+            return false;
+        }
+        else
+        {
+            // Check if the elements in the vectors are the same
+            for( auto j = It->second.begin(); j != It->second.end(); j++ ) // Loop through first vector
+            {
+                // Check for element in second vector
+                bool bFound = false;
+                for( auto k = Second[ It->first ].begin(); k != Second[ It->first ].end(); k++ )
+                {
+                    if( *j == *k )
+                    {
+                        bFound = true;
+                        break;
+                    }
+                }
+                
+                // If the element wasnt in the second vector, then the two are different
+                if( !bFound )
+                    return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+void AIController::DoBuildBlock( Decision &Base )
+{
+    auto& Sim = Base.State;
+    auto Player = Sim.GetOpponent();
+
+    CCASSERT( Player && Attacker, "[AI] Opponent object is null!" );
+    
+    int FieldSize = (int) Player->Field.size();
+    int AttackerSize = (int) Sim.BattleMatrix.size();
+    
+    if( AttackerSize == 0 || FieldSize == 0 )
+        return;
+    
+    // Were going to come up with 100 random, non-repeating blocking deicisions
+    // In the future, we can improve this by trying to suggest slightly better decisions
+    // Basically, using some basic rules to manipulate the initial options available to the AI
+    
+    // We can create some tuned options.. try and select some 1:1 blocker options
+    
+    int NeededOptions = 100;
+    int CreatedOptions = 0;
+    int Repeats = 0;
+    
+    std::vector< std::map< uint32_t, std::vector< uint32_t > > > Output;
+    
+    std::vector< uint32_t > AllAttackers;
+    for( auto It = Sim.BattleMatrix.begin(); It != Sim.BattleMatrix.end(); It++ )
+        AllAttackers.push_back( It->first );
+    
+    std::vector< uint32_t > AllBlockers;
+    for( auto It = Player->Field.begin(); It != Player->Field.end(); It++ )
+        AllBlockers.push_back( It->EntId );
+    
+    while( CreatedOptions < NeededOptions && Repeats < 10 )
+    {
+        std::map< uint32_t, std::vector< uint32_t > > Option;
+        for( auto It = AllAttackers.begin(); It != AllAttackers.end(); It++ )
+            Option[ *It ] = std::vector< uint32_t >();
+        
+        std::vector< uint32_t > AvailableBlockers( AllBlockers.begin(), AllBlockers.end() );
+        
+        // Create a totally random block/attack matchup
+        int BlockerCount = FieldSize > 1 ? cocos2d::random( 1, FieldSize ) : 1;
+        
+        for( int i = 0; i < BlockerCount; i++ )
+        {
+            // Pick random attacker to match blocker with
+            int AttackerIndex = AllAttackers.size() > 1 ? cocos2d::random( 0, (int)AllAttackers.size() - 1 ) : 0;
+            uint32_t Attacker = AllAttackers.at( AttackerIndex );
+            
+            // Now pick random blocker
+            int BlockerIndex = AvailableBlockers.size() > 1 ? cocos2d::random( 0, (int) AvailableBlockers.size() - 1 ) : 0;
+            auto It = AvailableBlockers.begin();
+            std::advance( It, BlockerIndex );
+            
+            uint32_t Blocker = *It;
+            AvailableBlockers.erase( It );
+            
+            Option[ Attacker ].push_back( Blocker );
+        }
+        
+        // Check if this option already exists
+        bool bExists = false;
+        for( auto It = Output.begin(); It != Output.end(); It++ )
+        {
+            if( CheckOptions( *It, Option ) )
+            {
+                bExists = true;
+                break;
+            }
+        }
+        
+        // If it doesnt exist, then add to output
+        if( !bExists )
+        {
+            cocos2d::log( "[DEBUG] GENERATED NEW RANDOM CHOICE" );
+            Output.push_back( Option );
+            CreatedOptions++;
+        }
+        else
+        {
+            Repeats++;
+            cocos2d::log( "[DEBUG] REPEAT OPTION" );
+        }
+    }
+    
+    // Now we built a list of completley random blocking actions, we need to validate these options
+    for( auto It = Output.begin(); It != Output.end(); It++ )
+    {
+        auto Node = Decision();
+        Node.Type = MoveType::Block;
+        Node.State.CopyFrom( Base.State );
+        Node.State.BattleMatrix = Base.State.BattleMatrix;
+        
+        for( auto j = It->begin(); j != It->end(); j++ )
+        {
+            for( auto i = j->second.begin(); i != j->second.end(); i++ )
+            {
+                Node.State.BattleMatrix[ j->first ].push_back( *i );
+                Node.Move.push_back( std::make_pair( *i, j->first ) );
+            }
+        }
+        
+        DecisionList.push_back( Node );
+    }
+}
+
+
+void AIController::BuildBlockOptions()
+{
+    DecisionList.clear();
+    SimulationCount = 0;
+    
+    auto Node = Decision();
+    Node.Type = MoveType::Block;
+    
+    auto Auth = GetAuthority();
+    CC_ASSERT( Auth );
+    
+    Node.State.CopyFrom( Auth->GetState() );
+    Node.State.BattleMatrix = Auth->BattleMatrix;
+    
+    DecisionList.push_back( Node );
+    DoBuildBlock( Node );
 }
 
 
@@ -416,13 +573,11 @@ void AIController::CalculateReward( Decision& Target )
     // How many cards are in hand
     // Mana
     // Health
+    int SimulatedTurns = Simulation.GetSimulatedTurns();
+    auto Winner = Simulation.GetWinner();
     
-    auto& Sim = Target.State;
-    int SimulatedTurns = Sim.GetSimulatedTurns();
-    auto Winner = Sim.GetWinner();
-    
-    auto& LocalPlayer = Sim.LocalPlayer;
-    auto& AIPlayer = Sim.Opponent;
+    auto& LocalPlayer = Simulation.LocalPlayer;
+    auto& AIPlayer = Simulation.Opponent;
     
     int PlayerDeckSize = (int) LocalPlayer.Deck.size();
     int AIDeckSize = (int) AIPlayer.Deck.size();
@@ -456,19 +611,7 @@ void AIController::CalculateReward( Decision& Target )
         else if( Winner == std::addressof( AIPlayer ) )
             WinRating = 1.f;
         
-        if( SimulatedTurns > 1 )
-        {
-            // If there was a winner, were going to scale how rewarding it is, based on the number of turns
-            // The more turns it took to win, the less rewarding the win actually is, since everything is randomized
-            // If it took 5 turns to win, then its 10/15 * 1 which is 2/3 or 0.67
-            WinRating *= ( (float) 15 - ( ( SimulatedTurns - 1 ) > 15 ? 15 : SimulatedTurns - 1 ) ) / 15.f;
-        }
-        else
-        {
-            //cocos2d::log( "[Sim] Rated simulation results at %f", WinRating );
-            Target.Scores.push_back( WinRating );
-            return;
-        }
+        WinRating *= Math::Clamp( (float)( 16 - SimulatedTurns ) / 15.f, 0.f, 1.f );
     }
     
     // Now lets calculate a -1:1 rating for the field state
@@ -525,23 +668,12 @@ void AIController::CalculateReward( Decision& Target )
         TotalRange += 0.85f;
     
     
-    float NonWinScaled = Math::Clamp( TotalNonWin / TotalRange, -1.f, 1.f );
+    // Weigh in Win rating and Non win ratings, on a scale from -1 to 1
+    float Rating = ( Math::Clamp( TotalNonWin / TotalRange, -1.f, 1.f ) + WinRating * 2.f ) / 3.f;
     
-    float FinalRating = 0.f;
-    if( Winner )
-    {
-        FinalRating += NonWinScaled;
-        FinalRating += WinRating * 2.f;
-        
-        FinalRating /= 3.f;
-    }
-    else
-    {
-        FinalRating = NonWinScaled;
-    }
+    // Convert from -1:1 range to 0:1
+    float FinalRating = ( Rating / 2.f ) + 0.5f;
     
-    // Now we need to scale the final rating back to [0:1]
-    float ScaledRating = Math::Clamp( FinalRating * 0.5f + 0.5f, 0.f, 1.f );
     /*
     cocos2d::log( "[DEBUG] Fields( AI Count: %d  Op Count: %d  AI Power: %d  Op Power: %d )", AIFieldSize, PlayerFieldSize, AIFieldPower, PlayerFieldPower );
     cocos2d::log( "[DEBUG] Field Count: %f  Field Power: %f", FieldCountRating, FieldPowerRating );
@@ -550,20 +682,19 @@ void AIController::CalculateReward( Decision& Target )
     cocos2d::log( "[DEBUG] AI Deck: %d  Op Deck: %d  Rating: %f", AIDeckSize, PlayerDeckSize, DeckCountRating );
     cocos2d::log( "[Sim] Rated simulation results at %f", ScaledRating );
      */
-    Target.Scores.push_back( ScaledRating );
+    Target.Scores.push_back( FinalRating );
 }
 
 void AIController::Simulate( Decision& Target, int Turns )
 {
-    // Copy base state into active state
-    Target.State.CopyFrom( Target.BaseState );
-    Target.State.BattleMatrix = Target.BaseState.BattleMatrix;
+    // Copy decision state into simulator
+    Simulation.CopyFrom( Target.State );
+    Simulation.BattleMatrix = Target.State.BattleMatrix;
     
     // Run simulation on this target
     // We need a way to 'rate' each simulation, on how prefferable it is
     // The range for this rating is [0:1]
-    auto& Sim = Target.State;
-    Sim.PrepareSimulation();
+    Simulation.PrepareSimulation();
     
     // Since we implemented the base decision by this point, we need to ensure the round state gets advanced
     // then, the simulation will continue from where we left off automatically, until it hits the desired depth
@@ -571,7 +702,7 @@ void AIController::Simulate( Decision& Target, int Turns )
     if( Target.Type == MoveType::Blitz )
     {
         // Simulate the other players blitz before starting the simulation
-        Sim.SimulatePlayerBlitz();
+        Simulation.SimulatePlayerBlitz();
     }
     
     // If were in the play card phase, we need to simulate the ability phase before running the simulation
@@ -583,7 +714,7 @@ void AIController::Simulate( Decision& Target, int Turns )
     // Calculate the number of turns to simulate
     // The more possible decisions, the less turns we will simulate
     // Were going to clamp the turns to simulate between 5 and 20
-    Sim.RunSimulation( Turns );
+    Simulation.RunSimulation( Turns );
     
     // Now we need to calculate the 'rating' of the resulting game state
     CalculateReward( Target );
@@ -858,5 +989,47 @@ void AIController::ChooseBlockers( std::vector< uint32_t > Attackers )
     State = AIState::Block;
     cocos2d::log( "[AI] Making Block Decision..." );
     
+    Post(
+         [ = ]()
+         {
+             BuildBlockOptions();
+             
+             cocos2d::log( "[AI] There are %d block options", (int) DecisionList.size() );
+             SimulateAll();
+             FirstRunComplete();
+             
+             auto Auth = GetAuthority();
+             CC_ASSERT( Auth );
+             
+             // Now we need to find the most simulated option
+             auto Best = GetMostSimulated();
+             if( !Best )
+             {
+                 cocos2d::log( "[AI] Failed to find good block decision.. passing" );
+                 Push( [=]() { Auth->AI_SetBlockers( std::map< uint32_t, uint32_t >() ); } );
+             }
+             else
+             {
+                 float AvgScore = 0.f;
+                 for( auto It = Best->Scores.begin(); It != Best->Scores.end(); It++ )
+                     AvgScore += *It;
+                 AvgScore /= (float) Best->Scores.size();
+                 
+                 cocos2d::log( "[AI] Made block decision.. Score: %f  Total Simulations: %d  Decision Simulations: %d", AvgScore, SimulationCount, (int) Best->Scores.size() );
+                 
+                 std::map< uint32_t, uint32_t > Cards;
+                 for( auto It = Best->Move.begin(); It != Best->Move.end(); It++ )
+                 {
+                     cocos2d::log( "=== BLOCKER ===> %d (%d)", It->first, It->second );
+                     Cards[ It->first ] = It->second;
+                 }
+                 
+                 cocos2d::log( "[DEBUG] THERE WERE %d BLOCKERS SELECTED", (int)Cards.size() );
+
+                 Push( [=]() { Auth->AI_SetBlockers( Cards ); } );
+             }
+             
+             Clear();
+         } );
     
 }

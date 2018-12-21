@@ -46,7 +46,7 @@ bool CardSelector::init()
     ScrollPanel->setBackGroundColorOpacity( 190 );
     ScrollPanel->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     ScrollPanel->setPosition( cocos2d::Vec2( Origin.x + Size.width * 0.5f, Origin.y + Size.height * 0.5f ) );
-    ScrollPanel->setContentSize( cocos2d::Size( Size.width, Size.height * 0.4f + 50.f ) );
+    ScrollPanel->setContentSize( cocos2d::Size( Size.width, Size.height * 0.6f + 50.f ) );
     ScrollPanel->setDirection( cocos2d::ui::ScrollView::Direction::HORIZONTAL );
     ScrollPanel->setLayoutType( cocos2d::ui::Layout::Type::HORIZONTAL );
     ScrollPanel->setCascadeOpacityEnabled( true );
@@ -219,16 +219,17 @@ void CardSelector::LoadCards( Game::CardIter Begin, Game::CardIter End )
     
     for( auto It = Begin; It != End; It++ )
     {
-        if( !(*It) || !(*It)->FullSizedTexture )
+        if( !(*It) )
         {
-            cocos2d::log( "[CardSelector] Card was missing full sized texture!" );
+            cocos2d::log( "[Selector] Card was null" );
             continue;
         }
+        
         auto Card = CardButton::Create( *It );
         auto defSize = Card->getContentSize();
         
         // We want to scale the card until the height is 0.25x the screen height
-        //Card->setScale( ( Size.height * 0.4f ) / defSize.height );
+        Card->setScale( ( Size.height * 0.6f ) / defSize.height );
         TotalWidth += ( Card->getContentSize().width + Size.width * 0.01f );
         
         auto layoutParam = cocos2d::ui::LinearLayoutParameter::create();

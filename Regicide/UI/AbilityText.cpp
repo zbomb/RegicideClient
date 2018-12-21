@@ -15,10 +15,10 @@
 #include "Game/GameModeBase.hpp"
 
 
-AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep, int inFont )
+AbilityText* AbilityText::Create( Game::CardEntity* InCard, Game::Ability &inAbility, float inWidth, bool bDrawSep, int inFont, bool bAllowTrigger )
 {
     auto* Output = new (std::nothrow) AbilityText();
-    if( Output && Output->init( InCard, inAbility, inWidth, bDrawSep, inFont ) )
+    if( Output && Output->init( InCard, inAbility, inWidth, bDrawSep, inFont, bAllowTrigger ) )
     {
         Output->autorelease();
     }
@@ -46,7 +46,7 @@ AbilityText::~AbilityText()
     Listener = nullptr;
 }
 
-bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth, bool bDrawSep, int inFont )
+bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWidth, bool bDrawSep, int inFont, bool bAllowTrigger )
 {
     if( !Widget::init() )
         return false;
@@ -55,6 +55,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     Card = InCard;
     
     bDrawSeperator = bDrawSep;
+    bCanTrigger = bAllowTrigger;
     
     // Create Draw Node
     Draw = cocos2d::DrawNode::create();
@@ -66,6 +67,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     if( Ability.ManaCost > 0 )
     {
         ManaCost = IconCount::Create( "ManaIcon.png", Ability.ManaCost, inFont + 2 );
+        ManaCost->setCascadeOpacityEnabled( true );
         
         if( Ability.StaminaCost > 0 )
             ManaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 0.f ) );
@@ -80,6 +82,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     if( Ability.StaminaCost > 0 )
     {
         StaminaCost = IconCount::Create( "StaminaIcon.png", Ability.StaminaCost, inFont + 2 );
+        StaminaCost->setCascadeOpacityEnabled( true );
         
         if( Ability.ManaCost > 0 )
             StaminaCost->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
@@ -94,6 +97,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     
     // Create Label
     Text = cocos2d::Label::createWithTTF( Ability.Description, "fonts/arial.ttf", inFont );
+    Text->setCascadeOpacityEnabled( true );
     Text->enableWrap( true );
     Text->setDimensions( inWidth - 15.f - TextSpacing - 4.f, 0.f );
     Text->setAlignment( cocos2d::TextHAlignment::LEFT, cocos2d::TextVAlignment::TOP );
@@ -107,7 +111,7 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
     auto GM = World ? World->GetGameMode() : nullptr;
     auto Player = World ? GM->GetState().GetPlayer() : nullptr;
     
-    if( Player && InCard )
+    if( bAllowTrigger && Player && InCard )
     {
         if( Player->GetMana() < Ability.ManaCost )
         {
@@ -127,7 +131,15 @@ bool AbilityText::init( Game::CardEntity* InCard, Game::Ability& In, float inWid
             bool bCheck = true;
             if( Ability.CheckFunc && Ability.CheckFunc->isFunction() )
             {
-                bCheck = ( *Ability.CheckFunc )( std::addressof( GM->GetState() ), InCard );
+                try
+                {
+                    bCheck = ( *Ability.CheckFunc )( std::addressof( GM->GetState() ), InCard );
+                }
+                catch( std::exception& e )
+                {
+                    cocos2d::log( "[AbilityText] Failed to check if ability can be triggered.. %s", e.what() );
+                    bCheck = false;
+                }
             }
             
             if( bCheck )
@@ -158,7 +170,7 @@ void AbilityText::onSizeChanged()
     Widget::onSizeChanged();
     
     // Reposition Elements
-    auto Size = getContentSize();
+    auto Size = getContentSize() * getScale();
     float TextSpacing = 0.f;
     
     if( ManaCost && StaminaCost )

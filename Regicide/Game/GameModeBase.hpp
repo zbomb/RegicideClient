@@ -154,7 +154,7 @@ namespace Game
         virtual void OnCombat( Action* In, std::function< void() > Callback );
         virtual void OnStaminaUpdate( Action* In, std::function< void() > Callback );
         virtual void OnBoardCleanup( Action* In, std::function< void() > Callback );
-        virtual void OnAttackersSet( Action* In, std::function< void() > Callback );
+        virtual void OnMatrixUpdate( Action* In, std::function< void() > Callback );
         
         void OnCardDied( CardEntity* Target );
         virtual void OnActionQueue();

@@ -334,6 +334,7 @@ CardEntity::CardEntity()
     Overlay             = nullptr;
     StaminaLabel        = nullptr;
     PowerLabel          = nullptr;
+    InfoOverlay         = nullptr;
 }
 
 CardEntity::~CardEntity()
@@ -352,6 +353,7 @@ CardEntity::~CardEntity()
     Highlight           = nullptr;
     PowerLabel          = nullptr;
     StaminaLabel        = nullptr;
+    InfoOverlay         = nullptr;
 }
 
 void CardEntity::Cleanup()
@@ -399,7 +401,6 @@ void CardEntity::AddToScene( cocos2d::Node* inNode )
     // Defaults to back side visible
     Sprite = cocos2d::Sprite::createWithTexture( BackTexture );
     Sprite->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
-    Sprite->setScale( 0.7f );
     Sprite->setName( "Card" );
     Sprite->setCascadeOpacityEnabled( true );
     
@@ -428,6 +429,12 @@ void CardEntity::CreateOverlays()
         Overlay = nullptr;
     }
     
+    if( InfoOverlay )
+    {
+        InfoOverlay->removeFromParent();
+        InfoOverlay = nullptr;
+    }
+    
     if( PowerLabel )
     {
         PowerLabel->removeFromParent();
@@ -453,6 +460,12 @@ void CardEntity::CreateOverlays()
     Overlay->setPosition( Sprite->getContentSize() * 0.5f );
     Overlay->setOpacity( 0 );
     
+    InfoOverlay = cocos2d::Sprite::create( "SmallOverlay.png" );
+    InfoOverlay->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
+    InfoOverlay->setName( "InfoOverlay" );
+    InfoOverlay->setPosition( Sprite->getContentSize() * 0.5f );
+    InfoOverlay->setOpacity( 255 );
+    
     auto Size = Sprite->getContentSize();
     
     PowerLabel = cocos2d::Label::createWithTTF( "", "fonts/arial.ttf", 65 );
@@ -468,6 +481,7 @@ void CardEntity::CreateOverlays()
     Sprite->addChild( StaminaLabel, 1 );
     Sprite->addChild( PowerLabel, 1 );
     Sprite->addChild( Highlight, 3 );
+    Sprite->addChild( InfoOverlay, 4 );
     Sprite->addChild( Overlay, 2 );
 }
 
@@ -483,6 +497,12 @@ void CardEntity::DestroyOverlays()
     {
         Overlay->removeFromParent();
         Overlay = nullptr;
+    }
+    
+    if( InfoOverlay )
+    {
+        InfoOverlay->removeFromParent();
+        InfoOverlay = nullptr;
     }
     
     if( PowerLabel )

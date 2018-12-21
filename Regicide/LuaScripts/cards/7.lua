@@ -3,11 +3,11 @@
         © 2018 Zachary Berry
 ===========================================================================*/
 
-CARD.Name = "The Butt Plunger";
+CARD.Name = "The Front Plunger";
 CARD.Description = "This is a test description. Hopefully it works well and doesnt look terrible!";
-CARD.Power = 4;
-CARD.Stamina = 2;
-CARD.Mana = 3;
+CARD.Power = 6;
+CARD.Stamina = 1;
+CARD.Mana = 5;
 
 CARD.Texture        = "CardFront.png";
 CARD.FullTexture   = "LargeCard.png";

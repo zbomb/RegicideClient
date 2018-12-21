@@ -139,7 +139,7 @@ namespace Game
         inline Player* GetOwningPlayer()        { return OwningPlayer; }
         inline int GetZ() const                 { if( Sprite ) return Sprite->getGlobalZOrder(); return 0; }
         void SetZ( int In ); 
-        inline float GetWidth() const           { if( Sprite ) { return Sprite->getContentSize().width * Sprite->getScaleX(); } else return 0.f; }
+        inline float GetWidth() const           { if( Sprite ) { return Sprite->getContentSize().width; } else return 0.f; }
         inline void SetIsDragging( bool In )    { _bDragging = In; }
         inline bool GetIsDragging() const       { return _bDragging; }
         inline ICardContainer* GetContainer()   { return Container; }
@@ -170,6 +170,7 @@ namespace Game
         cocos2d::Sprite* Sprite;
         cocos2d::Sprite* Highlight;
         cocos2d::Sprite* Overlay;
+        cocos2d::Sprite* InfoOverlay;
         cocos2d::Label* PowerLabel;
         cocos2d::Label* StaminaLabel;
         

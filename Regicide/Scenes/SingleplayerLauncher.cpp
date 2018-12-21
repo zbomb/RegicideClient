@@ -102,9 +102,27 @@ void SingleplayerLauncherScene::OnLaunchClicked( cocos2d::Ref *Caller )
     
     Regicide::Card newCard;
     newCard.Id = 5;
-    newCard.Ct = 30;
+    newCard.Ct = 8;
     
     TestDeck.Cards.push_back( newCard );
+    
+    Regicide::Card card2;
+    card2.Id = 6;
+    card2.Ct = 5;
+    
+    TestDeck.Cards.push_back( card2 );
+    
+    Regicide::Card card3;
+    card3.Id = 7;
+    card3.Ct = 5;
+    
+    TestDeck.Cards.push_back( card3 );
+    
+    Regicide::Card card4;
+    card4.Id = 8;
+    card4.Ct = 12;
+    
+    TestDeck.Cards.push_back( card4 );
 
     Args.PlayerDeck = TestDeck;
     Args.OpponentDeck = TestDeck;

@@ -201,7 +201,6 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     
     CardImage->setAnchorPoint( cocos2d::Vec2( 0.5f, 0.5f ) );
     CardImage->setPosition( cocos2d::Vec2( origin.x + size.width * 0.5f, origin.y + size.height * 0.5f ) );
-    //CardImage->setGlobalZOrder( 400 );
     addChild( CardImage, 2 );
     
     // Create Scroll Panel
@@ -214,7 +213,6 @@ void CardViewer::SetTargetCard( Game::CardEntity *inCard, bool bAllowPlay )
     ScrollPanel->setContentSize( cocos2d::Size( CardSize.width, CardSize.height * 0.4f - 32.f ) );
     ScrollPanel->setDirection( cocos2d::ui::ScrollView::Direction::VERTICAL );
     ScrollPanel->setLayoutType( cocos2d::ui::Layout::Type::VERTICAL );
-    //ScrollPanel->setGlobalZOrder( 405 );
     CardImage->addChild( ScrollPanel, 1 );
     
     bool bFirst = true;

@@ -38,6 +38,9 @@ namespace Game
         bool IsPlayerTurn( Player* Target );
         Player* GetOtherPlayer( Player* Owner );
         
+        Player* GetActivePlayer();
+        Player* GetInactivePlayer();
+        
     protected:
         
         Player* LocalPlayer;

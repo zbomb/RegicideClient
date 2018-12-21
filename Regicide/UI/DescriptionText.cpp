@@ -65,7 +65,7 @@ void DescriptionText::onSizeChanged()
 {
     if( Text )
     {
-        auto Size = getContentSize();
+        auto Size = getContentSize() * getScale();
         
         Text->setAnchorPoint( cocos2d::Vec2( 0.f, 1.f ) );
         Text->setPosition( cocos2d::Vec2( 6.f, Size.height / 2.f + Text->getContentSize().height / 2.f ) );

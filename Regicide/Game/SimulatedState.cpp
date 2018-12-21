@@ -425,14 +425,7 @@ void SimulatedState::Damage()
             if( Blockers.empty() )
             {
                 // Damage Player
-                BlockingPlayer.Health -= 1;
-                
-                if( BlockingPlayer.Health <= 0 )
-                {
-                    OnSimulationFinished( std::addressof( AttackingPlayer ) );
-                    BattleMatrix.clear();
-                    return;
-                }
+                BlockingPlayer.Health -= Attacker->Power;
             }
             else
             {
@@ -488,6 +481,13 @@ void SimulatedState::Damage()
         {
             cocos2d::log( "[Sim] Failed to find attacker in battle matrix!" );
         }
+    }
+    
+    if( BlockingPlayer.Health <= 0 )
+    {
+        OnSimulationFinished( std::addressof( AttackingPlayer ) );
+        BattleMatrix.clear();
+        return;
     }
     
     // Advance to post turn

@@ -795,13 +795,7 @@ void SingleplayerAuthority::Damage()
                 Combat->AttackerPower   = Attacker->Power;
                 Combat->BlockerPower    = Blocker->Power;
                 Combat->Damage          = CardDamage;
-                
-                auto AttackStamina              = Parallel->CreateAction< UpdateStaminaAction >();
-                AttackStamina->Target           = Attacker->EntId;
-                AttackStamina->Amount           = 1;
-                AttackStamina->UpdatedAmount    = Attacker->Stamina;
-                AttackStamina->Inflictor        = Attacker->EntId;
-                
+            
                 auto BlockStamina               = Parallel->CreateAction< UpdateStaminaAction >();
                 BlockStamina->Target            = Blocker->EntId;
                 BlockStamina->Inflictor         = Blocker->EntId;
@@ -809,22 +803,28 @@ void SingleplayerAuthority::Damage()
                 BlockStamina->UpdatedAmount     = Blocker->Stamina;
                 
                 // Check for death
+                if( Blocker->Power <= 0 || Blocker->Stamina <= 0 )
+                {
+                    State.OnCardKilled( Blocker );
+                }
+                
                 if( Attacker->Power <= 0 || Attacker->Stamina <= 0 )
                 {
                     bAttackerKilled = true;
                     State.OnCardKilled( Attacker );
                     break;
                 }
-                
-                if( Blocker->Power <= 0 || Blocker->Stamina <= 0 )
-                {
-                    State.OnCardKilled( Blocker );
-                }
             }
             
             if( !bAttackerKilled )
             {
                 Attacker->Stamina    -= 1;
+                
+                auto AttackStamina              = Queue.CreateAction< UpdateStaminaAction >();
+                AttackStamina->Target           = Attacker->EntId;
+                AttackStamina->Amount           = 1;
+                AttackStamina->UpdatedAmount    = Attacker->Stamina;
+                AttackStamina->Inflictor        = Attacker->EntId;
                 
                 if( Attacker->Stamina <= 0 )
                 {
@@ -1023,8 +1023,6 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< uint32_t >& In )
     auto Opponent = State.GetOpponent();
     CC_ASSERT( Opponent );
     
-    std::vector< uint32_t > ValidCards;
-    
     for( auto It = In.begin(); It != In.end(); It++ )
     {
         auto Card = Opponent->Field.end();
@@ -1044,8 +1042,6 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< uint32_t >& In )
         }
         
         BattleMatrix.insert( std::make_pair( Card->EntId, std::vector< uint32_t >() ) );
-        ValidCards.push_back( Card->EntId );
-        
     }
     
     auto Queue = ActionQueue();
@@ -1053,9 +1049,8 @@ void SingleplayerAuthority::AI_SetAttackers( const std::vector< uint32_t >& In )
     auto GM = GetGameMode< GameModeBase >();
     CC_ASSERT( GM );
     
-    auto Attack = Queue.CreateAction< CardListEvent >();
-    Attack->Name = "Attackers";
-    Attack->Cards = ValidCards;
+    auto Update = Queue.CreateAction< BattleMatrixAction >();
+    Update->Matrix = BattleMatrix;
     
     GM->RunActionQueue( std::move( Queue ) );
 }
@@ -1150,6 +1145,15 @@ void SingleplayerAuthority::AI_SetBlockers( const std::map< uint32_t, uint32_t >
         
         BattleMatrix[ It->second ].push_back( It->first );
     }
+    
+    auto GM = GetGameMode< GameModeBase >();
+    CC_ASSERT( GM );
+    
+    auto Queue = ActionQueue();
+    auto Update = Queue.CreateAction< BattleMatrixAction >();
+    Update->Matrix = BattleMatrix;
+    
+    GM->RunActionQueue( std::move( Queue ) );
     
     Damage();
 }
@@ -1358,11 +1362,11 @@ void SingleplayerAuthority::Tick( float Delta )
         // Check for win
         if( Opponent->Health <= 0 || Opponent->Deck.size() <= 0 )
         {
-            OnGameWon( Opponent->EntId );
+            OnGameWon( Player->EntId );
         }
         else if( Player->Health <= 0 || Player->Deck.size() <= 0 )
         {
-            OnGameWon( Player->EntId );
+            OnGameWon( Opponent->EntId );
         }
     }
     else if( State.mState == MatchState::Blitz )

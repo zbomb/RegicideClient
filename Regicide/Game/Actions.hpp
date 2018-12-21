@@ -307,4 +307,15 @@ namespace Game
         std::vector< uint32_t > Cards;
     };
     
+    class BattleMatrixAction : public Action
+    {
+    public:
+        
+        BattleMatrixAction()
+        : Action( "BattleMatrix" )
+        {}
+        
+        std::map< uint32_t, std::vector< uint32_t > > Matrix;
+    };
+    
 }

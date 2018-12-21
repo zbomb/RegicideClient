@@ -64,6 +64,7 @@ void GameStateBase::OnCardKilled( CardState* Target )
         return;
     }
     
+    Position->Position = CardPos::GRAVEYARD;
     Owner.Graveyard.push_back( *Position );
     Owner.Field.erase( Position );
 }

@@ -80,7 +80,7 @@ void KingEntity::AddToScene( cocos2d::Node *inNode )
     
     if( bIsOpponent )
     {
-        auto Size = Sprite->getContentSize() * Sprite->getScale();
+        auto Size = Sprite->getContentSize();
         HealthLabel->setPosition( cocos2d::Vec2( Size.width - 10.f, Size.height - 10.f ) );
         ManaLabel->setPosition( cocos2d::Vec2( Size.width - 10.f - HealthLabel->getContentSize().width * 2.f - 10.f, Size.height - 10.f ) );
     }
@@ -98,7 +98,7 @@ void KingEntity::UpdateHealth( int inHealth )
         HealthLabel->setString( std::to_string( inHealth ) );
         if( bIsOpponent )
         {
-            auto Size = Sprite->getContentSize() * Sprite->getScale();
+            auto Size = Sprite->getContentSize();
             HealthLabel->setPosition( cocos2d::Vec2( Size.width - 10.f, Size.height - 10.f ) );
         }
         else
@@ -119,7 +119,7 @@ void KingEntity::Invalidate()
         
         if( bIsOpponent )
         {
-            auto Size = Sprite->getContentSize() * Sprite->getScale();
+            auto Size = Sprite->getContentSize();
             HealthLabel->setPosition( cocos2d::Vec2( Size.width - 10.f, Size.height - 10.f ) );
         }
         else

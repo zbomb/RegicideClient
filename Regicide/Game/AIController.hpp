@@ -64,7 +64,6 @@ namespace Game
         MoveType Type;
         std::vector< float > Scores;
         SimulatedState State;
-        SimulatedState BaseState;
         int SimulationCount;
     };
 
@@ -92,6 +91,7 @@ namespace Game
         std::queue< std::pair< std::function< void() >, std::function< void( float ) > > > Tasks;
         AIState State;
         AIDifficulty Difficulty;
+        SimulatedState Simulation;
         
         std::vector< Decision > DecisionList;
         int SimulationCount;
@@ -109,6 +109,8 @@ namespace Game
         void BuildPlayOptions( MoveType inType );
         void DoBuildAttack( Decision& Base );
         void BuildAttackOptions();
+        void DoBuildBlock( Decision& Base );
+        void BuildBlockOptions();
         void SimulateAll();
         void Simulate( Decision& Target, int Turns );
         void FirstRunComplete();

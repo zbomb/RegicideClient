@@ -320,7 +320,7 @@ void DeckEntity::Invalidate()
         {
             if( *It && (*It)->Sprite )
             {
-                CardHeight = (*It)->Sprite->getContentSize().height * (*It)->Sprite->getScaleY();
+                CardHeight = (*It)->Sprite->getContentSize().height;
                 break;
             }
         }

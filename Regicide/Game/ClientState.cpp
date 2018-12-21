@@ -132,3 +132,19 @@ Player* ClientState::GetOtherPlayer( Player* Owner )
     
     return nullptr;
 }
+
+Player* ClientState::GetActivePlayer()
+{
+    if( pState == PlayerTurn::LocalPlayer )
+        return LocalPlayer;
+    else
+        return Opponent;
+}
+
+Player* ClientState::GetInactivePlayer()
+{
+    if( pState == PlayerTurn::LocalPlayer )
+        return Opponent;
+    else
+        return LocalPlayer;
+}

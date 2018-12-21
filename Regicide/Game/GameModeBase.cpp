@@ -47,7 +47,7 @@ GameModeBase::GameModeBase()
     AddAction( "Combat",        std::bind( &GameModeBase::OnCombat,         this, _1, _2 ) );
     AddAction( "UpdateStamina", std::bind( &GameModeBase::OnStaminaUpdate,  this, _1, _2 ) );
     AddAction( "CleanupBoard",  std::bind( &GameModeBase::OnBoardCleanup,   this, _1, _2 ) );
-    AddAction( "Attackers",     std::bind( &GameModeBase::OnAttackersSet,   this, _1, _2 ) );
+    AddAction( "BattleMatrix",  std::bind( &GameModeBase::OnMatrixUpdate,   this, _1, _2 ) );
     
     State.mState = MatchState::PreMatch;
     State.pState = PlayerTurn::None;
@@ -1889,8 +1889,24 @@ void GameModeBase::OnCombat( Action *In, std::function< void() > Callback )
     Blocker->ClearOverlay();
     Blocker->ClearHighlight();
     
+    bool IsDirty = false;
     if( Attacker->Power <= 0 || Attacker->Stamina <= 0 )
     {
+        // When an attacker died, erase all entries
+        for( auto It = BlockMatrix.cbegin(); It != BlockMatrix.cend(); )
+        {
+            if( It->second == Attacker )
+            {
+                IsDirty = true;
+                It = BlockMatrix.erase( It );
+                
+            }
+            else
+            {
+                ++It;
+            }
+        }
+        
         OnCardDied( Attacker );
     }
     
@@ -1899,7 +1915,6 @@ void GameModeBase::OnCombat( Action *In, std::function< void() > Callback )
         OnCardDied( Blocker );
     }
     
-    bool IsDirty = false;
     if( BlockMatrix.count( Attacker ) > 0 )
     {
         BlockMatrix.erase( Attacker );
@@ -1981,32 +1996,56 @@ void GameModeBase::OnBoardCleanup( Action* In, std::function< void() > Callback 
     FinishAction( Callback, 0.75f );
 }
 
-void GameModeBase::OnAttackersSet( Action *In, std::function<void ()> Callback )
+void GameModeBase::OnMatrixUpdate( Action *In, std::function<void ()> Callback )
 {
-    CardListEvent* Event = dynamic_cast< CardListEvent* >( In );
-    if( !Event )
+    BattleMatrixAction* Update = dynamic_cast< BattleMatrixAction* >( In );
+    if( !Update )
     {
-        cocos2d::log( "[GM] Invalid 'AttackersSet' event received! Cast Failed!" );
+        cocos2d::log( "[GM] Invalid 'BattleMatrix' event received! Cast Failed!" );
         return;
     }
     
-    auto Opponent = State.GetOpponent();
-    CC_ASSERT( Opponent );
+    auto AttackingPlayer = State.GetActivePlayer();
+    auto BlockingPlayer = State.GetInactivePlayer();
+    CC_ASSERT( AttackingPlayer && BlockingPlayer );
     
-    for( auto It = Event->Cards.begin(); It != Event->Cards.end(); It++ )
+    BlockMatrix.clear();
+    
+    for( auto It = Update->Matrix.begin(); It != Update->Matrix.end(); It++ )
     {
-        // Lookup each card, highlight and set each to attacking
-        CardEntity* Target = State.FindCard( *It, Opponent, CardPos::FIELD );
-        if( Target )
+        // Lookup Entity
+        CardEntity* Attacker = State.FindCard( It->first, AttackingPlayer, CardPos::FIELD );
+        if( Attacker )
         {
-            Target->bAttacking = true;
-            Target->SetHighlight( cocos2d::Color3B( 240, 30, 30 ) );
+            if( !Attacker->bAttacking )
+            {
+                Attacker->bAttacking = true;
+                Attacker->SetHighlight( cocos2d::Color3B( 240, 30, 30 ) );
+                Attacker->SetOverlay( "icon_attack.png", 180 );
+            }
+            
+            // Loop through blockers
+            for( auto In = It->second.begin(); In != It->second.end(); In++ )
+            {
+                // Lookup Entity
+                CardEntity* Blocker = State.FindCard( *In, BlockingPlayer, CardPos::FIELD );
+                if( Blocker )
+                {
+                    BlockMatrix[ Blocker ] = Attacker;
+                    Blocker->SetHighlight( cocos2d::Color3B( 30, 50, 240 ) );
+                }
+                else
+                {
+                    cocos2d::log( "[GM] Failed to find blocker in battle matrix update! %d", *In );
+                }
+            }
         }
         else
         {
-            cocos2d::log( "[GM] Failed to find a card inside of the 'AttackerSet' event!" );
+            cocos2d::log( "[GM] Failed to find attacker in battle matrix update! %d", It->first );
         }
     }
     
+    RedrawBlockers();
     FinishAction( Callback, 0.3f );
 }
